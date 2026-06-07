@@ -107,14 +107,61 @@ V1 canonical document representation is raw Markdown text in `Y.Text`.
 
 Editor-native structures may be used as UI helpers, but they must not become the durable source of truth unless they prove lossless Markdown fidelity for agent-authored files. The document-model comparison spike showed that Markdown-canonical preserves sample files byte-for-byte, while plain `prosemirror-markdown` loses frontmatter, task-list syntax, and pipe table structure.
 
-## Editor Strategy
+## Markdown Rendering and Editor Strategy
 
-Prototype two editor paths before committing:
+Lock the v1 web surface to a Markdown-canonical stack: raw Markdown remains the durable room document, read mode renders that Markdown directly, and edit mode uses a Markdown-native editor surface. Do not switch the v1 plan to a block-doc-first editor unless Markdown round-tripping evidence forces it.
 
-- Milkdown: MIT licensed, Markdown-native, ProseMirror-based, and Yjs-ready. Best default if Markdown fidelity and permissive licensing matter most.
-- BlockNote: more Notion-like out of the box, but core licensing is MPL-2.0 and some adjacent packages/features may have GPL, premium, or commercial constraints.
+### Locked read-mode renderer
 
-The prototype should compare both on the same real agent-generated Markdown examples:
+Use `react-markdown` with the remark/rehype ecosystem for the default read-only Markdown renderer.
+
+Required packages and roles:
+
+- `react-markdown`: React renderer for Markdown AST to React components.
+- `remark-gfm`: GitHub-flavored Markdown support for tables, task lists, strikethrough, autolinks, and footnotes.
+- `remark-math`: Parse inline and block math syntax.
+- `rehype-katex`: Render parsed math with KaTeX.
+- `katex`: Math CSS/assets for `rehype-katex`.
+- `rehype-raw`: Allow controlled embedded HTML only if the room policy permits it; keep disabled by default for untrusted rooms.
+- `rehype-sanitize`: Sanitize any raw HTML path before rendering.
+- `shiki`: Syntax highlighting engine for code fences.
+- `rehype-pretty-code`: Bridge Shiki into rehype-rendered code blocks.
+
+Read-mode defaults:
+
+- Enable GFM by default.
+- Enable math rendering when the document contains math syntax.
+- Render Mermaid fences as explicit diagram placeholders first; add live Mermaid rendering only behind a sanitized/isolated component.
+- Never render unsanitized raw HTML from shared rooms.
+- Use custom React components for links, images, code blocks, tables, task lists, headings, and proposal/comment anchors.
+- Preserve Markdown portability: renderer enhancements must not require custom Markdown syntax for ordinary documents.
+
+### Locked edit-mode editor
+
+Use Milkdown as the v1 polished Markdown editor candidate and remove BlockNote as a first-line prototype dependency.
+
+Milkdown rationale:
+
+- MIT licensed.
+- Markdown-native enough for the product direction.
+- ProseMirror-based, giving a serious extension model for comments, selections, and future suggestions.
+- Better aligned with durable `.md` export than block-doc-first editors.
+
+Milkdown packages to evaluate/install for the web app:
+
+- `@milkdown/core`
+- `@milkdown/react`
+- `@milkdown/preset-commonmark`
+- `@milkdown/preset-gfm`
+- `@milkdown/plugin-listener`
+- `@milkdown/plugin-history`
+- `@milkdown/plugin-clipboard`
+- `@milkdown/plugin-cursor`
+- `@milkdown/plugin-prism` or a Shiki-compatible code highlighting integration if preferred
+- `@milkdown/prose`
+- Yjs/ProseMirror bridge packages only after the single-user Markdown round-trip prototype passes
+
+The Milkdown prototype must run on the same real agent-generated Markdown examples:
 
 - Headings
 - Lists and task lists
@@ -129,7 +176,7 @@ The prototype should compare both on the same real agent-generated Markdown exam
 - Real-time editing behavior
 - Inline comment anchoring
 
-Default recommendation after verification: keep Markdown-canonical as the durable v1 model. Explore Milkdown/ProseMirror as an editing surface only if it can operate as a helper over raw Markdown or prove lossless fidelity for required Markdown features.
+Default recommendation after verification: keep Markdown-canonical as the durable v1 model. Milkdown is the editing surface, not the source of truth, unless it proves lossless Markdown fidelity for required Markdown features.
 
 Markdown round-tripping is a product risk, not a solved assumption. The prototype must measure how much formatting and structure survive import/export, especially for frontmatter, tables, Mermaid, math, code fences, and long agent reports.
 
@@ -162,6 +209,11 @@ mdroom export --room <url-or-token>
 mdroom status --room <url-or-token>
 mdroom context --room <url-or-token>
 ```
+
+Current proposal command behavior to preserve:
+
+2. `mdroom propose file.md --room <url-or-token> --title "..." --comment "..."` submits `file.md` as an encrypted whole-document proposal against the current accepted Markdown. The CLI should create a pending proposal record, assign the proposer a room/system-generated persona, store the title/comment as review metadata, and leave the accepted document unchanged until a human accepts it.
+3. `mdroom proposals --room <url-or-token>` lists decrypted proposal summaries for the room, including proposal id, status, title, and persona. Status should be derived by replaying encrypted room records, not by trusting mutable plaintext server-side state.
 
 CLI requirements:
 
