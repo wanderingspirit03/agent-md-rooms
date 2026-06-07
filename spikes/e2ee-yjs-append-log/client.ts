@@ -4,7 +4,11 @@ import * as Y from 'yjs';
 import { decryptUpdate, deriveRoomKey, encryptUpdate } from './crypto.js';
 import type { EncryptedUpdateRecord } from './server.js';
 
-const SUGGESTION_UPDATE_SENDER_ID_PREFIX = 'mdroom-cli:suggestion';
+const OPAQUE_ROOM_RECORD_SENDER_ID_PREFIXES = [
+  'mdroom-cli:event',
+  'mdroom-cli:proposal',
+  'mdroom-cli:suggestion',
+] as const;
 
 export interface EncryptedYjsClientOptions {
   serverUrl: string;
@@ -86,7 +90,7 @@ export class EncryptedYjsClient {
     if (message.type !== 'encrypted-update' || !message.record) return false;
 
     this.assertAcceptableSequence(message.record);
-    if (message.record.senderId.startsWith(SUGGESTION_UPDATE_SENDER_ID_PREFIX)) {
+    if (isOpaqueRoomRecord(message.record.senderId)) {
       this.nextExpectedSeq += 1;
       return false;
     }
@@ -145,6 +149,10 @@ export class EncryptedYjsClient {
     if (!this.roomKey) throw new Error('Room key is not initialized');
     return this.roomKey;
   }
+}
+
+function isOpaqueRoomRecord(senderId: string): boolean {
+  return OPAQUE_ROOM_RECORD_SENDER_ID_PREFIXES.some((prefix) => senderId.startsWith(prefix));
 }
 
 export class ProtocolIntegrityError extends Error {

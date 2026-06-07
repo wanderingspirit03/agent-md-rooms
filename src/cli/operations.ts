@@ -4,6 +4,7 @@ import { mkdir } from 'node:fs/promises';
 import {
   createEncryptedMarkdownSnapshot,
   createEncryptedMarkdownUpdate,
+  createEncryptedMarkdownReplacementUpdateFromRecords,
   decryptMarkdownFromRecords,
   decryptMarkdownSnapshot,
   summarizeMarkdown,
@@ -346,6 +347,12 @@ export async function acceptProposal(options: ProposalIdOptions): Promise<Decide
     throw new Error(`Proposal ${proposal.id} is based on ${proposal.base.sha256} but current document is ${currentDocument.sha256}`);
   }
   const document = summarizeMarkdown(proposal.proposed.markdown);
+  const documentUpdate = await createEncryptedMarkdownReplacementUpdateFromRecords(
+    records,
+    proposal.proposed.markdown,
+    reference,
+  );
+  await appendEncryptedUpdate(reference, documentUpdate);
   const reviewerPersona = assignPersona({
     roomId: reference.roomId,
     participantKind: 'human',

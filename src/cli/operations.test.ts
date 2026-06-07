@@ -3,7 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { EncryptedAppendLogServer } from '../../spikes/e2ee-yjs-append-log/server.js';
+import { decryptMarkdownFromRecords } from '../rooms/markdown-snapshot.js';
 import { defaultMetadataPath, readRoomMetadata } from '../rooms/metadata.js';
+import { parseRoomReference } from '../rooms/room-reference.js';
 import {
   acceptProposal,
   exportMarkdown,
@@ -281,6 +283,10 @@ describe('CLI operations', () => {
       });
       proposals = await listProposals({ cwd, room: published.room.token });
       const exported = await exportMarkdown({ cwd, room: published.room.token });
+      const canonicalMarkdown = await decryptMarkdownFromRecords(
+        server.store.list(published.room.roomId),
+        parseRoomReference(published.room.token),
+      );
 
       expect(accepted.schema).toBe('mdroom.accept.result.v1');
       expect(accepted.proposal.status).toBe('accepted');
@@ -288,6 +294,8 @@ describe('CLI operations', () => {
       expect(rejected.proposal.status).toBe('rejected');
       expect(proposals.proposals.map((proposal) => proposal.status)).toEqual(['accepted', 'rejected']);
       expect(exported.document.markdown).toBe(acceptedMarkdown);
+      expect(canonicalMarkdown).toBe(acceptedMarkdown);
+      expect(server.store.list(published.room.roomId).filter((record) => record.senderId === 'mdroom-cli:document')).toHaveLength(2);
 
       const serverStorage = server.store.serialized(published.room.roomId);
       expect(serverStorage).not.toContain(original);
