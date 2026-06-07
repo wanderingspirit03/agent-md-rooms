@@ -192,9 +192,9 @@ describe('encrypted Yjs append-log spike', () => {
     }
   });
 
-  it('ignores encrypted patch suggestion records while preserving append-log sequence', async () => {
-    const roomId = 'suggestion-record-room';
-    const roomSecret = 'suggestion-record-key';
+  it('ignores encrypted opaque room records while preserving append-log sequence', async () => {
+    const roomId = 'opaque-record-room';
+    const roomSecret = 'opaque-record-key';
     const server = new EncryptedAppendLogServer();
     const serverUrl = await server.start();
 
@@ -208,28 +208,31 @@ describe('encrypted Yjs append-log spike', () => {
       await bob.waitForText('# Accepted document');
 
       const roomKey = await deriveRoomKey(roomId, roomSecret);
-      const suggestion = await encryptUpdate(
-        Buffer.from(JSON.stringify({ proposedMarkdown: '# Suggested only' }), 'utf8'),
-        roomKey,
-        {
-          roomId,
-          senderId: 'mdroom-cli:suggestion:test',
-        },
-      );
-      const posted = await apiJson<{ record: EncryptedUpdateRecord }>(
-        `${serverUrl}/rooms/${encodeURIComponent(roomId)}/updates`,
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            update: {
-              senderId: 'mdroom-cli:suggestion:test',
-              ...suggestion,
-            },
-          }),
-          headers: { 'content-type': 'application/json' },
-        },
-      );
-      expect(posted.body.record.seq).toBe(2);
+      for (const senderId of [
+        'mdroom-cli:suggestion:test',
+        'mdroom-cli:proposal:test',
+        'mdroom-cli:event:test',
+      ]) {
+        const opaque = await encryptUpdate(
+          Buffer.from(JSON.stringify({ proposedMarkdown: '# Suggested only' }), 'utf8'),
+          roomKey,
+          { roomId, senderId },
+        );
+        const posted = await apiJson<{ record: EncryptedUpdateRecord }>(
+          `${serverUrl}/rooms/${encodeURIComponent(roomId)}/updates`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              update: {
+                senderId,
+                ...opaque,
+              },
+            }),
+            headers: { 'content-type': 'application/json' },
+          },
+        );
+        expect(posted.body.record.seq).toBeGreaterThan(1);
+      }
 
       alice.markdown.insert(alice.markdown.length, '\n\nAccepted follow-up.');
       await bob.waitForText('# Accepted document\n\nAccepted follow-up.');
