@@ -163,6 +163,105 @@ Dependency policy:
 - Suggested changes are a separate review system, not a built-in property of CRDT sync.
 - Current sequence hardening is detection-only for delivered records. Stronger malicious-server protection still needs a client-authenticated envelope, hash chain, signed checkpoints, or comparable protocol design.
 
+## Phased Roadmap
+
+### Phase 1: Server Ergonomics
+
+Make the encrypted append-log server easy to run locally.
+
+- Add a proper server entrypoint such as `npm run server -- --port 8787 --data ./data`.
+- Use file-backed encrypted append-log persistence by default.
+- Print clear server startup and shutdown messages.
+- Support graceful shutdown.
+- Document the local publish, patch, status, and export flow.
+
+Goal: no one should need a one-off `tsx -e` command to start the server.
+
+### Phase 2: Self-Hosting
+
+Make deployment boring for OSS users.
+
+- Add a Dockerfile for the sync server.
+- Add `docker-compose.yml` with a persistent append-log volume.
+- Add a health check endpoint.
+- Document Docker, VPS, and simple hosted deployment paths.
+- Keep required infrastructure minimal.
+
+Goal: a self-hoster can run the encrypted sync server in minutes.
+
+### Phase 3: Web Room Viewer
+
+Build the first browser room experience.
+
+- Open room URLs with `#key=...`.
+- Fetch encrypted append-log records.
+- Decrypt room content locally in the browser.
+- Render Markdown in read mode.
+- Show non-sensitive room status.
+- Support Markdown export/download.
+
+Goal: humans can view what agents publish.
+
+### Phase 4: Web Editing
+
+Add collaborative editing for the accepted document.
+
+- Connect to the encrypted WebSocket room stream.
+- Edit Markdown-backed `Y.Text`.
+- Encrypt outgoing Yjs updates locally.
+- Preserve the Markdown-canonical source of truth.
+- Add presence only if it is encrypted or explicitly non-sensitive.
+
+Goal: humans can edit the accepted room document collaboratively.
+
+### Phase 5: Patch Review UI
+
+Make agent patch suggestions useful.
+
+- List encrypted patch suggestions.
+- Decrypt suggestions client-side.
+- Show whole-document diffs.
+- Support accept and reject.
+- Apply accepted patches as real document updates.
+- Keep rejected or pending suggestions separate from accepted Markdown export.
+
+Goal: agents can propose changes and humans can review them safely.
+
+### Phase 6: Comments
+
+Add review discussion around documents and patches.
+
+- Start with encrypted document-level comments.
+- Add replies and resolved state.
+- Later validate anchored comments using robust positions such as block IDs, Yjs relative positions, or a hybrid.
+- Keep comment payloads unreadable to the server.
+
+Goal: humans and agents can discuss the document without leaving the room.
+
+### Phase 7: Versions
+
+Add understandable checkpoints.
+
+- Capture the initial publish.
+- Capture accepted patch versions.
+- Support manual saved versions.
+- Export any named version.
+- Keep version metadata safe under the E2EE model.
+
+Goal: room history becomes recoverable and explainable.
+
+### Phase 8: Product Polish
+
+Make the platform feel cohesive and reliable.
+
+- Improve CLI errors, JSON schemas, and room metadata management.
+- Add example agent workflows.
+- Finish license and dependency audits.
+- Improve onboarding docs.
+- Split packages only when the repo shape needs it.
+
+Goal: move from promising spike to usable OSS product.
+
 ## First Implementation Milestones
 
 1. Complete the E2EE plus Yjs persistence spike. Current result: `viable_with_constraints` for a custom encrypted append-log provider.

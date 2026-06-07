@@ -4,6 +4,8 @@ import * as Y from 'yjs';
 import { decryptUpdate, deriveRoomKey, encryptUpdate } from './crypto.js';
 import type { EncryptedUpdateRecord } from './server.js';
 
+const SUGGESTION_UPDATE_SENDER_ID_PREFIX = 'mdroom-cli:suggestion';
+
 export interface EncryptedYjsClientOptions {
   serverUrl: string;
   roomId: string;
@@ -84,6 +86,11 @@ export class EncryptedYjsClient {
     if (message.type !== 'encrypted-update' || !message.record) return false;
 
     this.assertAcceptableSequence(message.record);
+    if (message.record.senderId.startsWith(SUGGESTION_UPDATE_SENDER_ID_PREFIX)) {
+      this.nextExpectedSeq += 1;
+      return false;
+    }
+
     const update = await decryptUpdate(message.record, this.key(), {
       roomId: message.record.roomId,
       senderId: message.record.senderId,

@@ -15,6 +15,12 @@ export interface IncomingEncryptedUpdate extends EncryptedPayload {
   senderId: string;
 }
 
+export interface RoomStatus {
+  roomId: string;
+  recordCount: number;
+  latestSeq: number | null;
+}
+
 export interface EncryptedAppendLogStore {
   append(roomId: string, update: IncomingEncryptedUpdate): EncryptedUpdateRecord;
   list(roomId: string): EncryptedUpdateRecord[];
@@ -174,16 +180,33 @@ export class EncryptedAppendLogServer {
 
   private async handleHttp(request: http.IncomingMessage, response: http.ServerResponse): Promise<void> {
     const url = new URL(request.url ?? '/', 'http://localhost');
-    const roomId = roomIdFromPath(url.pathname, '/rooms/', '/updates');
+    const updatesRoomId = roomIdFromPath(url.pathname, '/rooms/', '/updates');
+    const statusRoomId = roomIdFromPath(url.pathname, '/rooms/', '/status');
 
-    if (request.method !== 'GET' || !roomId) {
-      response.writeHead(404, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'not found' }));
+    if (request.method === 'GET' && updatesRoomId) {
+      sendJson(response, 200, { updates: this.store.list(updatesRoomId) });
       return;
     }
 
-    response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({ updates: this.store.list(roomId) }));
+    if (request.method === 'POST' && updatesRoomId) {
+      const body = await readJsonBody(request);
+      if (!isIncomingUpdateRequest(body)) {
+        sendJson(response, 400, { error: 'invalid update request' });
+        return;
+      }
+
+      const record = this.store.append(updatesRoomId, body.update);
+      this.broadcast(updatesRoomId, { type: 'encrypted-update', record });
+      sendJson(response, 201, { record });
+      return;
+    }
+
+    if (request.method === 'GET' && statusRoomId) {
+      sendJson(response, 200, roomStatus(statusRoomId, this.store.list(statusRoomId)));
+      return;
+    }
+
+    sendJson(response, 404, { error: 'not found' });
   }
 
   private broadcast(roomId: string, message: unknown): void {
@@ -231,9 +254,48 @@ function parseIncomingMessage(raw: string): { type: 'encrypted-update'; update: 
   }
 }
 
+async function readJsonBody(request: http.IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of request) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+  }
+
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function isIncomingUpdateRequest(value: unknown): value is { update: IncomingEncryptedUpdate } {
+  if (!value || typeof value !== 'object') return false;
+  const update = (value as { update?: Partial<IncomingEncryptedUpdate> }).update;
+  return Boolean(
+    update &&
+    typeof update.senderId === 'string' &&
+    typeof update.nonce === 'string' &&
+    typeof update.ciphertext === 'string',
+  );
+}
+
+function roomStatus(roomId: string, records: EncryptedUpdateRecord[]): RoomStatus {
+  return {
+    roomId,
+    recordCount: records.length,
+    latestSeq: records.at(-1)?.seq ?? null,
+  };
+}
+
+function sendJson(response: http.ServerResponse, statusCode: number, body: unknown): void {
+  response.writeHead(statusCode, { 'content-type': 'application/json' });
+  response.end(JSON.stringify(body));
+}
+
 function roomIdFromPath(path: string, prefix: string, suffix: string): string | null {
-  if (!path.startsWith(prefix) || !path.endsWith(suffix)) return null;
-  const encodedRoomId = path.slice(prefix.length, -suffix.length);
+  if (!path.endsWith(suffix)) return null;
+  const prefixIndex = path.lastIndexOf(prefix);
+  if (prefixIndex === -1) return null;
+  const encodedRoomId = path.slice(prefixIndex + prefix.length, -suffix.length);
   if (!encodedRoomId) return null;
   return decodeURIComponent(encodedRoomId);
 }

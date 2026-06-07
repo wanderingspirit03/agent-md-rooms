@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import WebSocket from 'ws';
 import * as Y from 'yjs';
 import { EncryptedYjsClient, ProtocolIntegrityError } from './client.js';
-import { decryptUpdate, deriveRoomKey } from './crypto.js';
+import { decryptUpdate, deriveRoomKey, encryptUpdate } from './crypto.js';
 import {
   EncryptedAppendLogServer,
   FileAppendLogStore,
@@ -15,6 +15,150 @@ import {
 } from './server.js';
 
 describe('encrypted Yjs append-log spike', () => {
+  it('appends encrypted updates through HTTP POST and replays them through HTTP GET', async () => {
+    const roomId = 'http-api-room';
+    const server = new EncryptedAppendLogServer();
+    const serverUrl = await server.start();
+    const update: IncomingEncryptedUpdate = {
+      senderId: 'agent-cli',
+      nonce: 'http-nonce',
+      ciphertext: 'http-ciphertext',
+    };
+
+    try {
+      const posted = await apiJson<{ record: EncryptedUpdateRecord }>(
+        `${serverUrl}/rooms/${encodeURIComponent(roomId)}/updates`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ update }),
+          headers: { 'content-type': 'application/json' },
+        },
+      );
+
+      expect(posted.status).toBe(201);
+      expect(posted.body.record).toEqual({
+        roomId,
+        seq: 1,
+        ...update,
+      });
+
+      const replayed = await apiJson<{ updates: EncryptedUpdateRecord[] }>(
+        `${serverUrl}/rooms/${encodeURIComponent(roomId)}/updates`,
+      );
+
+      expect(replayed.status).toBe(200);
+      expect(replayed.body.updates).toEqual([posted.body.record]);
+    } finally {
+      await server.stop();
+    }
+  });
+
+  it('reports HTTP room status without encrypted payloads or plaintext document data', async () => {
+    const roomId = 'status-api-room';
+    const plaintext = 'Server status must never expose this plaintext.';
+    const server = new EncryptedAppendLogServer();
+    const serverUrl = await server.start();
+
+    try {
+      await apiJson<{ record: EncryptedUpdateRecord }>(
+        `${serverUrl}/rooms/${encodeURIComponent(roomId)}/updates`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            update: {
+              senderId: 'agent-cli',
+              nonce: 'status-nonce',
+              ciphertext: `opaque-ciphertext-not-${plaintext}`,
+            },
+          }),
+          headers: { 'content-type': 'application/json' },
+        },
+      );
+
+      const status = await apiJson<Record<string, unknown>>(
+        `${serverUrl}/rooms/${encodeURIComponent(roomId)}/status`,
+      );
+      const rawStatus = JSON.stringify(status.body);
+
+      expect(status.status).toBe(200);
+      expect(Object.keys(status.body).sort()).toEqual(['latestSeq', 'recordCount', 'roomId']);
+      expect(status.body).toEqual({
+        roomId,
+        recordCount: 1,
+        latestSeq: 1,
+      });
+      expect(rawStatus).not.toContain(plaintext);
+      expect(rawStatus).not.toContain('status-nonce');
+      expect(rawStatus).not.toContain('opaque-ciphertext');
+      expect(rawStatus).not.toContain('agent-cli');
+    } finally {
+      await server.stop();
+    }
+  });
+
+  it('reports null latestSeq for empty HTTP room status', async () => {
+    const roomId = 'empty-status-api-room';
+    const server = new EncryptedAppendLogServer();
+    const serverUrl = await server.start();
+
+    try {
+      const status = await apiJson<Record<string, unknown>>(
+        `${serverUrl}/rooms/${encodeURIComponent(roomId)}/status`,
+      );
+
+      expect(status.status).toBe(200);
+      expect(status.body).toEqual({
+        roomId,
+        recordCount: 0,
+        latestSeq: null,
+      });
+    } finally {
+      await server.stop();
+    }
+  });
+
+  it('broadcasts HTTP-appended updates to existing WebSocket room subscribers', async () => {
+    const roomId = 'http-post-broadcast-room';
+    const server = new EncryptedAppendLogServer();
+    const serverUrl = await server.start();
+    const socket = new WebSocket(wsUrl(serverUrl, roomId));
+    const messages: Array<{ type?: string; record?: EncryptedUpdateRecord }> = [];
+
+    socket.on('message', (raw) => {
+      messages.push(JSON.parse(raw.toString()) as { type?: string; record?: EncryptedUpdateRecord });
+    });
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        socket.once('open', resolve);
+        socket.once('error', reject);
+      });
+      await waitFor(() => messages.some((message) => message.type === 'sync-complete'));
+
+      const posted = await apiJson<{ record: EncryptedUpdateRecord }>(
+        `${serverUrl}/rooms/${encodeURIComponent(roomId)}/updates`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            update: {
+              senderId: 'agent-cli',
+              nonce: 'broadcast-nonce',
+              ciphertext: 'broadcast-ciphertext',
+            },
+          }),
+          headers: { 'content-type': 'application/json' },
+        },
+      );
+
+      await waitFor(() => messages.some((message) => message.type === 'encrypted-update'));
+      const broadcast = messages.find((message) => message.type === 'encrypted-update');
+      expect(broadcast?.record).toEqual(posted.body.record);
+    } finally {
+      socket.close();
+      await server.stop();
+    }
+  });
+
   it('syncs two clients, persists reloadable encrypted updates, and keeps server storage opaque', async () => {
     const roomId = 'test-room';
     const roomSecret = 'test-url-fragment-key';
@@ -43,6 +187,55 @@ describe('encrypted Yjs append-log spike', () => {
       alice.disconnect();
       bob.disconnect();
       reloaded.disconnect();
+    } finally {
+      await server.stop();
+    }
+  });
+
+  it('ignores encrypted patch suggestion records while preserving append-log sequence', async () => {
+    const roomId = 'suggestion-record-room';
+    const roomSecret = 'suggestion-record-key';
+    const server = new EncryptedAppendLogServer();
+    const serverUrl = await server.start();
+
+    try {
+      const alice = new EncryptedYjsClient({ serverUrl, roomId, roomSecret, clientId: 'alice' });
+      const bob = new EncryptedYjsClient({ serverUrl, roomId, roomSecret, clientId: 'bob' });
+      await alice.connect();
+      await bob.connect();
+
+      alice.markdown.insert(0, '# Accepted document');
+      await bob.waitForText('# Accepted document');
+
+      const roomKey = await deriveRoomKey(roomId, roomSecret);
+      const suggestion = await encryptUpdate(
+        Buffer.from(JSON.stringify({ proposedMarkdown: '# Suggested only' }), 'utf8'),
+        roomKey,
+        {
+          roomId,
+          senderId: 'mdroom-cli:suggestion:test',
+        },
+      );
+      const posted = await apiJson<{ record: EncryptedUpdateRecord }>(
+        `${serverUrl}/rooms/${encodeURIComponent(roomId)}/updates`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            update: {
+              senderId: 'mdroom-cli:suggestion:test',
+              ...suggestion,
+            },
+          }),
+          headers: { 'content-type': 'application/json' },
+        },
+      );
+      expect(posted.body.record.seq).toBe(2);
+
+      alice.markdown.insert(alice.markdown.length, '\n\nAccepted follow-up.');
+      await bob.waitForText('# Accepted document\n\nAccepted follow-up.');
+
+      alice.disconnect();
+      bob.disconnect();
     } finally {
       await server.stop();
     }
@@ -313,6 +506,14 @@ async function waitFor(condition: () => boolean, timeoutMs = 2_000): Promise<voi
   }
 
   throw new Error('Timed out waiting for condition');
+}
+
+async function apiJson<T>(url: string, init?: RequestInit): Promise<{ status: number; body: T }> {
+  const response = await fetch(url, init);
+  return {
+    status: response.status,
+    body: await response.json() as T,
+  };
 }
 
 function wsUrl(serverUrl: string, roomId: string): string {

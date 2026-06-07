@@ -6,11 +6,14 @@ import {
   encryptUpdate,
   type EncryptedPayload,
 } from '../../spikes/e2ee-yjs-append-log/crypto.js';
+import type { EncryptedUpdateRecord, IncomingEncryptedUpdate } from '../../spikes/e2ee-yjs-append-log/server.js';
 import type { RoomAccess } from './room-reference.js';
 
 export const MARKDOWN_YTEXT_NAME = 'markdown';
 export const MARKDOWN_CANONICAL = 'y.text:markdown';
 export const ENCRYPTED_SNAPSHOT_FORMAT = 'encrypted-yjs-update-v1';
+export const DOCUMENT_UPDATE_SENDER_ID = 'mdroom-cli:document';
+export const SUGGESTION_UPDATE_SENDER_ID_PREFIX = 'mdroom-cli:suggestion';
 
 export interface EncryptedMarkdownSnapshot extends EncryptedPayload {
   format: typeof ENCRYPTED_SNAPSHOT_FORMAT;
@@ -28,6 +31,21 @@ export async function createEncryptedMarkdownSnapshot(
   access: RoomAccess,
   senderId: string,
 ): Promise<EncryptedMarkdownSnapshot> {
+  const encrypted = await createEncryptedMarkdownUpdate(markdown, access, senderId);
+
+  return {
+    format: ENCRYPTED_SNAPSHOT_FORMAT,
+    senderId,
+    nonce: encrypted.nonce,
+    ciphertext: encrypted.ciphertext,
+  };
+}
+
+export async function createEncryptedMarkdownUpdate(
+  markdown: string,
+  access: RoomAccess,
+  senderId = DOCUMENT_UPDATE_SENDER_ID,
+): Promise<IncomingEncryptedUpdate> {
   const doc = new Y.Doc();
   try {
     doc.getText(MARKDOWN_YTEXT_NAME).insert(0, markdown);
@@ -39,7 +57,6 @@ export async function createEncryptedMarkdownSnapshot(
     });
 
     return {
-      format: ENCRYPTED_SNAPSHOT_FORMAT,
       senderId,
       ...encrypted,
     };
@@ -70,6 +87,30 @@ export async function decryptMarkdownSnapshot(
   }
 }
 
+export async function decryptMarkdownFromRecords(
+  records: EncryptedUpdateRecord[],
+  access: RoomAccess,
+): Promise<string> {
+  const doc = new Y.Doc();
+  try {
+    assertContiguousRecords(records, access.roomId);
+    const roomKey = await deriveRoomKey(access.roomId, access.roomSecret);
+    for (const record of records) {
+      if (record.senderId.startsWith(SUGGESTION_UPDATE_SENDER_ID_PREFIX)) continue;
+
+      const update = await decryptUpdate(record, roomKey, {
+        roomId: record.roomId,
+        senderId: record.senderId,
+      });
+      Y.applyUpdate(doc, update, 'server-export');
+    }
+
+    return doc.getText(MARKDOWN_YTEXT_NAME).toString();
+  } finally {
+    doc.destroy();
+  }
+}
+
 export function summarizeMarkdown(markdown: string): MarkdownDocumentSummary {
   const bytes = Buffer.byteLength(markdown, 'utf8');
   return {
@@ -77,4 +118,23 @@ export function summarizeMarkdown(markdown: string): MarkdownDocumentSummary {
     bytes,
     sha256: createHash('sha256').update(markdown).digest('hex'),
   };
+}
+
+function assertContiguousRecords(records: EncryptedUpdateRecord[], roomId: string): void {
+  let expectedSeq = 1;
+  for (const record of records) {
+    if (record.roomId !== roomId) {
+      throw new Error(`Received update for unexpected room ${JSON.stringify(record.roomId)}`);
+    }
+
+    if (!Number.isSafeInteger(record.seq) || record.seq < 1) {
+      throw new Error(`Received invalid append-log sequence ${record.seq}`);
+    }
+
+    if (record.seq !== expectedSeq) {
+      throw new Error(`Detected missing, duplicate, or reordered append-log sequence ${record.seq}; expected ${expectedSeq}`);
+    }
+
+    expectedSeq += 1;
+  }
 }

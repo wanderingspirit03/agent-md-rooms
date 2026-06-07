@@ -6,10 +6,11 @@ import {
   type Application,
 } from '@stricli/core';
 import type { MdroomCommandContext } from './context.js';
-import { exportMarkdown, publishMarkdown, roomStatus } from './operations.js';
+import { exportMarkdown, patchMarkdown, publishMarkdown, roomStatus } from './operations.js';
 import {
   writeExportHuman,
   writeJson,
+  writePatchHuman,
   writePublishHuman,
   writeStatusHuman,
 } from './output.js';
@@ -28,6 +29,12 @@ type ExportFlags = {
 
 type StatusFlags = {
   room: string;
+  json: boolean;
+};
+
+type PatchFlags = {
+  room: string;
+  summary?: string;
   json: boolean;
 };
 
@@ -119,6 +126,55 @@ export const app: Application<MdroomCommandContext> = buildApplication(
           });
           if (flags.json) writeJson(this, result);
           else writeExportHuman(this, result);
+        },
+      }),
+      patch: buildCommand<PatchFlags, [string], MdroomCommandContext>({
+        parameters: {
+          flags: {
+            room: {
+              kind: 'parsed',
+              parse: parseString,
+              brief: 'Room URL or mdroom token',
+              placeholder: 'url-or-token',
+            },
+            summary: {
+              kind: 'parsed',
+              parse: parseString,
+              optional: true,
+              brief: 'Human-readable patch summary',
+              placeholder: 'text',
+            },
+            json: {
+              kind: 'boolean',
+              default: false,
+              withNegated: false,
+              brief: 'Print a stable JSON result',
+            },
+          },
+          positional: {
+            kind: 'tuple',
+            parameters: [
+              {
+                parse: parseString,
+                placeholder: 'file.md',
+                brief: 'Markdown file to submit as a suggestion',
+              },
+            ],
+          },
+        },
+        docs: {
+          brief: 'Submit an encrypted whole-document patch suggestion',
+          customUsage: ['mdroom patch <file.md> --room <url-or-token> [--summary <text>] [--json]'],
+        },
+        async func(this: MdroomCommandContext, flags, filePath) {
+          const result = await patchMarkdown({
+            cwd: this.cwd,
+            filePath,
+            room: flags.room,
+            summary: flags.summary,
+          });
+          if (flags.json) writeJson(this, result);
+          else writePatchHuman(this, result);
         },
       }),
       status: buildCommand<StatusFlags, [], MdroomCommandContext>({

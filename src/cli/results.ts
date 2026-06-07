@@ -17,21 +17,24 @@ export interface MetadataResult {
 export interface PublishResult {
   schema: 'mdroom.publish.result.v1';
   ok: true;
-  mode: 'local-token';
+  mode: 'server-backed';
   room: PublicRoomResult;
   metadata: MetadataResult;
   document: MarkdownDocumentSummary;
-  todo: string[];
+  server: {
+    recordCount: number;
+    latestSeq: number;
+  };
 }
 
 export interface ExportResult {
   schema: 'mdroom.export.result.v1';
   ok: true;
-  mode: 'local-token';
+  mode: 'server-backed';
   room: PublicRoomResult;
   metadata: {
     path: string;
-    found: true;
+    found: boolean;
   };
   output: {
     path: string | null;
@@ -42,13 +45,16 @@ export interface ExportResult {
   document: MarkdownDocumentSummary & {
     markdown: string;
   };
-  todo: string[];
+  server: {
+    recordCount: number;
+    latestSeq: number | null;
+  };
 }
 
 export interface StatusResult {
   schema: 'mdroom.status.result.v1';
   ok: true;
-  mode: 'local-token';
+  mode: 'server-backed';
   room: PublicRoomResult;
   metadata: {
     path: string;
@@ -59,8 +65,31 @@ export interface StatusResult {
   };
   document: MarkdownDocumentSummary | null;
   server: {
-    checked: false;
-    reason: string;
+    checked: true;
+    recordCount: number;
+    latestSeq: number | null;
   };
-  todo: string[];
+}
+
+export interface PatchResult {
+  schema: 'mdroom.patch.result.v1';
+  ok: true;
+  mode: 'suggestion';
+  room: PublicRoomResult;
+  metadata: {
+    path: string;
+    found: boolean;
+  };
+  base: MarkdownDocumentSummary;
+  proposed: MarkdownDocumentSummary;
+  suggestion: {
+    id: string;
+    kind: 'whole-document-replacement';
+    baseSha256: string;
+    proposedSha256: string;
+  };
+  server: {
+    recordCount: number;
+    latestSeq: number;
+  };
 }
