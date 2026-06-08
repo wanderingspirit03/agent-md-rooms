@@ -171,7 +171,7 @@ export function DocumentSurface({
           "selection:bg-midnight-soft selection:text-document-ink sm:px-12 lg:px-16",
         )}
       >
-        <div data-file-comment-control className="absolute right-3 top-3 z-10 flex items-center gap-1.5">
+        <div data-file-comment-control className="mb-4 flex items-center justify-end gap-1.5">
           {fileComments.length > 0 && (
             <button
               type="button"
