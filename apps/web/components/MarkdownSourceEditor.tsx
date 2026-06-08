@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
-import { FileText, PenLine } from "lucide-react";
 import { Textarea } from "./ui/textarea";
 
 interface MarkdownSourceEditorProps {
@@ -39,29 +38,29 @@ export default function MarkdownSourceEditor({
   };
 
   return (
-    <div data-editor-shell="true" className="overflow-hidden rounded-md border border-studio-line bg-studio-paper shadow-[0_28px_90px_rgba(0,0,0,0.24)]">
-      <div data-editor-header="true" className="flex items-center justify-between border-b border-studio-line bg-studio-sunken px-3 py-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="flex items-center gap-2 text-xs font-medium text-ink-muted">
-            <PenLine className="h-3.5 w-3.5 text-midnight-strong" />
-            Markdown source
-          </div>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-ink-muted">
-          <FileText className="h-3.5 w-3.5" />
-          <span>{counts.lines} lines</span>
-          <span>{counts.words} words</span>
-        </div>
-      </div>
-      <div className="relative min-h-[620px] bg-document">
+    <div
+      data-editor-shell="true"
+      className="overflow-hidden rounded-md border border-document-edge bg-document text-document-ink shadow-[0_28px_90px_rgba(0,0,0,0.32),0_1px_0_rgba(255,255,255,0.78)_inset]"
+    >
+      <div className="relative min-h-[560px] bg-document sm:min-h-[680px]">
         <Textarea
           aria-label="Markdown source"
           value={markdown}
           onChange={handleSourceChange}
           onBlur={() => onCommitRef.current?.(markdown)}
+          placeholder="Write Markdown..."
           spellCheck={false}
-          className="min-h-[620px] resize-none rounded-none border-0 bg-document px-6 py-6 font-mono text-[13px] leading-6 text-document-ink shadow-none outline-none placeholder:text-document-subtle focus-visible:ring-0 sm:px-12 sm:py-10 lg:px-16"
+          className="min-h-[560px] resize-none rounded-none border-0 bg-document px-6 pb-16 pt-8 font-mono text-[13px] leading-6 text-document-ink shadow-none outline-none placeholder:text-document-subtle selection:bg-midnight-soft focus-visible:ring-0 sm:min-h-[680px] sm:px-12 sm:pb-20 sm:pt-10 lg:px-16"
         />
+        <div
+          data-editor-stats="true"
+          aria-label={`${counts.lines} lines, ${counts.words} words`}
+          className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-end gap-3 border-t border-document-edge bg-document/95 px-4 py-2 font-mono text-[11px] text-document-subtle"
+        >
+          <span>{counts.lines} lines</span>
+          <span aria-hidden="true" className="text-document-edge">/</span>
+          <span>{counts.words} words</span>
+        </div>
       </div>
     </div>
   );
