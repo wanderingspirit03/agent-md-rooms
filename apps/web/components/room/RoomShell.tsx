@@ -653,26 +653,33 @@ function SidebarFolder({
   name,
   open,
   onToggle,
+  commentCount = 0,
+  pendingCount = 0,
   depth = 0,
 }: {
   name: string;
   open: boolean;
   onToggle: () => void;
+  commentCount?: number;
+  pendingCount?: number;
   depth?: number;
 }) {
   const FolderIcon = open ? FolderOpen : FolderClosed;
+  const indicatorLabel = reviewIndicatorLabel(commentCount, pendingCount);
 
   return (
     <button
       type="button"
       aria-expanded={open}
+      aria-label={indicatorLabel ? `${name}, ${indicatorLabel}` : name}
       onClick={onToggle}
       className="mt-2 flex h-7 w-full items-center gap-1.5 rounded px-2 text-left text-xs text-ink-muted transition-colors hover:bg-porcelain hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
       style={{ paddingLeft: `${0.5 + depth * 0.85}rem` }}
     >
       <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open ? "rotate-0" : "-rotate-90")} />
       <FolderIcon className="h-3.5 w-3.5" />
-      <span>{name}</span>
+      <span className="min-w-0 flex-1 truncate">{name}</span>
+      <FileReviewIndicators commentCount={commentCount} pendingCount={pendingCount} />
     </button>
   );
 }
@@ -716,10 +723,7 @@ function FileReviewIndicators({
   const total = commentCount + pendingCount;
   if (total === 0) return null;
 
-  const label = [
-    commentCount ? `${commentCount} ${commentCount === 1 ? "comment" : "comments"}` : "",
-    pendingCount ? `${pendingCount} pending ${pendingCount === 1 ? "suggestion" : "suggestions"}` : "",
-  ].filter(Boolean).join(", ");
+  const label = reviewIndicatorLabel(commentCount, pendingCount);
 
   return (
     <span
@@ -731,6 +735,13 @@ function FileReviewIndicators({
       <span>{total}</span>
     </span>
   );
+}
+
+function reviewIndicatorLabel(commentCount: number, pendingCount: number) {
+  return [
+    commentCount ? `${commentCount} ${commentCount === 1 ? "comment" : "comments"}` : "",
+    pendingCount ? `${pendingCount} pending ${pendingCount === 1 ? "suggestion" : "suggestions"}` : "",
+  ].filter(Boolean).join(", ");
 }
 
 function SidebarCreateFile({
@@ -770,6 +781,7 @@ function SidebarTreeFolder({
   onFileSelect: (path: string) => void;
 }) {
   const open = Boolean(forceOpen || (openFolders[folder.path] ?? true));
+  const reviewCounts = folderReviewCounts(folder);
 
   return (
     <div>
@@ -777,6 +789,8 @@ function SidebarTreeFolder({
         name={folder.name}
         open={open}
         depth={depth}
+        commentCount={reviewCounts.commentCount}
+        pendingCount={reviewCounts.pendingCount}
         onToggle={() => onToggle(folder.path)}
       />
       {open && (
@@ -881,6 +895,21 @@ function compareProjectFiles(a: ProjectFile, b: ProjectFile) {
 
 function treeHasFiles(folder: ProjectTreeFolder): boolean {
   return folder.files.length > 0 || folder.folders.some(treeHasFiles);
+}
+
+function folderReviewCounts(folder: ProjectTreeFolder) {
+  return folder.folders.reduce(
+    (counts, child) => {
+      const childCounts = folderReviewCounts(child);
+      counts.commentCount += childCounts.commentCount;
+      counts.pendingCount += childCounts.pendingCount;
+      return counts;
+    },
+    {
+      commentCount: folder.files.reduce((count, file) => count + (file.commentCount || 0), 0),
+      pendingCount: folder.files.reduce((count, file) => count + (file.pendingCount || 0), 0),
+    },
+  );
 }
 
 type PaletteItem = {
