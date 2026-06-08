@@ -13,6 +13,7 @@ export interface Proposal {
   proposedMarkdown: string;
   createdAt: string;
   status: ProposalStatus;
+  filePath?: string;
   anchorType?: ThreadAnchorType;
   selectedQuote?: string;
   createdFromMarkdown?: string;
@@ -33,9 +34,10 @@ export interface ChatComment {
   id: string;
   authorPersonaId: string;
   persona: RoomPersona;
+  filePath?: string;
   text: string;
   createdAt: string;
-  type: "note" | "question" | "request" | "blocker" | "decision" | "uncertainty";
+  type: "note";
   anchorType?: ThreadAnchorType;
   selectedQuote?: string;
   createdFromMarkdown?: string;

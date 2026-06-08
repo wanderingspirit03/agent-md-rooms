@@ -7,6 +7,7 @@ import { toBase64Url } from "../lib/crypto";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { ThemeToggle } from "../components/ThemeToggle";
 import {
   Tooltip,
   TooltipContent,
@@ -58,14 +59,14 @@ export default function HomePage() {
       const matchKey = /#key=([a-zA-Z0-9_-]+)/.exec(url.hash);
 
       if (!roomId || !matchKey?.[1]) {
-        window.alert("Paste a room link with /room/:id#key=...");
+        window.alert("Paste a project link with /room/:id#key=...");
         return;
       }
 
-      saveRoomToRecent(roomId, matchKey[1], `Room ${roomId.slice(0, 8)}`);
+      saveRoomToRecent(roomId, matchKey[1], `Project ${roomId.slice(0, 8)}`);
       router.push(`/room/${roomId}#key=${matchKey[1]}`);
     } catch {
-      window.alert("Paste a full room link.");
+      window.alert("Paste a full project link.");
     }
   };
 
@@ -77,10 +78,10 @@ export default function HomePage() {
       const roomBytes = window.crypto.getRandomValues(new Uint8Array(16));
       const roomId = toBase64Url(roomBytes);
 
-      saveRoomToRecent(roomId, roomSecret, "Untitled room");
+      saveRoomToRecent(roomId, roomSecret, "Untitled project");
       router.push(`/room/${roomId}#key=${roomSecret}`);
     } catch (err) {
-      window.alert(`Could not create room: ${String(err)}`);
+      window.alert(`Could not create project: ${String(err)}`);
     } finally {
       setIsCreating(false);
     }
@@ -93,38 +94,39 @@ export default function HomePage() {
 
   return (
     <TooltipProvider>
-      <div className="min-h-dvh bg-white text-ink">
-        <header className="border-b border-line-soft bg-white">
+      <div className="min-h-dvh bg-studio text-ink">
+        <header className="border-b border-studio-line bg-studio-paper">
           <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
             <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-ink text-xs font-medium text-white">
-                MD
-              </div>
+              <span aria-hidden className="fold-logo-mark h-8 w-8 shrink-0" />
               <div>
-                <h1 className="text-sm font-medium">Agent MD Rooms</h1>
-                <p className="text-xs text-ink-muted">Encrypted Markdown rooms</p>
+                <h1 className="text-sm font-medium">Fold</h1>
+                <p className="text-xs text-ink-muted">Encrypted Markdown projects</p>
               </div>
             </div>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button asChild variant="ghost" size="icon" aria-label="GitHub">
-                  <a href="https://github.com/wanderingspirit03/agent-md-rooms" target="_blank" rel="noreferrer">
-                    <Github className="h-4 w-4" />
-                  </a>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Open repository</TooltipContent>
-            </Tooltip>
+            <div className="flex items-center gap-1">
+              <ThemeToggle />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button asChild variant="ghost" size="icon" aria-label="GitHub">
+                    <a href="https://github.com/wanderingspirit03/agent-md-rooms" target="_blank" rel="noreferrer">
+                      <Github className="h-4 w-4" />
+                    </a>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Open repository</TooltipContent>
+              </Tooltip>
+            </div>
           </div>
         </header>
 
         <main className="mx-auto grid max-w-5xl gap-6 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <section className="rounded-xl border border-line-soft bg-white p-5 shadow-[0_0_18px_rgba(208,214,215,0.32)]">
+          <section className="rounded-md border border-studio-line bg-studio-paper p-5 shadow-[0_24px_80px_rgba(0,0,0,0.25)]">
             <div className="mb-6 flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-medium">Open a room</h2>
-                <p className="mt-1 text-sm text-ink-muted">Create one, or join with a link.</p>
+                <h2 className="text-lg font-medium">Open a project</h2>
+                <p className="mt-1 text-sm text-ink-muted">Create a project, or join with an encrypted link.</p>
               </div>
               <Badge variant="muted">Local keys</Badge>
             </div>
@@ -133,7 +135,7 @@ export default function HomePage() {
               <Button className="w-full justify-between" onClick={handleCreateRoom} disabled={isCreating}>
                 <span className="flex items-center gap-2">
                   <Plus className="h-4 w-4" />
-                  {isCreating ? "Creating" : "Create room"}
+                  {isCreating ? "Creating" : "Create project"}
                 </span>
                 <ArrowRight className="h-4 w-4" />
               </Button>
@@ -141,7 +143,7 @@ export default function HomePage() {
               <form onSubmit={handleJoinUrl} className="space-y-2">
                 <label htmlFor="room-link" className="flex items-center gap-2 text-sm font-medium text-ink-muted">
                   <Link2 className="h-4 w-4" />
-                  Join room
+                  Join project
                 </label>
                 <div className="flex gap-2">
                   <Input
@@ -160,7 +162,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          <section className="rounded-xl border border-line-soft bg-bone p-5">
+          <section className="rounded-md border border-studio-line bg-studio-paper p-5">
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-ink-muted" />
@@ -175,9 +177,9 @@ export default function HomePage() {
             </div>
 
             {recentRooms.length === 0 ? (
-              <div className="flex min-h-[180px] flex-col items-center justify-center rounded-xl border border-dashed border-line-soft bg-white text-center">
+              <div className="flex min-h-[180px] flex-col items-center justify-center rounded-md border border-dashed border-studio-line bg-studio-sunken text-center">
                 <FileText className="mb-2 h-5 w-5 text-ink-subtle" />
-                <p className="text-sm font-medium text-ink-muted">No recent rooms</p>
+                <p className="text-sm font-medium text-ink-muted">No recent projects</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -186,7 +188,7 @@ export default function HomePage() {
                     key={room.roomId}
                     type="button"
                     onClick={() => router.push(`/room/${room.roomId}#key=${room.key}`)}
-                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-line-soft bg-white p-3 text-left transition-colors hover:bg-porcelain focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink"
+                    className="flex w-full items-center justify-between gap-3 rounded-md border border-studio-line bg-studio-sunken p-3 text-left transition-colors hover:bg-porcelain focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-ink">{room.name}</p>

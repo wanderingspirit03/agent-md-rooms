@@ -1,10 +1,27 @@
 "use client";
 
-import { ArrowLeft, Download, FileText, Pencil } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  Command,
+  Download,
+  File,
+  FileText,
+  FolderClosed,
+  FolderOpen,
+  MessageSquare,
+  PanelRightOpen,
+  Pencil,
+  Plus,
+  Search,
+  X,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import type { RoomPersona } from "../../lib/personas";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
+import { ThemeToggle } from "../ThemeToggle";
 import {
   Tooltip,
   TooltipContent,
@@ -17,112 +34,838 @@ import type { RoomMode } from "./types";
 
 interface RoomShellProps {
   roomId: string;
+  files: ProjectFile[];
+  selectedFilePath: string;
   connected: boolean;
   ready: boolean;
   recordCount: number;
   pendingCount: number;
+  reviewCount: number;
   persona?: RoomPersona | null;
   mode: RoomMode;
   error?: string | null;
   onBack: () => void;
   onExport: () => void;
   onModeChange: (mode: RoomMode) => void;
+  onFileSelect: (path: string) => void;
+  onCreateFile: (path: string) => void;
   document: ReactNode;
   bench: ReactNode;
 }
 
 export function RoomShell({
   roomId,
+  files,
+  selectedFilePath,
   connected,
   ready,
-  recordCount,
-  pendingCount,
+  reviewCount,
   persona,
   mode,
   error,
   onBack,
   onExport,
   onModeChange,
+  onFileSelect,
+  onCreateFile,
   document,
   bench,
 }: RoomShellProps) {
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [projectFilesOpen, setProjectFilesOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const selectedFile = useMemo(
+    () => files.find((file) => file.path === selectedFilePath) ?? files[0],
+    [files, selectedFilePath],
+  );
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   return (
     <TooltipProvider>
       <div className="min-h-dvh bg-studio text-ink">
-        <header className="sticky top-0 z-30 border-b border-studio-line bg-studio/90 backdrop-blur">
-          <div className="mx-auto flex h-16 max-w-[1480px] items-center justify-between gap-4 px-4 sm:px-6">
-            <div className="flex min-w-0 items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-studio-line bg-document font-mono text-xs font-semibold text-ink">
-                    MD
+        <div className="grid min-h-dvh md:grid-cols-[286px_minmax(0,1fr)]">
+          <ProjectFileSidebar
+            roomId={roomId}
+            files={files}
+            onBack={onBack}
+            onFileSelect={onFileSelect}
+            onCreateFile={onCreateFile}
+          />
+
+          <div className="min-w-0 border-l border-studio-line bg-studio-sunken">
+            <header className="sticky top-0 z-30 border-b border-studio-line bg-studio-paper/95 backdrop-blur">
+              <div className="flex h-12 items-center justify-between gap-3 px-3 sm:px-4">
+                <div className="flex min-w-0 items-center gap-2">
+                  <Button variant="ghost" size="icon" onClick={() => setProjectFilesOpen(true)} aria-label="Open project files" className="md:hidden">
+                    <FolderClosed className="h-4 w-4" />
+                  </Button>
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-studio-line bg-studio-sunken text-ink-muted">
+                    <FileText className="h-3.5 w-3.5" />
                   </span>
                   <div className="min-w-0">
-                    <h1 className="truncate font-mono text-sm font-semibold text-ink">{roomId?.slice(0, 14)}</h1>
-                    <p className="truncate text-xs text-ink-muted">Encrypted Markdown room</p>
+                    <h1 className="truncate text-sm font-medium text-ink">{selectedFile.name}</h1>
+                    <p className="truncate text-[11px] text-ink-subtle">{selectedFile.path}</p>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            <div className="hidden rounded-lg border border-studio-line bg-document p-1 sm:flex">
-              <ModeButton active={mode === "read"} onClick={() => onModeChange("read")}>
-                <FileText className="h-3.5 w-3.5" />
-                Read
-              </ModeButton>
-              <ModeButton active={mode === "edit"} onClick={() => onModeChange("edit")}>
-                <Pencil className="h-3.5 w-3.5" />
-                Edit
-              </ModeButton>
-            </div>
-
-            <div className="flex min-w-0 items-center gap-2">
-              <div className="flex rounded-lg border border-studio-line bg-document p-0.5 sm:hidden">
-                <ModeIconButton
-                  active={mode === "read"}
-                  label="Read mode"
-                  onClick={() => onModeChange("read")}
-                >
-                  <FileText className="h-3.5 w-3.5" />
-                </ModeIconButton>
-                <ModeIconButton
-                  active={mode === "edit"}
-                  label="Edit mode"
-                  onClick={() => onModeChange("edit")}
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </ModeIconButton>
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setCommandOpen(true)}
+                        aria-label="Open command palette"
+                      >
+                        <Command className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Command palette</TooltipContent>
+                  </Tooltip>
+                  <ThemeToggle />
+                  <div className="hidden rounded-md border border-studio-line bg-studio-sunken p-0.5 sm:flex">
+                    <ModeButton active={mode === "read"} onClick={() => onModeChange("read")}>
+                      <FileText className="h-3.5 w-3.5" />
+                      Read
+                    </ModeButton>
+                    <ModeButton active={mode === "edit"} onClick={() => onModeChange("edit")}>
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit
+                    </ModeButton>
+                  </div>
+                  <div className="flex rounded-md border border-studio-line bg-studio-sunken p-0.5 sm:hidden">
+                    <ModeIconButton active={mode === "read"} label="Read mode" onClick={() => onModeChange("read")}>
+                      <FileText className="h-3.5 w-3.5" />
+                    </ModeIconButton>
+                    <ModeIconButton active={mode === "edit"} label="Edit mode" onClick={() => onModeChange("edit")}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </ModeIconButton>
+                  </div>
+                  {persona && <PersonaChip persona={persona} compact className="hidden lg:inline-flex" />}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setReviewOpen(true)}
+                        aria-label="Open comments and suggestions"
+                        className="relative"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                        {reviewCount > 0 && (
+                          <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-midnight-strong" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Comments and suggestions</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" onClick={onExport} aria-label="Export Markdown">
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Export Markdown</TooltipContent>
+                  </Tooltip>
+                </div>
               </div>
-              {persona && <PersonaChip persona={persona} compact className="hidden sm:inline-flex" />}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" onClick={onExport} aria-label="Export Markdown">
-                    <Download className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Export Markdown</TooltipContent>
-              </Tooltip>
-            </div>
+              <SecurityStrip
+                connected={connected}
+                ready={ready}
+                error={error}
+              />
+            </header>
+
+            <main className="min-w-0 px-3 py-4 sm:px-6 lg:px-8 lg:py-7">{document}</main>
           </div>
-          <SecurityStrip
-            connected={connected}
-            ready={ready}
-            recordCount={recordCount}
-            pendingCount={pendingCount}
-            error={error}
-          />
-        </header>
-
-        <div className="grid min-h-[calc(100dvh-105px)] lg:grid-cols-[minmax(0,1fr)_390px]">
-          <main className="min-w-0 px-4 py-6 sm:px-8 lg:py-8">{document}</main>
-          {bench}
         </div>
+
+        {projectFilesOpen && (
+          <>
+            <div className="fixed inset-y-0 left-0 z-50 w-[330px] max-w-[calc(100vw-2rem)] border-r border-studio-line bg-studio-paper shadow-[24px_0_80px_rgba(0,0,0,0.45)] md:hidden">
+              <ProjectFilesHeader roomId={roomId} onBack={onBack} onClose={() => setProjectFilesOpen(false)} />
+              <ProjectFilesBody
+                files={files}
+                onFileSelect={(path) => {
+                  onFileSelect(path);
+                  setProjectFilesOpen(false);
+                }}
+                onCreateFile={(path) => {
+                  onCreateFile(path);
+                  setProjectFilesOpen(false);
+                }}
+              />
+            </div>
+            <button
+              type="button"
+              aria-label="Close project files"
+              className="fixed inset-0 z-40 bg-black/45 backdrop-blur-[1px] md:hidden"
+              onClick={() => setProjectFilesOpen(false)}
+            />
+          </>
+        )}
+
+        {reviewOpen && (
+          <>
+            <div className="fixed inset-y-0 right-0 z-50 w-full max-w-[390px] border-l border-studio-line bg-rail shadow-[-24px_0_80px_rgba(0,0,0,0.45)]">
+              <div className="flex h-12 items-center justify-between border-b border-studio-line px-4">
+                <div className="flex items-center gap-2">
+                  <PanelRightOpen className="h-4 w-4 text-midnight-strong" />
+                  <span className="text-sm font-medium text-ink">Review</span>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => setReviewOpen(false)} aria-label="Close review">
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              {bench}
+            </div>
+            <button
+              type="button"
+              aria-label="Close review overlay"
+              className="fixed inset-0 z-40 bg-black/45 backdrop-blur-[1px]"
+              onClick={() => setReviewOpen(false)}
+            />
+          </>
+        )}
+
+        {commandOpen && (
+          <ProjectCommandPalette
+            files={files}
+            selectedFilePath={selectedFilePath}
+            mode={mode}
+            onClose={() => setCommandOpen(false)}
+            onFileSelect={(path) => {
+              onFileSelect(path);
+              setProjectFilesOpen(false);
+              setCommandOpen(false);
+            }}
+            onCreateFile={(path) => {
+              onCreateFile(path);
+              setProjectFilesOpen(false);
+              setCommandOpen(false);
+            }}
+            onModeChange={(nextMode) => {
+              onModeChange(nextMode);
+              setCommandOpen(false);
+            }}
+            onExport={() => {
+              onExport();
+              setCommandOpen(false);
+            }}
+            onOpenReview={() => {
+              setReviewOpen(true);
+              setCommandOpen(false);
+            }}
+          />
+        )}
       </div>
     </TooltipProvider>
   );
+}
+
+interface ProjectFile {
+  name: string;
+  path: string;
+  folder: string;
+  active?: boolean;
+  status?: string;
+}
+
+function ProjectFileSidebar({
+  roomId,
+  files,
+  onBack,
+  onFileSelect,
+  onCreateFile,
+}: {
+  roomId: string;
+  files: ProjectFile[];
+  onBack: () => void;
+  onFileSelect: (path: string) => void;
+  onCreateFile: (path: string) => void;
+}) {
+  return (
+    <aside className="hidden min-h-dvh flex-col bg-studio-paper text-ink md:flex">
+      <ProjectFilesHeader roomId={roomId} onBack={onBack} />
+      <ProjectFilesBody
+        files={files}
+        onFileSelect={onFileSelect}
+        onCreateFile={onCreateFile}
+      />
+    </aside>
+  );
+}
+
+function ProjectFilesHeader({
+  roomId,
+  onBack,
+  onClose,
+}: {
+  roomId: string;
+  onBack: () => void;
+  onClose?: () => void;
+}) {
+  return (
+    <div className="flex h-12 items-center gap-2 border-b border-studio-line px-3">
+      <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back">
+        <ArrowLeft className="h-4 w-4" />
+      </Button>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <span aria-hidden className="fold-logo-mark h-5 w-5 shrink-0" />
+          <h2 className="truncate text-sm font-semibold">Fold</h2>
+        </div>
+        <p className="truncate font-mono text-[11px] text-ink-subtle">{roomId?.slice(0, 18)}</p>
+      </div>
+      {onClose && (
+        <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close project files">
+          <X className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function ProjectFilesBody({
+  files,
+  onFileSelect,
+  onCreateFile,
+}: {
+  files: ProjectFile[];
+  onFileSelect: (path: string) => void;
+  onCreateFile: (path: string) => void;
+}) {
+  const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({
+    docs: true,
+    reports: true,
+  });
+  const [query, setQuery] = useState("");
+  const [isCreatingFile, setIsCreatingFile] = useState(false);
+  const [newFilePath, setNewFilePath] = useState("docs/untitled.md");
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const createInputRef = useRef<HTMLInputElement | null>(null);
+  const normalizedQuery = query.trim().toLowerCase();
+  const fileTree = useMemo(() => buildProjectFileTree(files, normalizedQuery), [files, normalizedQuery]);
+  const hasSearchResults = fileTree.files.length > 0 || fileTree.folders.some((folder) => treeHasFiles(folder));
+  const toggleFolder = (name: string) => {
+    setOpenFolders((current) => ({ ...current, [name]: !(current[name] ?? true) }));
+  };
+  const handleFileSelect = (path: string) => {
+    setQuery("");
+    onFileSelect(path);
+  };
+  const handleCreateFile = (event: React.FormEvent) => {
+    event.preventDefault();
+    const path = newFilePath.trim();
+    if (!path) return;
+    onCreateFile(path);
+    setQuery("");
+    setNewFilePath("docs/untitled.md");
+    setIsCreatingFile(false);
+  };
+
+  useEffect(() => {
+    if (!isCreatingFile) return;
+    window.requestAnimationFrame(() => createInputRef.current?.focus());
+  }, [isCreatingFile]);
+
+  return (
+    <div className="flex h-[calc(100dvh-48px)] flex-col">
+      <div className="border-b border-studio-line p-3">
+        <label className="flex h-8 items-center gap-2 rounded-md border border-studio-line bg-studio-sunken px-2 text-xs text-ink-subtle focus-within:border-midnight/30 focus-within:bg-porcelain">
+          <Search className="h-3.5 w-3.5" />
+          <input
+            ref={searchInputRef}
+            aria-label="Search project files"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Filter files"
+            className="min-w-0 flex-1 bg-transparent text-xs text-ink outline-none placeholder:text-ink-subtle"
+          />
+          {query ? (
+            <button
+              type="button"
+              aria-label="Clear file search"
+              className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-ink-subtle hover:bg-porcelain hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+              onClick={() => setQuery("")}
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
+        </label>
+      </div>
+
+      <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
+        <SidebarSection
+          title="Project"
+          action={
+            <button
+              type="button"
+              aria-label="Create Markdown file"
+              onClick={() => setIsCreatingFile((open) => !open)}
+              className="inline-flex h-6 w-6 items-center justify-center rounded text-ink-subtle hover:bg-porcelain hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+          }
+        >
+          {isCreatingFile && (
+            <form onSubmit={handleCreateFile} className="mb-2 flex items-center gap-1 rounded-md border border-studio-line bg-studio-sunken p-1">
+              <input
+                ref={createInputRef}
+                aria-label="New Markdown file path"
+                value={newFilePath}
+                onChange={(event) => setNewFilePath(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") setIsCreatingFile(false);
+                }}
+                className="min-w-0 flex-1 bg-transparent px-1.5 py-1 text-xs text-ink outline-none placeholder:text-ink-subtle"
+                placeholder="docs/new.md"
+              />
+              <button
+                type="submit"
+                aria-label="Create file"
+                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded bg-midnight text-white hover:bg-midnight-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            </form>
+          )}
+          {fileTree.files.map((file) => (
+            <SidebarFile key={file.path} file={file} depth={0} onFileSelect={handleFileSelect} />
+          ))}
+          {fileTree.folders.map((folder) => (
+            <SidebarTreeFolder
+              key={folder.path}
+              folder={folder}
+              depth={0}
+              forceOpen={Boolean(normalizedQuery)}
+              openFolders={openFolders}
+              onToggle={toggleFolder}
+              onFileSelect={handleFileSelect}
+            />
+          ))}
+          {normalizedQuery && !hasSearchResults && (
+            <p className="px-2 py-3 text-xs text-ink-subtle">No files found</p>
+          )}
+        </SidebarSection>
+      </nav>
+
+    </div>
+  );
+}
+
+function SidebarSection({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
+  return (
+    <section>
+      <div className="mb-1 flex items-center justify-between px-2">
+        <p className="text-[11px] font-medium uppercase text-ink-subtle">{title}</p>
+        {action}
+      </div>
+      <div className="space-y-0.5">{children}</div>
+    </section>
+  );
+}
+
+function SidebarFolder({
+  name,
+  open,
+  onToggle,
+  depth = 0,
+}: {
+  name: string;
+  open: boolean;
+  onToggle: () => void;
+  depth?: number;
+}) {
+  const FolderIcon = open ? FolderOpen : FolderClosed;
+
+  return (
+    <button
+      type="button"
+      aria-expanded={open}
+      onClick={onToggle}
+      className="mt-2 flex h-7 w-full items-center gap-1.5 rounded px-2 text-left text-xs text-ink-muted transition-colors hover:bg-porcelain hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+      style={{ paddingLeft: `${0.5 + depth * 0.85}rem` }}
+    >
+      <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open ? "rotate-0" : "-rotate-90")} />
+      <FolderIcon className="h-3.5 w-3.5" />
+      <span>{name}</span>
+    </button>
+  );
+}
+
+function SidebarFile({
+  file,
+  onFileSelect,
+  depth = 0,
+}: {
+  file: ProjectFile;
+  onFileSelect: (path: string) => void;
+  depth?: number;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onFileSelect(file.path)}
+      style={{ paddingLeft: `${0.5 + depth * 0.85}rem` }}
+      className={cn(
+        "group flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm transition-colors",
+        file.active
+          ? "bg-porcelain text-ink"
+          : "text-ink-muted hover:bg-porcelain hover:text-ink",
+      )}
+    >
+      <File className="h-3.5 w-3.5 shrink-0 text-ink-subtle group-hover:text-ink-muted" />
+      <span className="min-w-0 flex-1 truncate">{file.name}</span>
+      {file.status && <span className="rounded bg-studio-sunken px-1 text-[10px] text-ink-subtle">{file.status}</span>}
+    </button>
+  );
+}
+
+function SidebarTreeFolder({
+  folder,
+  depth,
+  forceOpen,
+  openFolders,
+  onToggle,
+  onFileSelect,
+}: {
+  folder: ProjectTreeFolder;
+  depth: number;
+  forceOpen: boolean;
+  openFolders: Record<string, boolean>;
+  onToggle: (path: string) => void;
+  onFileSelect: (path: string) => void;
+}) {
+  const open = Boolean(forceOpen || (openFolders[folder.path] ?? true));
+
+  return (
+    <div>
+      <SidebarFolder
+        name={folder.name}
+        open={open}
+        depth={depth}
+        onToggle={() => onToggle(folder.path)}
+      />
+      {open && (
+        <>
+          {folder.folders.map((child) => (
+            <SidebarTreeFolder
+              key={child.path}
+              folder={child}
+              depth={depth + 1}
+              forceOpen={forceOpen}
+              openFolders={openFolders}
+              onToggle={onToggle}
+              onFileSelect={onFileSelect}
+            />
+          ))}
+          {folder.files.map((file) => (
+            <SidebarFile key={file.path} file={file} depth={depth + 1} onFileSelect={onFileSelect} />
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
+interface ProjectTreeFolder {
+  name: string;
+  path: string;
+  folders: ProjectTreeFolder[];
+  files: ProjectFile[];
+}
+
+interface ProjectFileTree {
+  files: ProjectFile[];
+  folders: ProjectTreeFolder[];
+}
+
+function buildProjectFileTree(files: ProjectFile[], query: string): ProjectFileTree {
+  const roots = new Map<string, MutableProjectTreeFolder>();
+  const rootFiles: ProjectFile[] = [];
+  const ensureFolder = (name: string, path: string, parent?: MutableProjectTreeFolder) => {
+    const map = parent ? parent.folderMap : roots;
+    let folder = map.get(path);
+    if (!folder) {
+      folder = { name, path, folderMap: new Map(), folders: [], files: [] };
+      map.set(path, folder);
+      if (parent) parent.folders.push(folder);
+    }
+    return folder;
+  };
+
+  if (!query) {
+    ["docs", "reports"].forEach((name) => ensureFolder(name, name));
+  }
+
+  for (const file of files) {
+    if (query && !`${file.name} ${file.path}`.toLowerCase().includes(query)) continue;
+    const parts = file.path.split("/").filter(Boolean);
+    if (parts.length <= 1) {
+      rootFiles.push(file);
+      continue;
+    }
+
+    const folderParts = parts.slice(0, -1);
+    let parent: MutableProjectTreeFolder | undefined;
+    let currentPath = "";
+    for (const part of folderParts) {
+      currentPath = currentPath ? `${currentPath}/${part}` : part;
+      parent = ensureFolder(part, currentPath, parent);
+    }
+    parent?.files.push(file);
+  }
+
+  const toPublicFolder = (folder: MutableProjectTreeFolder): ProjectTreeFolder => ({
+    name: folder.name,
+    path: folder.path,
+    folders: folder.folders.sort(compareTreeFolders).map(toPublicFolder),
+    files: folder.files.sort(compareProjectFiles),
+  });
+
+  return {
+    files: rootFiles.sort(compareProjectFiles),
+    folders: Array.from(roots.values()).sort(compareTreeFolders).map(toPublicFolder),
+  };
+}
+
+interface MutableProjectTreeFolder extends ProjectTreeFolder {
+  folderMap: Map<string, MutableProjectTreeFolder>;
+  folders: MutableProjectTreeFolder[];
+}
+
+function compareTreeFolders(a: Pick<ProjectTreeFolder, "name">, b: Pick<ProjectTreeFolder, "name">) {
+  const order = ["docs", "reports"];
+  const ai = order.indexOf(a.name);
+  const bi = order.indexOf(b.name);
+  if (ai !== -1 || bi !== -1) return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  return a.name.localeCompare(b.name);
+}
+
+function compareProjectFiles(a: ProjectFile, b: ProjectFile) {
+  return a.name.localeCompare(b.name);
+}
+
+function treeHasFiles(folder: ProjectTreeFolder): boolean {
+  return folder.files.length > 0 || folder.folders.some(treeHasFiles);
+}
+
+type PaletteItem = {
+  id: string;
+  label: string;
+  detail: string;
+  icon: ReactNode;
+  action: () => void;
+};
+
+function ProjectCommandPalette({
+  files,
+  selectedFilePath,
+  mode,
+  onClose,
+  onFileSelect,
+  onCreateFile,
+  onModeChange,
+  onExport,
+  onOpenReview,
+}: {
+  files: ProjectFile[];
+  selectedFilePath: string;
+  mode: RoomMode;
+  onClose: () => void;
+  onFileSelect: (path: string) => void;
+  onCreateFile: (path: string) => void;
+  onModeChange: (mode: RoomMode) => void;
+  onExport: () => void;
+  onOpenReview: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const normalizedQuery = query.trim().toLowerCase();
+  const requestedPath = normalizePaletteFilePath(query);
+  const matchingFile = requestedPath ? files.some((file) => file.path.toLowerCase() === requestedPath.toLowerCase()) : false;
+
+  useEffect(() => {
+    window.requestAnimationFrame(() => inputRef.current?.focus());
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  const staticItems: PaletteItem[] = [
+    {
+      id: "review",
+      label: "Review current file",
+      detail: selectedFilePath,
+      icon: <MessageSquare className="h-4 w-4" />,
+      action: onOpenReview,
+    },
+    {
+      id: "export",
+      label: "Export current file",
+      detail: selectedFilePath,
+      icon: <Download className="h-4 w-4" />,
+      action: onExport,
+    },
+    {
+      id: "read",
+      label: "Switch to read",
+      detail: mode === "read" ? "Current mode" : selectedFilePath,
+      icon: <FileText className="h-4 w-4" />,
+      action: () => onModeChange("read"),
+    },
+    {
+      id: "edit",
+      label: "Switch to edit",
+      detail: mode === "edit" ? "Current mode" : selectedFilePath,
+      icon: <Pencil className="h-4 w-4" />,
+      action: () => onModeChange("edit"),
+    },
+  ];
+  const fileItems: PaletteItem[] = files.map((file) => ({
+    id: `file:${file.path}`,
+    label: file.name,
+    detail: file.path,
+    icon: <File className="h-4 w-4" />,
+    action: () => onFileSelect(file.path),
+  }));
+  const createItem: PaletteItem[] = requestedPath && !matchingFile
+    ? [{
+      id: `create:${requestedPath}`,
+      label: `Create ${requestedPath.split("/").pop() || requestedPath}`,
+      detail: requestedPath,
+      icon: <Plus className="h-4 w-4" />,
+      action: () => onCreateFile(requestedPath),
+    }]
+    : [];
+  const items = [...createItem, ...fileItems, ...staticItems]
+    .filter((item) => {
+      if (!normalizedQuery) return true;
+      return `${item.label} ${item.detail}`.toLowerCase().includes(normalizedQuery);
+    })
+    .slice(0, 10);
+
+  const runFirstItem = (event: React.FormEvent) => {
+    event.preventDefault();
+    items[0]?.action();
+  };
+
+  const handleDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Tab") return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const focusable = Array.from(
+      dialog.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+      ),
+    ).filter((element) => element.offsetParent !== null);
+    if (focusable.length === 0) return;
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement;
+
+    if (event.shiftKey && active === first) {
+      event.preventDefault();
+      last.focus();
+      return;
+    }
+
+    if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="Close command palette"
+        tabIndex={-1}
+        className="fixed inset-0 z-[60] bg-black/55 backdrop-blur-[2px]"
+        onClick={onClose}
+      />
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Command palette"
+        onKeyDown={handleDialogKeyDown}
+        className="fixed left-1/2 top-16 z-[70] w-[min(640px,calc(100vw-1rem))] -translate-x-1/2 overflow-hidden rounded-md border border-studio-line bg-studio-paper shadow-[0_28px_90px_rgba(0,0,0,0.28)]"
+      >
+        <form onSubmit={runFirstItem} className="border-b border-studio-line">
+          <label className="flex h-12 items-center gap-2 px-3 text-ink-muted">
+            <Search className="h-4 w-4 shrink-0" />
+            <input
+              ref={inputRef}
+              aria-label="Search commands and files"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Open file or command"
+              className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-subtle"
+            />
+            <span className="rounded border border-studio-line px-1.5 py-0.5 font-mono text-[10px] text-ink-subtle">Esc</span>
+          </label>
+        </form>
+        <div className="max-h-[420px] overflow-y-auto p-1.5">
+          {items.length === 0 ? (
+            <p className="px-3 py-4 text-sm text-ink-subtle">No matches</p>
+          ) : (
+            items.map((item, index) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={item.action}
+                className={cn(
+                  "flex h-11 w-full items-center gap-3 rounded px-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong",
+                  index === 0 ? "bg-studio-sunken" : "hover:bg-studio-sunken",
+                )}
+              >
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-studio-line bg-studio-sunken text-ink-subtle">
+                  {item.icon}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm text-ink">{item.label}</span>
+                  <span className="block truncate text-[11px] text-ink-subtle">{item.detail}</span>
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function normalizePaletteFilePath(value: string) {
+  const trimmed = value.trim().replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!trimmed || !trimmed.includes(".")) return "";
+  const collapsed = trimmed
+    .split("/")
+    .map((part) => part.trim())
+    .filter((part) => part && part !== "." && part !== "..")
+    .join("/");
+  if (!collapsed) return "";
+  return collapsed.toLowerCase().endsWith(".md") ? collapsed : `${collapsed}.md`;
 }
 
 function ModeIconButton({
@@ -143,8 +886,8 @@ function ModeIconButton({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink",
-        active ? "bg-ink text-white shadow-sm" : "text-ink-muted hover:bg-studio-paper hover:text-ink",
+        "inline-flex h-8 w-8 items-center justify-center rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong",
+        active ? "bg-midnight text-white shadow-sm" : "text-ink-muted hover:bg-porcelain hover:text-ink",
       )}
     >
       {children}
@@ -166,8 +909,8 @@ function ModeButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink",
-        active ? "bg-ink text-white shadow-sm" : "text-ink-muted hover:bg-studio-paper hover:text-ink",
+        "inline-flex h-7 items-center gap-1.5 rounded px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong",
+        active ? "bg-midnight text-white shadow-sm" : "text-ink-muted hover:bg-porcelain hover:text-ink",
       )}
     >
       {children}

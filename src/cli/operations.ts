@@ -46,6 +46,7 @@ import type {
   DecideProposalResult,
   ExportResult,
   PatchResult,
+  ProposalSummaryResult,
   ProposalsResult,
   ProposeResult,
   PublicRoomResult,
@@ -117,7 +118,7 @@ export async function publishMarkdown(options: PublishOptions): Promise<PublishR
     actorPersonaId: publishPersona.id,
     proposalId: null,
     documentSha256: document.sha256,
-    message: 'Published Markdown room',
+    message: 'Published Markdown project',
   });
   const eventRecord = await appendEncryptedUpdate(access, await createEncryptedTimelineEvent(access, publishEvent));
   const encryptedSnapshot = await createEncryptedMarkdownSnapshot(markdown, access, CLI_SENDER_ID);
@@ -285,7 +286,7 @@ export async function proposeMarkdown(options: ProposeOptions): Promise<ProposeR
     },
     base: summarizeMarkdown(baseMarkdown),
     proposed: summarizeMarkdown(proposedMarkdown),
-    proposal,
+    proposal: publicProposalSummary(proposal),
     timeline: timelineEvent,
     server: {
       recordCount: eventRecord.seq,
@@ -368,7 +369,7 @@ export async function acceptProposal(options: ProposalIdOptions): Promise<Decide
     ok: true,
     mode: 'proposal-decision',
     room: publicRoomResult(reference, createRoomToken(reference)),
-    proposal: updated,
+    proposal: publicProposalSummary(updated),
     status: 'accepted',
     document,
     timeline: replay.timeline.find((event) => event.proposalId === proposal.id && event.type === 'proposal_accepted')!,
@@ -397,7 +398,7 @@ export async function rejectProposal(options: ProposalIdOptions): Promise<Decide
     ok: true,
     mode: 'proposal-decision',
     room: publicRoomResult(reference, createRoomToken(reference)),
-    proposal: updated,
+    proposal: publicProposalSummary(updated),
     status: 'rejected',
     document: null,
     timeline: replay.timeline.find((event) => event.proposalId === proposal.id && event.type === 'proposal_rejected')!,
@@ -416,6 +417,21 @@ function publicRoomResult(access: RoomAccess, token: string): PublicRoomResult {
     url: roomUrlForAccess(access),
     token,
     hasClientKey: true,
+  };
+}
+
+function publicProposalSummary(proposal: ProposalView): ProposalSummaryResult {
+  return {
+    id: proposal.id,
+    kind: proposal.kind,
+    title: proposal.title,
+    comment: proposal.comment,
+    status: proposal.status,
+    createdAt: proposal.createdAt,
+    updatedAt: proposal.statusUpdatedAt,
+    persona: proposal.persona,
+    base: proposal.base,
+    proposed: summarizeMarkdown(proposal.proposed.markdown),
   };
 }
 

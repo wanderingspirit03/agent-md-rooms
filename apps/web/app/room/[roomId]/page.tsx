@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import * as Y from "yjs";
 import { AgentBench } from "../../../components/room/AgentBench";
@@ -20,6 +20,16 @@ import { assignWebPersona, type RoomPersona } from "../../../lib/personas";
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const DOCUMENT_SENDER_ID = "mdroom-cli:document";
+const LIVE_FILE_PATH = "reports/launch-review.md";
+
+interface ProjectFileSnapshot {
+  type: "project_file_snapshot";
+  path: string;
+  markdown: string;
+  updatedAt: string;
+  authorPersonaId: string;
+  persona: RoomPersona;
+}
 
 export default function RoomPage() {
   const params = useParams();
@@ -32,6 +42,9 @@ export default function RoomPage() {
   const [clientId] = useState(() => `web-client-${Math.random().toString(36).slice(2, 11)}`);
 
   const [markdown, setMarkdown] = useState("");
+  const [selectedFilePath, setSelectedFilePath] = useState(LIVE_FILE_PATH);
+  const [virtualFiles, setVirtualFiles] = useState<Record<string, string>>(() => createInitialVirtualFiles());
+  const [projectFileUpdatedAt, setProjectFileUpdatedAt] = useState<Record<string, string>>({});
   const [editMode, setEditMode] = useState<"read" | "edit">("read");
   const [localMyPersona, setLocalMyPersona] = useState<RoomPersona | null>(null);
 
@@ -46,7 +59,6 @@ export default function RoomPage() {
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
 
   const [newCommentText, setNewCommentText] = useState("");
-  const [newCommentType, setNewCommentType] = useState<ChatComment["type"]>("note");
   const [composerFocusToken, setComposerFocusToken] = useState(0);
   const [selectedQuote, setSelectedQuote] = useState("");
 
@@ -55,6 +67,8 @@ export default function RoomPage() {
   const socketRef = useRef<WebSocket | null>(null);
   const expectedSeqRef = useRef(1);
   const keyRef = useRef<CryptoKey | null>(null);
+  const fileSaveTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const virtualFilesRef = useRef(virtualFiles);
 
   useEffect(() => {
     const hash = window.location.hash;
@@ -73,6 +87,10 @@ export default function RoomPage() {
       participantFingerprint: clientId,
     }));
   }, [roomId, clientId]);
+
+  useEffect(() => {
+    virtualFilesRef.current = virtualFiles;
+  }, [virtualFiles]);
 
   const handleConfigureKey = (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,6 +117,7 @@ export default function RoomPage() {
         setProposals([]);
         setTimeline([]);
         setComments([]);
+        setProjectFileUpdatedAt({});
 
         const cryptoKey = await deriveRoomKey(roomId, roomSecret);
         keyRef.current = cryptoKey;
@@ -176,6 +195,8 @@ export default function RoomPage() {
 
     return () => {
       destroyed = true;
+      Object.values(fileSaveTimersRef.current).forEach((timer) => clearTimeout(timer));
+      fileSaveTimersRef.current = {};
       socketRef.current?.close();
       yDoc.destroy();
       setIsConnected(false);
@@ -213,6 +234,7 @@ export default function RoomPage() {
         proposedMarkdown: parsed.proposedMarkdown || parsed.proposed?.markdown || "",
         createdAt: parsed.createdAt,
         status: "pending",
+        filePath: parsed.filePath || parsed.path || LIVE_FILE_PATH,
         anchorType: parsed.anchorType || parsed.anchor?.anchorType,
         selectedQuote: parsed.selectedQuote || parsed.anchor?.selectedQuote,
         createdFromMarkdown: parsed.createdFromMarkdown || parsed.anchor?.createdFromMarkdown,
@@ -238,7 +260,15 @@ export default function RoomPage() {
 
     if (rec.senderId.startsWith("web-client:comment")) {
       const parsed = await decryptJson<ChatComment>(payload, cryptKey, rec);
-      setComments((prev) => [parsed, ...prev].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+      setComments((prev) => upsertComment(prev, parsed));
+      return;
+    }
+
+    if (rec.senderId.startsWith("web-client:file")) {
+      const parsed = await decryptJson<ProjectFileSnapshot>(payload, cryptKey, rec);
+      if (parsed.type !== "project_file_snapshot" || !parsed.path) return;
+      setVirtualFiles((prev) => ({ ...prev, [parsed.path]: parsed.markdown }));
+      setProjectFileUpdatedAt((prev) => ({ ...prev, [parsed.path]: parsed.updatedAt }));
       return;
     }
 
@@ -318,9 +348,12 @@ export default function RoomPage() {
     }
   };
 
-  const handlePostComment = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handlePostComment = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!newCommentText.trim() || !keyRef.current || !localMyPersona) return;
+    const currentMarkdown = selectedFilePath === LIVE_FILE_PATH
+      ? markdown
+      : virtualFiles[selectedFilePath] || "";
 
     try {
       const id = Math.random().toString(36).slice(2, 11);
@@ -328,10 +361,11 @@ export default function RoomPage() {
         id,
         authorPersonaId: localMyPersona.id,
         persona: localMyPersona,
+        filePath: selectedFilePath,
         text: newCommentText.trim(),
         createdAt: new Date().toISOString(),
-        type: newCommentType,
-        ...createCommentAnchor(markdown, selectedQuote),
+        type: "note",
+        ...createCommentAnchor(currentMarkdown, selectedQuote),
       };
       const encrypted = await encryptUpdate(encoder.encode(JSON.stringify(record)), keyRef.current, {
         roomId,
@@ -339,26 +373,54 @@ export default function RoomPage() {
       });
       const res = await postEncryptedRecord(`web-client:comment:${id}`, encrypted);
       if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      setComments((prev) => upsertComment(prev, record));
       setNewCommentText("");
+      setSelectedQuote("");
     } catch (err) {
       setSyncError(`Could not post comment: ${String(err)}`);
     }
   };
 
-  const focusComposer = () => {
-    setComposerFocusToken((current) => current + 1);
+  const persistProjectFileSnapshot = async (path: string, nextMarkdown: string) => {
+    if (path === LIVE_FILE_PATH || !keyRef.current || !localMyPersona) return;
+
+    try {
+      const updatedAt = new Date().toISOString();
+      const record: ProjectFileSnapshot = {
+        type: "project_file_snapshot",
+        path,
+        markdown: nextMarkdown,
+        updatedAt,
+        authorPersonaId: localMyPersona.id,
+        persona: localMyPersona,
+      };
+      const senderId = `web-client:file:${Math.random().toString(36).slice(2, 11)}`;
+      const encrypted = await encryptUpdate(encoder.encode(JSON.stringify(record)), keyRef.current, {
+        roomId,
+        senderId,
+      });
+      const res = await postEncryptedRecord(senderId, encrypted);
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      setProjectFileUpdatedAt((prev) => ({ ...prev, [path]: updatedAt }));
+    } catch (err) {
+      setSyncError(`Could not save encrypted project file: ${String(err)}`);
+    }
   };
 
-  const handleAddNoteAtSelection = () => {
-    setNewCommentType("note");
-    setNewCommentText((current) => current || "");
-    focusComposer();
+  const scheduleProjectFileSnapshot = (path: string, nextMarkdown: string) => {
+    if (path === LIVE_FILE_PATH) return;
+    clearTimeout(fileSaveTimersRef.current[path]);
+    fileSaveTimersRef.current[path] = setTimeout(() => {
+      delete fileSaveTimersRef.current[path];
+      void persistProjectFileSnapshot(path, nextMarkdown);
+    }, 700);
   };
 
-  const handleAskAgentAtSelection = () => {
-    setNewCommentType("request");
-    setNewCommentText(`Please review this passage and suggest a precise Markdown edit:\n\n"${selectedQuote}"`);
-    focusComposer();
+  const flushProjectFileSnapshot = (path: string, nextMarkdown?: string) => {
+    if (path === LIVE_FILE_PATH || !fileSaveTimersRef.current[path]) return;
+    clearTimeout(fileSaveTimersRef.current[path]);
+    delete fileSaveTimersRef.current[path];
+    void persistProjectFileSnapshot(path, nextMarkdown ?? virtualFilesRef.current[path] ?? "");
   };
 
   const postEncryptedRecord = (senderId: string, encrypted: EncryptedPayload) => {
@@ -375,16 +437,46 @@ export default function RoomPage() {
   };
 
   const handleDownloadMarkdown = () => {
-    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+    const currentMarkdown = selectedFilePath === LIVE_FILE_PATH
+      ? markdown
+      : virtualFiles[selectedFilePath] || "";
+    const blob = new Blob([currentMarkdown], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${roomId || "document"}.md`;
+    link.download = selectedFilePath.split("/").pop() || `${roomId || "document"}.md`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
+
+  const handleCreateProjectFile = (rawPath: string) => {
+    const path = normalizeProjectFilePath(rawPath);
+    if (!path || path === LIVE_FILE_PATH) return;
+    const existingMarkdown = virtualFilesRef.current[path];
+    const nextMarkdown = existingMarkdown ?? initialMarkdownForPath(path);
+    setVirtualFiles((current) => ({ ...current, [path]: current[path] ?? nextMarkdown }));
+    setSelectedFilePath(path);
+    setSelectedQuote("");
+    setNewCommentText("");
+    setEditMode("edit");
+    void persistProjectFileSnapshot(path, nextMarkdown);
+  };
+
+  const projectFiles = useMemo(
+    () => createProjectFiles(selectedFilePath, virtualFiles, projectFileUpdatedAt),
+    [selectedFilePath, virtualFiles, projectFileUpdatedAt],
+  );
+  const selectedMarkdown = selectedFilePath === LIVE_FILE_PATH
+    ? markdown
+    : virtualFiles[selectedFilePath] || `# ${selectedFilePath}\n\nNo local Markdown loaded for this file yet.`;
+  const selectedFileComments = comments.filter((comment) => (comment.filePath || LIVE_FILE_PATH) === selectedFilePath);
+  const selectedFileProposals = proposals.filter((proposal) => (proposal.filePath || LIVE_FILE_PATH) === selectedFilePath);
+  const selectedProposalIds = new Set(selectedFileProposals.map((proposal) => proposal.id));
+  const selectedFileTimeline = timeline.filter((event) => !event.proposalId || selectedProposalIds.has(event.proposalId));
+  const selectedFilePendingCount = selectedFileProposals.filter((proposal) => proposal.status === "pending").length;
+  const selectedFileParticipants = uniquePersonas(selectedFileProposals, selectedFileComments, localMyPersona);
 
   if (!isKeyConfigured) {
     return (
@@ -398,32 +490,51 @@ export default function RoomPage() {
     );
   }
 
-  const pendingCount = proposals.filter((proposal) => proposal.status === "pending").length;
-  const participants = uniquePersonas(proposals, comments, localMyPersona);
-
   return (
     <>
       <RoomShell
         roomId={roomId}
+        files={projectFiles}
+        selectedFilePath={selectedFilePath}
         connected={isConnected}
         ready={syncProgress}
         recordCount={logRecords.length}
-        pendingCount={pendingCount}
+        pendingCount={selectedFilePendingCount}
+        reviewCount={selectedFileComments.length + selectedFilePendingCount}
         persona={localMyPersona}
         mode={editMode}
         error={syncError}
         onBack={() => router.push("/")}
         onExport={handleDownloadMarkdown}
-        onModeChange={setEditMode}
+        onCreateFile={handleCreateProjectFile}
+        onModeChange={(nextMode) => {
+          if (editMode === "edit" && nextMode !== "edit") flushProjectFileSnapshot(selectedFilePath);
+          setEditMode(nextMode);
+        }}
+        onFileSelect={(path) => {
+          flushProjectFileSnapshot(selectedFilePath);
+          setSelectedFilePath(path);
+          setSelectedQuote("");
+          setNewCommentText("");
+        }}
         document={
           <DocumentSurface
             mode={editMode}
-            markdown={markdown}
+            markdown={selectedMarkdown}
             selectedQuote={selectedQuote}
             onSelectedQuoteChange={setSelectedQuote}
-            onAddNoteAtSelection={handleAddNoteAtSelection}
-            onAskAgentAtSelection={handleAskAgentAtSelection}
+            comments={selectedFileComments}
+            newCommentText={newCommentText}
+            composerFocusToken={composerFocusToken}
+            onNewCommentTextChange={setNewCommentText}
+            onPostComment={handlePostComment}
+            onMarkdownCommit={(value) => flushProjectFileSnapshot(selectedFilePath, value)}
             onMarkdownChange={(value) => {
+              if (selectedFilePath !== LIVE_FILE_PATH) {
+                setVirtualFiles((current) => ({ ...current, [selectedFilePath]: value }));
+                scheduleProjectFileSnapshot(selectedFilePath, value);
+                return;
+              }
               if (!yTextRef.current || value === yTextRef.current.toString()) return;
               yDocRef.current?.transact(() => {
                 yTextRef.current!.delete(0, yTextRef.current!.length);
@@ -434,17 +545,12 @@ export default function RoomPage() {
         }
         bench={
           <AgentBench
-            comments={comments}
-            proposals={proposals}
-            timeline={timeline}
-            participants={participants}
+            filePath={selectedFilePath}
+            comments={selectedFileComments}
+            proposals={selectedFileProposals}
+            timeline={selectedFileTimeline}
+            participants={selectedFileParticipants}
             selectedQuote={selectedQuote}
-            newCommentText={newCommentText}
-            newCommentType={newCommentType}
-            composerFocusToken={composerFocusToken}
-            onNewCommentTextChange={setNewCommentText}
-            onNewCommentTypeChange={setNewCommentType}
-            onPostComment={handlePostComment}
             onOpenProposal={setSelectedProposal}
             onAcceptProposal={handleAcceptProposal}
             onRejectProposal={handleRejectProposal}
@@ -465,6 +571,11 @@ function upsertProposal(proposals: Proposal[], next: Proposal): Proposal[] {
   const existing = proposals.find((proposal) => proposal.id === next.id);
   if (!existing) return [next, ...proposals];
   return proposals.map((proposal) => (proposal.id === next.id ? { ...proposal, ...next } : proposal));
+}
+
+function upsertComment(comments: ChatComment[], next: ChatComment): ChatComment[] {
+  if (comments.some((comment) => comment.id === next.id)) return comments;
+  return [next, ...comments].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 function uniquePersonas(
@@ -532,4 +643,122 @@ function createMarkdownReplacementUpdate(currentMarkdown: string, replacementMar
   } finally {
     doc.destroy();
   }
+}
+
+function createProjectFiles(
+  selectedFilePath: string,
+  virtualFiles: Record<string, string>,
+  projectFileUpdatedAt: Record<string, string>,
+) {
+  const filesByPath = new Map<string, { name: string; path: string; folder: string; status?: string }>();
+  const addFile = (path: string, status?: string) => {
+    const normalized = normalizeProjectFilePath(path);
+    if (!normalized) return;
+    filesByPath.set(normalized, {
+      name: normalized.split("/").pop() || normalized,
+      path: normalized,
+      folder: folderForPath(normalized),
+      status,
+    });
+  };
+
+  Object.keys(virtualFiles).forEach((path) => addFile(path));
+  [
+    { name: "launch-review.md", path: LIVE_FILE_PATH, folder: "reports", status: "live" },
+  ].forEach((file) => filesByPath.set(file.path, file));
+
+  const files = Array.from(filesByPath.values()).sort((a, b) => {
+    const folderOrder = ["docs", "reports", ""];
+    const ai = folderOrder.indexOf(a.folder);
+    const bi = folderOrder.indexOf(b.folder);
+    if (a.folder !== b.folder) return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi) || a.folder.localeCompare(b.folder);
+    return a.name.localeCompare(b.name);
+  });
+
+  return files.map((file) => ({
+    ...file,
+    active: file.path === selectedFilePath,
+    status: file.status || (projectFileUpdatedAt[file.path] ? "synced" : undefined),
+  }));
+}
+
+function normalizeProjectFilePath(rawPath: string) {
+  const trimmed = rawPath.trim().replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!trimmed) return "";
+  const collapsed = trimmed
+    .split("/")
+    .map((part) => part.trim())
+    .filter((part) => part && part !== "." && part !== "..")
+    .join("/");
+  if (!collapsed) return "";
+  return collapsed.toLowerCase().endsWith(".md") ? collapsed : `${collapsed}.md`;
+}
+
+function folderForPath(path: string) {
+  const parts = path.split("/");
+  return parts.length > 1 ? parts[0] || "" : "";
+}
+
+function initialMarkdownForPath(path: string) {
+  const name = path.split("/").pop()?.replace(/\.md$/i, "") || "Untitled";
+  const title = name
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
+    .join(" ") || "Untitled";
+  return `# ${title}\n\n`;
+}
+
+function createInitialVirtualFiles(): Record<string, string> {
+  return {
+    "docs/PLAN.md": [
+      "# Project Plan",
+      "",
+      "Fold is moving from a single Markdown room toward an encrypted collaborative project.",
+      "",
+      "## Next",
+      "",
+      "- Keep Markdown canonical.",
+      "- Make file navigation real.",
+      "- Add inline comment pills.",
+      "- Keep review overlays lightweight.",
+    ].join("\n"),
+    "docs/AGENTS.md": [
+      "# Agent Notes",
+      "",
+      "Future coding agents should preserve the E2EE model and treat raw Markdown as the durable source of truth.",
+      "",
+      "## UI Direction",
+      "",
+      "Use a dark-first project workspace with compact file navigation and inline comments.",
+    ].join("\n"),
+    "docs/UI.md": [
+      "# UI Direction",
+      "",
+      "The app should feel closer to an editor than a dashboard.",
+      "",
+      "- Left project file sidebar",
+      "- Center Markdown file",
+      "- Small inline comment pills",
+      "- Review drawer only when opened",
+    ].join("\n"),
+    "docs/DESIGN.md": [
+      "# Design Direction",
+      "",
+      "Borrow Obsidian's calm file-first feel without cloning its brand.",
+      "",
+      "## Tokens",
+      "",
+      "- Dark layered panes",
+      "- Midnight blue accent",
+      "- Quiet document typography",
+    ].join("\n"),
+    "reports/e2ee-notes.md": [
+      "# E2EE Notes",
+      "",
+      "The server stores encrypted room records and plaintext routing metadata only.",
+      "",
+      "Comments, proposals, personas, and Markdown payloads remain encrypted client-side.",
+    ].join("\n"),
+  };
 }

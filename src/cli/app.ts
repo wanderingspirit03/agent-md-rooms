@@ -103,7 +103,7 @@ export const app: Application<MdroomCommandContext> = buildApplication(
         },
         docs: {
           brief: 'Publish Markdown into a local encrypted room foundation',
-          customUsage: ['mdroom publish <file.md> [--server <url>] [--json] [--no-save]'],
+          customUsage: ['<file.md> [--server <url>] [--json] [--no-save]'],
         },
         async func(this: MdroomCommandContext, flags, filePath) {
           const result = await publishMarkdown({
@@ -142,7 +142,7 @@ export const app: Application<MdroomCommandContext> = buildApplication(
         },
         docs: {
           brief: 'Export Markdown from local encrypted room metadata',
-          customUsage: ['mdroom export --room <url-or-token> [--output <file>] [--json]'],
+          customUsage: ['--room <url-or-token> [--output <file>] [--json]'],
         },
         async func(this: MdroomCommandContext, flags) {
           const result = await exportMarkdown({
@@ -190,7 +190,7 @@ export const app: Application<MdroomCommandContext> = buildApplication(
         },
         docs: {
           brief: 'Submit an encrypted whole-document patch suggestion',
-          customUsage: ['mdroom patch <file.md> --room <url-or-token> [--summary <text>] [--json]'],
+          customUsage: ['<file.md> --room <url-or-token> [--summary <text>] [--json]'],
         },
         async func(this: MdroomCommandContext, flags, filePath) {
           const result = await patchMarkdown({
@@ -246,7 +246,7 @@ export const app: Application<MdroomCommandContext> = buildApplication(
         },
         docs: {
           brief: 'Submit an encrypted whole-document proposal',
-          customUsage: ['mdroom propose <file.md> --room <url-or-token> [--title <text>] [--comment <text>] [--json]'],
+          customUsage: ['<file.md> --room <url-or-token> [--title <text>] [--comment <text>] [--json]'],
         },
         async func(this: MdroomCommandContext, flags, filePath) {
           const result = await proposeMarkdown({
@@ -266,7 +266,7 @@ export const app: Application<MdroomCommandContext> = buildApplication(
         },
         docs: {
           brief: 'List encrypted room proposals',
-          customUsage: ['mdroom proposals --room <url-or-token> [--json]'],
+          customUsage: ['--room <url-or-token> [--json]'],
         },
         async func(this: MdroomCommandContext, flags) {
           const result = await listProposals({
@@ -293,7 +293,7 @@ export const app: Application<MdroomCommandContext> = buildApplication(
         },
         docs: {
           brief: 'Show one encrypted proposal',
-          customUsage: ['mdroom show-proposal <proposal-id> --room <url-or-token> [--json]'],
+          customUsage: ['<proposal-id> --room <url-or-token> [--json]'],
         },
         async func(this: MdroomCommandContext, flags, proposalId) {
           const result = await showProposal({
@@ -321,7 +321,7 @@ export const app: Application<MdroomCommandContext> = buildApplication(
         },
         docs: {
           brief: 'Accept an encrypted proposal and append canonical Markdown',
-          customUsage: ['mdroom accept <proposal-id> --room <url-or-token> [--json]'],
+          customUsage: ['<proposal-id> --room <url-or-token> [--json]'],
         },
         async func(this: MdroomCommandContext, flags, proposalId) {
           const result = await acceptProposal({
@@ -349,7 +349,7 @@ export const app: Application<MdroomCommandContext> = buildApplication(
         },
         docs: {
           brief: 'Reject an encrypted proposal',
-          customUsage: ['mdroom reject <proposal-id> --room <url-or-token> [--json]'],
+          customUsage: ['<proposal-id> --room <url-or-token> [--json]'],
         },
         async func(this: MdroomCommandContext, flags, proposalId) {
           const result = await rejectProposal({
@@ -380,7 +380,7 @@ export const app: Application<MdroomCommandContext> = buildApplication(
         },
         docs: {
           brief: 'Show local room metadata status',
-          customUsage: ['mdroom status --room <url-or-token> [--json]'],
+          customUsage: ['--room <url-or-token> [--json]'],
         },
         async func(this: MdroomCommandContext, flags) {
           const result = await roomStatus({

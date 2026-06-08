@@ -1,4 +1,5 @@
 import React from "react";
+import { MessageSquare } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import rehypeSanitize from "rehype-sanitize";
@@ -7,29 +8,57 @@ import remarkMath from "remark-math";
 
 interface MarkdownRendererProps {
   content: string;
+  textHighlights?: Array<{
+    id: string;
+    text: string;
+    label: string;
+    before?: string;
+    after?: string;
+  }>;
+  onTextHighlightClick?: (id: string, event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
-export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
+export default function MarkdownRenderer({
+  content,
+  textHighlights = [],
+  onTextHighlightClick,
+}: MarkdownRendererProps) {
   return (
-    <article className="max-w-none text-ink-muted">
+    <article className="max-w-none text-document-muted">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex, rehypeSanitize]}
         components={{
           h1: ({ children }) => (
-            <h1 className="mb-6 mt-0 border-b border-document-edge pb-5 text-[2rem] font-semibold leading-tight tracking-normal text-ink">
-              {children}
+            <h1 className="mb-6 mt-0 border-b border-document-edge pb-5 text-[2rem] font-semibold leading-tight tracking-normal text-document-ink">
+              {renderWithCommentPills(children, textHighlights, onTextHighlightClick)}
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="mb-3 mt-9 text-xl font-semibold tracking-normal text-ink">{children}</h2>
+            <h2 className="mb-3 mt-9 text-xl font-semibold tracking-normal text-document-ink">
+              {renderWithCommentPills(children, textHighlights, onTextHighlightClick)}
+            </h2>
           ),
-          h3: ({ children }) => <h3 className="mb-2 mt-7 text-base font-semibold text-ink">{children}</h3>,
-          h4: ({ children }) => <h4 className="mb-2 mt-5 text-sm font-semibold text-ink">{children}</h4>,
-          p: ({ children }) => <p className="my-3.5 text-[15.5px] leading-7 text-ink-muted">{children}</p>,
+          h3: ({ children }) => (
+            <h3 className="mb-2 mt-7 text-base font-semibold text-document-ink">
+              {renderWithCommentPills(children, textHighlights, onTextHighlightClick)}
+            </h3>
+          ),
+          h4: ({ children }) => (
+            <h4 className="mb-2 mt-5 text-sm font-semibold text-document-ink">
+              {renderWithCommentPills(children, textHighlights, onTextHighlightClick)}
+            </h4>
+          ),
+          p: ({ children }) => (
+            <p className="my-3.5 text-[15.5px] leading-7 text-document-muted">
+              {renderWithCommentPills(children, textHighlights, onTextHighlightClick)}
+            </p>
+          ),
           ul: ({ children }) => <ul className="my-3.5 list-disc space-y-1.5 pl-6 text-[15.5px] leading-7">{children}</ul>,
           ol: ({ children }) => <ol className="my-3.5 list-decimal space-y-1.5 pl-6 text-[15.5px] leading-7">{children}</ol>,
-          li: ({ children }) => <li className="pl-1">{children}</li>,
+          li: ({ children }) => (
+            <li className="pl-1">{renderWithCommentPills(children, textHighlights, onTextHighlightClick)}</li>
+          ),
           input: ({ type, checked, ...props }) => {
             if (type === "checkbox") {
               return (
@@ -45,7 +74,7 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
             return <input type={type} checked={checked} {...props} />;
           },
           blockquote: ({ children }) => (
-            <blockquote className="my-5 border-l-2 border-cyan-300 bg-cyan-50/50 py-1 pl-4 text-ink-muted">{children}</blockquote>
+            <blockquote className="my-5 border-l-2 border-midnight-strong bg-midnight-soft py-1 pl-4 text-document-muted">{children}</blockquote>
           ),
           code: ({ className, children, ...props }) => {
             const match = /language-(\w+)/.exec(className || "");
@@ -54,7 +83,7 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
 
             if (isInline) {
               return (
-                <code className="rounded-md bg-studio-paper px-1.5 py-0.5 font-mono text-sm text-ink" {...props}>
+                <code className="rounded-md bg-black/[0.06] px-1.5 py-0.5 font-mono text-sm text-document-ink" {...props}>
                   {children}
                 </code>
               );
@@ -62,12 +91,12 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
 
             if (language === "mermaid") {
               return (
-                <div className="my-6 rounded-lg border border-document-edge bg-studio p-4">
+                <div className="my-6 rounded-md border border-document-edge bg-black/[0.04] p-4">
                   <div className="mb-3 flex items-center justify-between">
-                    <span className="text-xs font-medium text-ink-muted">Mermaid</span>
-                    <span className="text-xs text-ink-subtle">Preview disabled</span>
+                    <span className="text-xs font-medium text-document-muted">Mermaid</span>
+                    <span className="text-xs text-document-subtle">Preview disabled</span>
                   </div>
-                  <pre className="overflow-x-auto rounded-md bg-document p-3 font-mono text-xs leading-5 text-ink-muted">
+                  <pre className="overflow-x-auto rounded-md bg-document p-3 font-mono text-xs leading-5 text-document-muted">
                     {String(children).trim()}
                   </pre>
                 </div>
@@ -75,11 +104,11 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
             }
 
             return (
-              <div className="my-6 overflow-hidden rounded-lg border border-ink bg-ink">
-                <div className="border-b border-white/10 px-4 py-2 font-mono text-xs text-white/60">
+              <div className="my-6 overflow-hidden rounded-md border border-studio-line bg-studio">
+                <div className="border-b border-studio-line px-4 py-2 font-mono text-xs text-ink-subtle">
                   {language || "text"}
                 </div>
-                <pre className="overflow-x-auto p-4 font-mono text-sm leading-6 text-white">
+                <pre className="overflow-x-auto p-4 font-mono text-sm leading-6 text-ink">
                   <code className={className} {...props}>
                     {children}
                   </code>
@@ -89,15 +118,15 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
           },
           table: ({ children }) => (
             <div className="my-6 w-full overflow-x-auto rounded-lg border border-document-edge">
-              <table className="w-full border-collapse text-left text-sm text-ink-muted">{children}</table>
+              <table className="w-full border-collapse text-left text-sm text-document-muted">{children}</table>
             </div>
           ),
-          thead: ({ children }) => <thead className="border-b border-document-edge bg-studio-paper text-ink">{children}</thead>,
+          thead: ({ children }) => <thead className="border-b border-document-edge bg-black/[0.04] text-document-ink">{children}</thead>,
           tbody: ({ children }) => <tbody className="divide-y divide-document-edge">{children}</tbody>,
           th: ({ children }) => <th className="px-4 py-2 font-medium">{children}</th>,
           td: ({ children }) => <td className="px-4 py-2">{children}</td>,
           a: ({ children, href }) => (
-            <a href={href} target="_blank" rel="noopener noreferrer" className="text-ink underline underline-offset-4 hover:text-ink-soft">
+            <a href={href} target="_blank" rel="noopener noreferrer" className="text-midnight underline underline-offset-4 hover:text-midnight-strong">
               {children}
             </a>
           ),
@@ -108,4 +137,129 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
       </ReactMarkdown>
     </article>
   );
+}
+
+function renderWithCommentPills(
+  children: React.ReactNode,
+  highlights: NonNullable<MarkdownRendererProps["textHighlights"]>,
+  onTextHighlightClick?: MarkdownRendererProps["onTextHighlightClick"],
+) {
+  if (highlights.length === 0) return children;
+
+  return React.Children.map(children, (child) => {
+    if (typeof child !== "string") return child;
+    return renderStringWithCommentPills(child, highlights, onTextHighlightClick);
+  });
+}
+
+function renderStringWithCommentPills(
+  text: string,
+  highlights: NonNullable<MarkdownRendererProps["textHighlights"]>,
+  onTextHighlightClick?: MarkdownRendererProps["onTextHighlightClick"],
+) {
+  const matches = highlights
+    .map((highlight) => findHighlightMatch(text, highlight))
+    .filter((match): match is HighlightMatch => Boolean(match))
+    .sort((a, b) => a.start - b.start || b.score - a.score);
+
+  if (matches.length === 0) return text;
+
+  const nonOverlapping: HighlightMatch[] = [];
+  for (const match of matches) {
+    if (nonOverlapping.some((existing) => rangesOverlap(existing, match))) continue;
+    nonOverlapping.push(match);
+  }
+  nonOverlapping.sort((a, b) => a.start - b.start);
+
+  const parts: React.ReactNode[] = [];
+  let cursor = 0;
+  for (const match of nonOverlapping) {
+    if (match.start > cursor) parts.push(text.slice(cursor, match.start));
+    parts.push(
+      <span key={`${match.highlight.id}-${match.start}`} className="relative inline border-b border-midnight/30 text-document-ink">
+        {text.slice(match.start, match.end)}
+        <button
+          type="button"
+          data-inline-comment-marker
+          title={match.highlight.label}
+          aria-label={`Show inline ${match.highlight.label.toLowerCase()}`}
+          onMouseDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onTextHighlightClick?.(match.highlight.id, event);
+          }}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          className="absolute -right-4 -top-2 inline-flex h-4 w-4 cursor-pointer items-center justify-center rounded-full border border-midnight/30 bg-midnight-soft text-midnight shadow-[0_1px_4px_rgba(30,58,138,0.18)] transition-colors hover:border-midnight/50 hover:bg-document focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+        >
+          <MessageSquare className="h-2.5 w-2.5" />
+        </button>
+      </span>,
+    );
+    cursor = match.end;
+  }
+  if (cursor < text.length) parts.push(text.slice(cursor));
+
+  return <>{parts}</>;
+}
+
+interface HighlightMatch {
+  start: number;
+  end: number;
+  score: number;
+  highlight: NonNullable<MarkdownRendererProps["textHighlights"]>[number];
+}
+
+function findHighlightMatch(
+  text: string,
+  highlight: NonNullable<MarkdownRendererProps["textHighlights"]>[number],
+): HighlightMatch | null {
+  const exactNeedle = highlight.text.replace(/\s+/g, " ").trim();
+  if (exactNeedle.length <= 1) return null;
+
+  const exactIndex = text.indexOf(exactNeedle);
+  if (exactIndex >= 0) {
+    return {
+      start: exactIndex,
+      end: exactIndex + exactNeedle.length,
+      score: contextScore(text, highlight),
+      highlight,
+    };
+  }
+
+  const fallbackNeedle = exactNeedle.slice(0, 48);
+  if (fallbackNeedle.length <= 8) return null;
+
+  const fallbackIndex = text.indexOf(fallbackNeedle);
+  if (fallbackIndex < 0) return null;
+
+  return {
+    start: fallbackIndex,
+    end: fallbackIndex + fallbackNeedle.length,
+    score: contextScore(text, highlight) - 1,
+    highlight,
+  };
+}
+
+function contextScore(
+  text: string,
+  highlight: NonNullable<MarkdownRendererProps["textHighlights"]>[number],
+) {
+  const normalizedText = normalizeWhitespace(text);
+  const before = normalizeWhitespace(highlight.before || "").slice(-40);
+  const after = normalizeWhitespace(highlight.after || "").slice(0, 40);
+  let score = 0;
+  if (before && normalizedText.includes(before)) score += 1;
+  if (after && normalizedText.includes(after)) score += 1;
+  return score;
+}
+
+function rangesOverlap(a: HighlightMatch, b: HighlightMatch) {
+  return a.start < b.end && b.start < a.end;
+}
+
+function normalizeWhitespace(value: string) {
+  return value.replace(/\s+/g, " ").trim();
 }

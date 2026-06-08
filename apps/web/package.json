@@ -9,18 +9,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@milkdown/core": "^7.5.3",
-    "@milkdown/crepe": "^7.5.3",
-    "@milkdown/ctx": "^7.5.3",
-    "@milkdown/plugin-clipboard": "^7.5.3",
-    "@milkdown/plugin-cursor": "^7.5.3",
-    "@milkdown/plugin-history": "^7.5.3",
-    "@milkdown/plugin-listener": "^7.5.3",
-    "@milkdown/preset-commonmark": "^7.5.3",
-    "@milkdown/preset-gfm": "^7.5.3",
-    "@milkdown/prose": "^7.5.3",
-    "@milkdown/react": "^7.5.3",
-    "@milkdown/transformer": "^7.5.3",
     "@radix-ui/react-dialog": "^1.1.16",
     "@radix-ui/react-dropdown-menu": "^2.1.17",
     "@radix-ui/react-scroll-area": "^1.2.11",

@@ -5,55 +5,79 @@
 @tailwind utilities;
 
 :root {
-  --background: 42 33% 92%;
-  --foreground: 180 5% 12%;
-  --border: 36 25% 79%;
-  --input: 36 25% 79%;
-  --ring: 180 5% 12%;
+  --background: 240 7% 5%;
+  --foreground: 240 14% 95%;
+  --border: 0 0% 100% / 0.1;
+  --input: 0 0% 100% / 0.12;
+  --ring: 221 83% 53%;
+  --ink: 240 14% 95%;
+  --ink-soft: 220 18% 90%;
+  --ink-muted: 240 4% 66%;
+  --ink-subtle: 227 5% 47%;
+  --line-soft: 0 0% 100% / 0.1;
+  --bone: 220 2% 13%;
+  --air: 222 47% 11%;
+  --porcelain: 240 5% 14%;
+  --studio: 240 7% 5%;
+  --studio-paper: 240 4% 9%;
+  --studio-line: 0 0% 100% / 0.08;
+  --studio-sunken: 240 6% 7%;
+  --document: 42 31% 96%;
+  --document-edge: 0 0% 0% / 0.12;
+  --document-ink: 240 5% 14%;
+  --document-muted: 224 7% 34%;
+  --document-subtle: 226 4% 51%;
+  --rail: 225 10% 7%;
+  --midnight: 222 64% 33%;
+  --midnight-soft: 222 64% 33% / 0.22;
+  --midnight-strong: 220 52% 48%;
+  --logo-current: url("/brand/fold-logo-bright.svg");
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: 42 33% 92%;
-    --foreground: 180 5% 12%;
-    --border: 36 25% 79%;
-    --input: 36 25% 79%;
-    --ring: 180 5% 12%;
-  }
+html[data-theme="light"] {
+  --background: 40 34% 95%;
+  --foreground: 240 6% 10%;
+  --border: 240 6% 10% / 0.11;
+  --input: 240 6% 10% / 0.12;
+  --ring: 222 64% 33%;
+  --ink: 240 6% 10%;
+  --ink-soft: 240 6% 18%;
+  --ink-muted: 230 7% 38%;
+  --ink-subtle: 225 6% 55%;
+  --line-soft: 240 6% 10% / 0.12;
+  --bone: 40 18% 92%;
+  --air: 222 35% 20%;
+  --porcelain: 42 28% 88%;
+  --studio: 42 34% 95%;
+  --studio-paper: 42 36% 98%;
+  --studio-line: 240 6% 10% / 0.1;
+  --studio-sunken: 42 28% 91%;
+  --document: 42 36% 98%;
+  --document-edge: 240 6% 10% / 0.11;
+  --document-ink: 240 6% 12%;
+  --document-muted: 222 8% 33%;
+  --document-subtle: 224 7% 48%;
+  --rail: 42 34% 96%;
+  --midnight: 222 64% 33%;
+  --midnight-soft: 222 64% 33% / 0.12;
+  --midnight-strong: 220 52% 42%;
+  --logo-current: url("/brand/fold-logo-dark.svg");
 }
 
 body {
   font-feature-settings: "rlig" 1, "calt" 1;
-  background-color: #f3efe6;
-  color: #1d1f20;
+  background-color: hsl(var(--studio));
+  color: hsl(var(--ink));
   font-family: Inter, "DM Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 html {
-  background-color: #f3efe6;
+  background-color: hsl(var(--studio));
 }
 
-/* Milkdown styling improvements reserved for the Crepe spike. */
-.milkdown {
-  width: 100%;
-  max-width: 100%;
-  background: transparent !important;
-  color: inherit !important;
-  box-shadow: none !important;
-  font-family: inherit !important;
-}
-
-.milkdown .editor {
-  padding: 0 !important;
-  background: transparent !important;
-}
-
-.milkdown .editor .paragraph {
-  font-size: 1rem !important;
-  line-height: 1.625 !important;
-}
-
-.ProseMirror-focused {
-  outline: 2px solid #1d1f20;
-  outline-offset: 2px;
+.fold-logo-mark {
+  background-image: var(--logo-current);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
 }

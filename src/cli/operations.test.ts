@@ -214,6 +214,7 @@ describe('CLI operations', () => {
       expect(proposals.proposals).toHaveLength(1);
       expect(proposals.proposals[0]?.title).toBe('Update body copy');
       expect(proposals.proposals[0]?.status).toBe('pending');
+      expect(JSON.stringify(patch)).not.toContain(proposed);
     } finally {
       await server.stop();
       await rm(cwd, { recursive: true, force: true });
@@ -263,6 +264,7 @@ describe('CLI operations', () => {
         room: published.room.token,
         proposalId: acceptedProposal.proposal.id,
       });
+      expect(JSON.stringify(acceptedProposal)).not.toContain(acceptedMarkdown);
       expect(shown.proposal.proposed.markdown).toBe(acceptedMarkdown);
       expect(shown.timeline.map((event) => event.type)).toContain('proposal_submitted');
 
@@ -290,6 +292,7 @@ describe('CLI operations', () => {
 
       expect(accepted.schema).toBe('mdroom.accept.result.v1');
       expect(accepted.proposal.status).toBe('accepted');
+      expect(JSON.stringify(accepted)).not.toContain(acceptedMarkdown);
       expect(rejected.schema).toBe('mdroom.reject.result.v1');
       expect(rejected.proposal.status).toBe('rejected');
       expect(proposals.proposals.map((proposal) => proposal.status)).toEqual(['accepted', 'rejected']);

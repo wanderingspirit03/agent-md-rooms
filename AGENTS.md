@@ -2,7 +2,9 @@
 
 ## Project Scope
 
-Agent MD Rooms is an OSS, self-hostable collaboration platform for Markdown files created by coding agents. The target product is a Notion-leaning Markdown room with Excalidraw-style sharing, strict E2EE constraints, real-time collaboration, inline comments, and a machine-friendly CLI.
+Fold is an OSS, self-hostable collaboration platform for Markdown files created and edited by humans and coding agents. The target product is a collaborative encrypted project workspace with Obsidian-like file navigation, Notion-leaning document collaboration, Excalidraw-style sharing, strict E2EE constraints, real-time editing, inline comments, reviewable suggestions, and a machine-friendly CLI.
+
+The product language should emphasize projects, files, humans, and agents. Borrow Obsidian's calm file-first feel, but do not frame the product as a personal vault or personal knowledge base.
 
 Start with `PLAN.md` before making product or architecture changes.
 
@@ -12,7 +14,7 @@ Start with `PLAN.md` before making product or architecture changes.
 - V1 canonical document state is raw Markdown in `Y.Text`; editor-native structures are helper/derived state unless they prove lossless Markdown fidelity.
 - The E2EE spike validates encrypted Yjs update payloads, WebSocket backlog replay, same-client reconnect, basic file-backed JSONL restart/replay, metadata authentication for client-known fields, and delivered-record sequence/replay detection.
 - The document-model spike compares Markdown-canonical `Y.Text` against a non-UI ProseMirror/CommonMark editor-canonical proxy and records the v1 Markdown-canonical decision.
-- The repo now has an early server-backed TypeScript CLI and file-backed append-log server. Local flow starts with `npm run server -- --port 8787 --data ./data`, then `npm run cli -- publish ./notes.md --server http://127.0.0.1:8787`.
+- The repo now has an early server-backed TypeScript CLI and file-backed append-log server. Local flow starts with `npm run server -- --port 8787 --data ./data`, then `npm run --silent cli -- publish ./notes.md --server http://127.0.0.1:8787 --json`.
 - Current CLI room workflow includes `publish`, `status`, `export`, `propose`, `proposals`, `show-proposal`, `accept`, `reject`, and legacy `patch` as a compatibility wrapper around proposal submission.
 - Proposal records, proposal status/timeline events, persona metadata, and document Markdown are encrypted room payloads decrypted/replayed client-side. Proposal status is derived by replaying encrypted room records, not by trusting mutable plaintext server state.
 - Agent personas should be assigned by the room/system, not self-selected by agents. Preserve distinct, memorable agent personas and visible agent-vs-human identity.
@@ -25,9 +27,9 @@ Start with `PLAN.md` before making product or architecture changes.
 - Read mode is locked to `react-markdown` with remark/rehype: `remark-gfm`, `remark-math`, `rehype-katex`, `katex`, `rehype-raw` only behind policy, `rehype-sanitize`, `shiki`, and `rehype-pretty-code`.
 - Never render unsanitized raw HTML from shared rooms.
 - Render Mermaid fences as placeholders first; add live Mermaid only behind a sanitized/isolated component.
-- Edit mode is locked to Milkdown as the first polished Markdown editor candidate: `@milkdown/core`, `@milkdown/react`, `@milkdown/preset-commonmark`, `@milkdown/preset-gfm`, listener/history/clipboard/cursor/code-highlight plugins, and `@milkdown/prose`.
+- Edit mode is currently source-only Markdown. Do not add a nested rich/source toggle inside edit mode; the room-level Read/Edit switch is enough.
+- A polished rich Markdown editor such as Milkdown can be revisited only after it proves lossless Markdown import/export fidelity and does not add extra UI mode clutter.
 - Do not reintroduce BlockNote or block-doc-first editors as first-line v1 dependencies unless Markdown round-tripping evidence forces a plan change.
-- The Milkdown prototype must measure Markdown import/export fidelity on headings, lists/task lists, tables, code fences, links/images, frontmatter, Mermaid, math, and long agent reports before deeper UI investment.
 
 ## Working Rules
 

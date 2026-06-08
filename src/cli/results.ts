@@ -107,7 +107,7 @@ export interface ProposeResult {
   };
   base: MarkdownDocumentSummary;
   proposed: MarkdownDocumentSummary;
-  proposal: ProposalView;
+  proposal: ProposalSummaryResult;
   timeline: TimelineEvent;
   server: {
     recordCount: number;
@@ -139,6 +139,19 @@ export interface ProposalListItem {
   proposed: MarkdownDocumentSummary;
 }
 
+export interface ProposalSummaryResult {
+  id: string;
+  kind: ProposalView['kind'];
+  title: string;
+  comment: string;
+  status: ProposalStatus;
+  createdAt: string;
+  updatedAt: string;
+  persona: ProposalView['persona'];
+  base: MarkdownDocumentSummary;
+  proposed: MarkdownDocumentSummary;
+}
+
 export interface ShowProposalResult {
   schema: 'mdroom.show-proposal.result.v1';
   ok: true;
@@ -157,7 +170,7 @@ export interface DecideProposalResult {
   ok: true;
   mode: 'proposal-decision';
   room: PublicRoomResult;
-  proposal: ProposalView;
+  proposal: ProposalSummaryResult;
   status: 'accepted' | 'rejected';
   document: MarkdownDocumentSummary | null;
   timeline: TimelineEvent;

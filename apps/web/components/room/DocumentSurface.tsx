@@ -1,36 +1,71 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { FileText, PenLine } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { FileText, MessageSquare, MessageSquarePlus, Send, X } from "lucide-react";
 import MarkdownRenderer from "../MarkdownRenderer";
-import MarkdownTextareaEditor from "../MarkdownTextareaEditor";
+import MarkdownSourceEditor from "../MarkdownSourceEditor";
+import { extractMarkdownProperties } from "../../lib/markdown-properties";
 import { cn } from "../../lib/utils";
-import { SelectionAnchor } from "./SelectionAnchor";
-import type { RoomMode } from "./types";
+import { Button } from "../ui/button";
+import { Textarea } from "../ui/textarea";
+import type { ChatComment, RoomMode } from "./types";
 
 interface DocumentSurfaceProps {
   mode: RoomMode;
   markdown: string;
   onMarkdownChange: (markdown: string) => void;
+  onMarkdownCommit?: (markdown: string) => void;
   selectedQuote: string;
   onSelectedQuoteChange: (quote: string) => void;
-  onAddNoteAtSelection: () => void;
-  onAskAgentAtSelection: () => void;
+  comments: ChatComment[];
+  newCommentText: string;
+  composerFocusToken: number;
+  onNewCommentTextChange: (value: string) => void;
+  onPostComment: (event?: React.FormEvent) => void;
 }
 
 export function DocumentSurface({
   mode,
   markdown,
   onMarkdownChange,
+  onMarkdownCommit,
   selectedQuote,
   onSelectedQuoteChange,
-  onAddNoteAtSelection,
-  onAskAgentAtSelection,
+  comments,
+  newCommentText,
+  composerFocusToken,
+  onNewCommentTextChange,
+  onPostComment,
 }: DocumentSurfaceProps) {
   const readSurfaceRef = useRef<HTMLDivElement | null>(null);
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const [anchorPoint, setAnchorPoint] = useState<{ top: number; left: number } | null>(null);
+  const [activeCommentCard, setActiveCommentCard] = useState<{
+    commentId: string;
+    top: number;
+    left: number;
+  } | null>(null);
+  const parsedMarkdown = useMemo(() => extractMarkdownProperties(markdown), [markdown]);
+  const activeComment = useMemo(
+    () => comments.find((comment) => comment.id === activeCommentCard?.commentId) || null,
+    [comments, activeCommentCard],
+  );
 
-  const captureSelection = () => {
+  useEffect(() => {
+    if (composerFocusToken === 0) return;
+    composerRef.current?.focus();
+  }, [composerFocusToken]);
+
+  useEffect(() => {
+    if (!selectedQuote || !anchorPoint) return;
+    window.requestAnimationFrame(() => composerRef.current?.focus());
+  }, [selectedQuote, anchorPoint]);
+
+  const captureSelection = (event?: React.SyntheticEvent) => {
+    const target = event?.target;
+    if (target instanceof HTMLElement && target.closest("[data-comment-composer]")) return;
+    if (target instanceof HTMLElement && target.closest("[data-inline-comment-marker]")) return;
+
     const selection = window.getSelection();
     const selectedText = selection?.toString().trim() || "";
     if (!selection || selectedText.length < 2 || !readSurfaceRef.current) {
@@ -44,68 +79,194 @@ export function DocumentSurface({
 
     const rangeRect = range.getBoundingClientRect();
     const surfaceRect = readSurfaceRef.current.getBoundingClientRect();
-    onSelectedQuoteChange(selectedText.slice(0, 180));
+    onSelectedQuoteChange(expandPartialWordSelection(markdown, selectedText).slice(0, 180));
+    setActiveCommentCard(null);
+    const preferredLeft = rangeRect.right - surfaceRect.left + 16;
+    const maxLeft = Math.max(16, surfaceRect.width - 356);
     setAnchorPoint({
       top: Math.max(20, rangeRect.top - surfaceRect.top - 8),
-      left: Math.min(surfaceRect.width - 284, Math.max(16, rangeRect.right - surfaceRect.left + 16)),
+      left: Math.max(16, Math.min(maxLeft, preferredLeft)),
     });
   };
 
   if (mode === "edit") {
+    const wrapEditedMarkdown = (content: string) => `${parsedMarkdown.propertySource}${content}`;
+
     return (
-      <section className="mx-auto w-full max-w-4xl">
-        <MarkdownTextareaEditor initialMarkdown={markdown} onChange={onMarkdownChange} />
-        <div className="mt-3 flex items-center gap-2 rounded-lg border border-studio-line bg-studio-paper px-3 py-2 text-sm text-ink-muted">
-          <PenLine className="h-4 w-4 text-ink-subtle" />
-          Markdown remains the canonical encrypted document state.
-        </div>
+      <section className="mx-auto w-full max-w-[880px]">
+        {parsedMarkdown.properties.length > 0 && (
+          <div className="mb-3 rounded-md border border-studio-line bg-studio-sunken px-3 py-2">
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {parsedMarkdown.properties.map((property) => (
+                <span key={property.key} className="text-xs leading-5 text-ink-subtle">
+                  <span className="font-medium text-ink-muted">{property.key}</span>
+                  <span className="mx-1 text-ink-subtle">:</span>
+                  <span>{property.value}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+        <MarkdownSourceEditor
+          initialMarkdown={parsedMarkdown.content}
+          onChange={(content) => onMarkdownChange(wrapEditedMarkdown(content))}
+          onCommit={(content) => onMarkdownCommit?.(wrapEditedMarkdown(content))}
+        />
       </section>
     );
   }
 
   return (
-    <section className="mx-auto w-full max-w-4xl">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-ink-subtle">
-        <span>Document</span>
-        <span className="text-right">Select text to start a margin thread</span>
+    <section className="mx-auto w-full max-w-[880px]">
+      <div className="mb-2 flex items-center gap-2 px-1 text-xs text-ink-subtle">
+        <span>Markdown file</span>
       </div>
       <div
+        data-document-surface="true"
         ref={readSurfaceRef}
         onMouseUp={captureSelection}
         onKeyUp={captureSelection}
         className={cn(
-          "relative min-h-[520px] rounded-[10px] border border-document-edge bg-document px-6 py-8 sm:min-h-[680px]",
-          "shadow-[0_18px_60px_rgba(50,43,34,0.10),0_1px_0_rgba(255,255,255,0.8)_inset]",
-          "selection:bg-cyan-100 selection:text-ink sm:px-12 lg:px-16",
+          "relative min-h-[520px] rounded-md border border-document-edge bg-document px-6 py-8 text-document-ink sm:min-h-[680px]",
+          "shadow-[0_28px_90px_rgba(0,0,0,0.36),0_1px_0_rgba(255,255,255,0.9)_inset]",
+          "selection:bg-midnight-soft selection:text-document-ink sm:px-12 lg:px-16",
         )}
       >
-        <div className="pointer-events-none absolute right-0 top-0 h-full w-3 border-l border-dashed border-studio-line/70 bg-studio-paper/45 sm:w-7 sm:bg-studio-paper/55" />
         {markdown.trim() ? (
-          <MarkdownRenderer content={markdown} />
+          <>
+            {parsedMarkdown.properties.length > 0 && (
+              <div className="mb-8 rounded-md border border-document-edge bg-black/[0.025] px-3 py-2">
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  {parsedMarkdown.properties.map((property) => (
+                    <span key={property.key} className="text-xs leading-5 text-document-subtle">
+                      <span className="font-medium text-document-muted">{property.key}</span>
+                      <span className="mx-1 text-document-subtle">:</span>
+                      <span>{property.value}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <MarkdownRenderer
+              content={parsedMarkdown.content}
+              textHighlights={comments
+                .filter((comment) => comment.anchorType === "text-range" && comment.selectedQuote)
+                .map((comment) => ({
+                  id: comment.id,
+                  text: comment.selectedQuote!,
+                  label: "Comment",
+                  before: comment.beforeContext,
+                  after: comment.afterContext,
+                }))}
+              onTextHighlightClick={(commentId, event) => {
+                if (!readSurfaceRef.current) return;
+                const buttonRect = event.currentTarget.getBoundingClientRect();
+                const surfaceRect = readSurfaceRef.current.getBoundingClientRect();
+                const maxLeft = Math.max(16, surfaceRect.width - 320);
+                onSelectedQuoteChange("");
+                setAnchorPoint(null);
+                setActiveCommentCard({
+                  commentId,
+                  top: Math.max(18, buttonRect.bottom - surfaceRect.top + 8),
+                  left: Math.max(16, Math.min(maxLeft, buttonRect.left - surfaceRect.left - 16)),
+                });
+              }}
+            />
+          </>
         ) : (
           <div className="flex min-h-[560px] flex-col items-center justify-center text-center">
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-studio-line bg-studio-paper text-ink-subtle">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-document-edge bg-black/[0.03] text-document-subtle">
               <FileText className="h-5 w-5" />
             </div>
-            <p className="text-sm font-medium text-ink">Empty Markdown document</p>
-            <p className="mt-1 max-w-sm text-sm leading-6 text-ink-muted">
-              Switch to edit mode to write the first encrypted room draft.
+            <p className="text-sm font-medium text-document-ink">Empty Markdown document</p>
+            <p className="mt-1 max-w-sm text-sm leading-6 text-document-muted">
+              Switch to edit mode to write the first encrypted project draft.
             </p>
+          </div>
+        )}
+        {activeComment && activeCommentCard && (
+          <div
+            className="absolute z-20 w-[min(310px,calc(100%-2rem))] rounded-md border border-midnight/30 bg-studio-paper p-3 text-ink shadow-[0_18px_46px_rgba(0,0,0,0.24)]"
+            style={{ top: activeCommentCard.top, left: activeCommentCard.left }}
+          >
+            <div className="mb-2 flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-midnight-soft text-[11px] font-semibold text-midnight-strong">
+                  {activeComment.persona?.name?.slice(0, 1) || "C"}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-medium text-ink">{activeComment.persona?.name || "Comment"}</p>
+                  <p className="text-[11px] text-ink-subtle">Comment</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                aria-label="Close comment"
+                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-ink-subtle hover:bg-studio-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+                onClick={() => setActiveCommentCard(null)}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div className="mb-2 flex items-center gap-1.5 text-[11px] text-ink-subtle">
+              <MessageSquare className="h-3.5 w-3.5 text-midnight-strong" />
+              <span className="truncate">{activeComment.selectedQuote || "Document note"}</span>
+            </div>
+            <p className="whitespace-pre-wrap text-sm leading-6 text-ink-muted">{activeComment.text}</p>
           </div>
         )}
         {selectedQuote && anchorPoint && (
           <div
-            className="absolute z-10 hidden lg:block"
+            className="absolute z-10 w-[min(340px,calc(100%-2rem))]"
             style={{ top: anchorPoint.top, left: anchorPoint.left }}
           >
-            <SelectionAnchor
-              quote={selectedQuote}
-              onAddNote={onAddNoteAtSelection}
-              onAskAgent={onAskAgentAtSelection}
-            />
+            <form
+              data-comment-composer
+              onSubmit={onPostComment}
+              className="rounded-md border border-midnight/35 bg-studio-paper p-2.5 text-ink shadow-[0_18px_46px_rgba(0,0,0,0.24)]"
+            >
+              <div className="mb-2 flex items-start gap-2 rounded border border-studio-line bg-studio-sunken px-2 py-1.5">
+                <MessageSquarePlus className="mt-0.5 h-3.5 w-3.5 shrink-0 text-midnight-strong" />
+                <p className="line-clamp-2 text-xs leading-5 text-ink-muted">
+                  <span className="text-ink-subtle">Selected</span> "{selectedQuote}"
+                </p>
+              </div>
+              <Textarea
+                ref={composerRef}
+                aria-label="Inline comment"
+                placeholder="Type a comment here"
+                rows={3}
+                value={newCommentText}
+                onChange={(event) => onNewCommentTextChange(event.target.value)}
+                required
+                className="border-studio-line bg-studio-sunken text-ink placeholder:text-ink-subtle"
+              />
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <span className="text-xs text-ink-subtle">Comment</span>
+                <Button type="button" size="sm" onClick={() => onPostComment()}>
+                  <Send className="h-3.5 w-3.5" />
+                  Save
+                </Button>
+              </div>
+            </form>
           </div>
         )}
       </div>
     </section>
   );
+}
+
+function expandPartialWordSelection(markdown: string, selectedText: string) {
+  const quote = selectedText.trim();
+  if (!quote || /\s/.test(quote)) return quote;
+
+  const index = markdown.indexOf(quote);
+  if (index < 0) return quote;
+
+  let start = index;
+  let end = index + quote.length;
+  while (start > 0 && /[A-Za-z0-9_-]/.test(markdown[start - 1])) start -= 1;
+  while (end < markdown.length && /[A-Za-z0-9_-]/.test(markdown[end])) end += 1;
+
+  return markdown.slice(start, end).trim() || quote;
 }
