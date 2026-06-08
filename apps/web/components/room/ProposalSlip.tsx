@@ -29,8 +29,8 @@ export function ProposalSlip({ proposal, onOpen }: ProposalSlipProps) {
       type="button"
       onClick={() => onOpen(proposal)}
       className={cn(
-        "w-full rounded-md border border-studio-line bg-studio-sunken p-3 text-left",
-        "transition-colors hover:border-midnight/60 hover:bg-porcelain focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong",
+        "w-full rounded-md border border-transparent px-2.5 py-2.5 text-left",
+        "transition-colors hover:border-studio-line hover:bg-studio-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong",
       )}
     >
       <div className="mb-2 flex items-center justify-between gap-2">
@@ -41,7 +41,7 @@ export function ProposalSlip({ proposal, onOpen }: ProposalSlipProps) {
         <span className="font-mono text-[11px] text-ink-subtle">{formatTime(proposal.createdAt)}</span>
       </div>
       <p className="line-clamp-2 text-sm font-medium leading-5 text-ink">{proposal.title}</p>
-      <p className="mt-1 line-clamp-1 text-[11px] leading-5 text-ink-subtle">{anchorText}</p>
+      <p className="mt-1 line-clamp-1 border-l-2 border-studio-line px-2 text-[11px] leading-5 text-ink-subtle">{anchorText}</p>
       {proposal.comment && <p className="mt-1 line-clamp-2 text-xs leading-5 text-ink-muted">{proposal.comment}</p>}
       <div className="mt-3 flex items-center justify-between gap-2">
         <PersonaChip persona={proposal.persona} compact />

@@ -39,11 +39,10 @@ export function AgentBench({
       <div className="space-y-4 px-4 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-medium uppercase text-ink-subtle">Review</p>
-            <h2 className="mt-1 text-base font-semibold text-ink">File notes</h2>
-            <p className="mt-0.5 max-w-[250px] truncate text-[11px] text-ink-subtle">{filePath}</p>
+            <h2 className="text-sm font-semibold text-ink">Current file</h2>
+            <p className="mt-0.5 max-w-[250px] truncate text-xs text-ink-subtle">{filePath}</p>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-ink-subtle">
+          <div className="flex h-7 items-center gap-1.5 rounded-md border border-studio-line bg-studio-sunken px-2 text-xs text-ink-subtle">
             <MessagesSquare className="h-3.5 w-3.5" />
             <span>{comments.length + pendingProposals.length}</span>
           </div>
@@ -57,7 +56,7 @@ export function AgentBench({
           </div>
         )}
 
-        <section className="space-y-2 border-t border-studio-line pt-3">
+        <section className="space-y-1.5 border-t border-studio-line pt-3">
           <RailHeading title="Comments" count={comments.length} />
           {selectedQuote && <MarginThread selectedQuote={selectedQuote} />}
           {comments.length === 0 && !selectedQuote ? (
@@ -69,8 +68,8 @@ export function AgentBench({
           )}
         </section>
 
-        <section className="space-y-2 border-t border-studio-line pt-3">
-          <RailHeading title="Suggested edits" count={proposals.length} />
+        <section className="space-y-1.5 border-t border-studio-line pt-3">
+          <RailHeading title="Suggestions" count={proposals.length} />
           {recentProposals.length === 0 ? (
             <SoftRailState text="No suggestions." />
           ) : (
@@ -80,7 +79,7 @@ export function AgentBench({
           )}
         </section>
 
-        <section className="space-y-2 border-t border-studio-line pb-6 pt-3">
+        <section className="space-y-1.5 border-t border-studio-line pb-6 pt-3">
           <RailHeading title="Activity" count={timeline.length} />
           {recentTimeline.length === 0 ? (
             <SoftRailState text="No activity." />
@@ -105,8 +104,8 @@ export function AgentBench({
 
 function RailHeading({ title, count }: { title: string; count: number }) {
   return (
-    <div className="flex items-center justify-between">
-      <h3 className="text-sm font-semibold text-ink">{title}</h3>
+    <div className="flex items-center justify-between px-1">
+      <h3 className="text-xs font-medium uppercase text-ink-subtle">{title}</h3>
       <span className="font-mono text-[11px] text-ink-subtle">{count}</span>
     </div>
   );
@@ -114,7 +113,7 @@ function RailHeading({ title, count }: { title: string; count: number }) {
 
 function PrimaryEmptyRailState() {
   return (
-    <div className="flex items-center gap-2 rounded-md border border-studio-line bg-studio-sunken px-3 py-2 text-xs text-ink-subtle">
+    <div className="flex items-center gap-2 px-1 py-2 text-xs text-ink-subtle">
       <Circle className="h-3 w-3" />
       <span>No comments.</span>
     </div>
@@ -122,7 +121,7 @@ function PrimaryEmptyRailState() {
 }
 
 function SoftRailState({ text }: { text: string }) {
-  return <p className="rounded-md bg-studio-sunken px-3 py-2 text-xs leading-5 text-ink-subtle">{text}</p>;
+  return <p className="px-1 py-2 text-xs leading-5 text-ink-subtle">{text}</p>;
 }
 
 function formatTime(value: string) {

@@ -31,8 +31,8 @@ export function MarginThread({
   return (
     <div
       className={cn(
-        "rounded-md border bg-studio-sunken p-3",
-        selectedQuote ? "border-midnight/50 shadow-[0_0_0_1px_rgba(59,130,246,0.10)]" : "border-studio-line",
+        "rounded-md border px-2.5 py-2.5",
+        selectedQuote ? "border-midnight/45 bg-midnight-soft/60" : "border-transparent bg-transparent hover:bg-studio-sunken",
       )}
     >
       <div className="mb-2 flex items-center justify-between gap-2">
@@ -62,7 +62,7 @@ export function MarginThread({
       )}
       <p className="text-sm leading-6 text-ink-muted">{text}</p>
       {proposal && (
-        <div className="mt-3 rounded-md border border-midnight/40 bg-midnight-soft p-2">
+        <div className="mt-3 rounded-md border border-midnight/30 bg-midnight-soft/70 p-2">
           <div className="mb-2 flex items-center justify-between gap-2">
             <span className="text-xs font-medium text-midnight-strong">Suggested replacement</span>
             <span className="font-mono text-[11px] text-ink-subtle">{proposal.status}</span>
@@ -106,8 +106,8 @@ function QuoteBlock({
   return (
     <div
       className={cn(
-        "mb-2 flex gap-2 rounded-md border px-2 py-1.5 text-xs leading-5 text-ink-muted",
-        tone === "active" ? "border-midnight/45 bg-midnight-soft" : "border-studio-line bg-studio-paper",
+        "mb-2 flex gap-2 border-l-2 px-2 py-0.5 text-xs leading-5 text-ink-muted",
+        tone === "active" ? "border-midnight-strong bg-transparent" : "border-studio-line bg-transparent",
       )}
     >
       <Quote
@@ -135,7 +135,12 @@ function getAnchorLabel(anchorType: ChatComment["anchorType"] | Proposal["anchor
 }
 
 function trimContext(value: string) {
-  return value.replace(/\s+/g, " ").trim().slice(0, 80);
+  return value
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
 }
 
 function formatTime(value: string) {
