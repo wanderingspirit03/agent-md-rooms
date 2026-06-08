@@ -156,7 +156,7 @@ export function DocumentSurface({
         onKeyUp={captureSelection}
         className={cn(
           "relative min-h-[520px] rounded-md border border-document-edge bg-document px-6 py-8 text-document-ink sm:min-h-[680px]",
-          "shadow-[0_28px_90px_rgba(0,0,0,0.36),0_1px_0_rgba(255,255,255,0.9)_inset]",
+          "shadow-[0_10px_30px_rgba(0,0,0,0.12),0_1px_0_rgba(255,255,255,0.68)_inset]",
           "selection:bg-midnight-soft selection:text-document-ink sm:px-12 lg:px-16",
         )}
       >

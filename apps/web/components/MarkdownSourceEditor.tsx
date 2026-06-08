@@ -45,7 +45,7 @@ export default function MarkdownSourceEditor({
   return (
     <div
       data-editor-shell="true"
-      className="overflow-hidden rounded-md border border-document-edge bg-document text-document-ink shadow-[0_28px_90px_rgba(0,0,0,0.32),0_1px_0_rgba(255,255,255,0.78)_inset]"
+      className="overflow-hidden rounded-md border border-document-edge bg-document text-document-ink shadow-[0_10px_30px_rgba(0,0,0,0.1),0_1px_0_rgba(255,255,255,0.64)_inset]"
     >
       <div className="relative min-h-[560px] bg-document sm:min-h-[680px]">
         <Textarea
