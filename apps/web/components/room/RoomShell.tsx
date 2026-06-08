@@ -175,6 +175,7 @@ export function RoomShell({
             files={files}
             recentFiles={recentFiles}
             onBack={onBack}
+            onCopyProjectLink={copyProjectLink}
             onFileSelect={onFileSelect}
             onCreateFile={onCreateFile}
             onImportFile={openImportPicker}
@@ -271,7 +272,12 @@ export function RoomShell({
         {projectFilesOpen && (
           <>
             <div className="fixed inset-y-0 left-0 z-50 w-[330px] max-w-[calc(100vw-2rem)] border-r border-studio-line bg-studio-paper shadow-[24px_0_80px_rgba(0,0,0,0.45)] md:hidden">
-              <ProjectFilesHeader roomId={roomId} onBack={onBack} onClose={() => setProjectFilesOpen(false)} />
+              <ProjectFilesHeader
+                roomId={roomId}
+                onBack={onBack}
+                onCopyProjectLink={copyProjectLink}
+                onClose={() => setProjectFilesOpen(false)}
+              />
               <ProjectFilesBody
                 files={files}
                 recentFiles={recentFiles}
@@ -384,6 +390,7 @@ function ProjectFileSidebar({
   files,
   recentFiles,
   onBack,
+  onCopyProjectLink,
   onFileSelect,
   onCreateFile,
   onImportFile,
@@ -392,13 +399,14 @@ function ProjectFileSidebar({
   files: ProjectFile[];
   recentFiles: ProjectFile[];
   onBack: () => void;
+  onCopyProjectLink: () => void;
   onFileSelect: (path: string) => void;
   onCreateFile: (path: string) => void;
   onImportFile: () => void;
 }) {
   return (
     <aside className="hidden min-h-dvh flex-col bg-studio-paper text-ink md:flex">
-      <ProjectFilesHeader roomId={roomId} onBack={onBack} />
+      <ProjectFilesHeader roomId={roomId} onBack={onBack} onCopyProjectLink={onCopyProjectLink} />
       <ProjectFilesBody
         files={files}
         recentFiles={recentFiles}
@@ -413,15 +421,17 @@ function ProjectFileSidebar({
 function ProjectFilesHeader({
   roomId,
   onBack,
+  onCopyProjectLink,
   onClose,
 }: {
   roomId: string;
   onBack: () => void;
+  onCopyProjectLink: () => void;
   onClose?: () => void;
 }) {
   return (
     <div className="flex h-12 items-center gap-2 border-b border-studio-line px-3">
-      <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back">
+      <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back" className="h-11 w-11">
         <ArrowLeft className="h-4 w-4" />
       </Button>
       <div className="min-w-0 flex-1">
@@ -431,8 +441,16 @@ function ProjectFilesHeader({
         </div>
         <p className="truncate font-mono text-[11px] text-ink-subtle">{roomId?.slice(0, 18)}</p>
       </div>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="ghost" size="icon" onClick={onCopyProjectLink} aria-label="Copy project link" className="h-11 w-11">
+            <Link2 className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Copy project link</TooltipContent>
+      </Tooltip>
       {onClose && (
-        <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close project files">
+        <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close project files" className="h-11 w-11">
           <X className="h-4 w-4" />
         </Button>
       )}
