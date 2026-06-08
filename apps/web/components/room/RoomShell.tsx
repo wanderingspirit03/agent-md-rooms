@@ -983,6 +983,7 @@ function ProjectCommandPalette({
   onFocusCommentComposer: () => void;
 }) {
   const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const normalizedQuery = query.trim().toLowerCase();
@@ -1084,13 +1085,47 @@ function ProjectCommandPalette({
       return `${item.label} ${item.detail}`.toLowerCase().includes(normalizedQuery);
     })
     .slice(0, 10);
+  const activeItem = items[activeIndex] && !items[activeIndex].disabled
+    ? items[activeIndex]
+    : items.find((item) => !item.disabled);
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [query]);
+
+  useEffect(() => {
+    if (activeIndex < items.length) return;
+    setActiveIndex(Math.max(0, items.length - 1));
+  }, [activeIndex, items.length]);
 
   const runFirstItem = (event: React.FormEvent) => {
     event.preventDefault();
-    items.find((item) => !item.disabled)?.action();
+    activeItem?.action();
   };
 
   const handleDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      if (items.length === 0) return;
+      const direction = event.key === "ArrowDown" ? 1 : -1;
+      let nextIndex = activeIndex;
+      for (let step = 0; step < items.length; step += 1) {
+        nextIndex = (nextIndex + direction + items.length) % items.length;
+        if (!items[nextIndex].disabled) {
+          setActiveIndex(nextIndex);
+          return;
+        }
+      }
+      return;
+    }
+
+    if (event.key === "Enter") {
+      if (document.activeElement === inputRef.current) return;
+      event.preventDefault();
+      activeItem?.action();
+      return;
+    }
+
     if (event.key !== "Tab") return;
     const dialog = dialogRef.current;
     if (!dialog) return;
@@ -1123,7 +1158,7 @@ function ProjectCommandPalette({
         type="button"
         aria-label="Close command palette"
         tabIndex={-1}
-        className="fixed inset-0 z-[60] bg-black/55 backdrop-blur-[2px]"
+        className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-[1px]"
         onClick={onClose}
       />
       <div
@@ -1132,7 +1167,7 @@ function ProjectCommandPalette({
         aria-modal="true"
         aria-label="Command palette"
         onKeyDown={handleDialogKeyDown}
-        className="fixed left-1/2 top-16 z-[70] w-[min(640px,calc(100vw-1rem))] -translate-x-1/2 overflow-hidden rounded-md border border-studio-line bg-studio-paper shadow-[0_28px_90px_rgba(0,0,0,0.28)]"
+        className="fixed left-1/2 top-16 z-[70] w-[min(640px,calc(100vw-1rem))] -translate-x-1/2 overflow-hidden rounded-md border border-studio-line bg-studio-paper shadow-[0_14px_44px_rgba(0,0,0,0.24)]"
       >
         <form onSubmit={runFirstItem} className="border-b border-studio-line">
           <label className="flex h-12 items-center gap-2 px-3 text-ink-muted">
@@ -1157,11 +1192,13 @@ function ProjectCommandPalette({
                 key={item.id}
                 type="button"
                 disabled={item.disabled}
+                aria-selected={index === activeIndex}
                 onClick={item.action}
+                onMouseEnter={() => setActiveIndex(index)}
                 className={cn(
                   "flex h-11 w-full items-center gap-3 rounded px-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong",
                   item.disabled && "cursor-not-allowed opacity-45",
-                  !item.disabled && (index === 0 ? "bg-studio-sunken" : "hover:bg-studio-sunken"),
+                  !item.disabled && (index === activeIndex ? "bg-midnight-soft text-ink" : "hover:bg-studio-sunken"),
                 )}
               >
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-studio-line bg-studio-sunken text-ink-subtle">
