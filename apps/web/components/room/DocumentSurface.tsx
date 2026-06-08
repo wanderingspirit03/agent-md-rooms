@@ -148,21 +148,9 @@ export function DocumentSurface({
 
     return (
       <section className="mx-auto w-full max-w-[880px]">
-        {parsedMarkdown.properties.length > 0 && (
-          <div className="mb-3 rounded-md border border-studio-line bg-studio-sunken px-3 py-2">
-            <div className="flex flex-wrap gap-x-4 gap-y-1">
-              {parsedMarkdown.properties.map((property) => (
-                <span key={property.key} className="text-xs leading-5 text-ink-subtle">
-                  <span className="font-medium text-ink-muted">{property.key}</span>
-                  <span className="mx-1 text-ink-subtle">:</span>
-                  <span>{property.value}</span>
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
         <MarkdownSourceEditor
           initialMarkdown={parsedMarkdown.content}
+          properties={parsedMarkdown.properties}
           onChange={(content) => onMarkdownChange(wrapEditedMarkdown(content))}
           onCommit={(content) => onMarkdownCommit?.(wrapEditedMarkdown(content))}
         />

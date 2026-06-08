@@ -6,12 +6,14 @@ import { Textarea } from "./ui/textarea";
 
 interface MarkdownSourceEditorProps {
   initialMarkdown: string;
+  properties?: Array<{ key: string; value: string }>;
   onChange: (markdown: string) => void;
   onCommit?: (markdown: string) => void;
 }
 
 export default function MarkdownSourceEditor({
   initialMarkdown,
+  properties = [],
   onChange,
   onCommit,
 }: MarkdownSourceEditorProps) {
@@ -48,6 +50,19 @@ export default function MarkdownSourceEditor({
       className="overflow-hidden rounded-md border border-document-edge bg-document text-document-ink shadow-[0_4px_18px_rgba(0,0,0,0.10),0_1px_0_rgba(255,255,255,0.56)_inset]"
     >
       <div className="flex min-h-[560px] flex-col bg-document sm:min-h-[680px]">
+        {properties.length > 0 && (
+          <div className="border-b border-document-edge bg-black/[0.018] px-6 py-3 sm:px-12 lg:px-16">
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {properties.map((property) => (
+                <span key={property.key} className="text-xs leading-5 text-document-subtle">
+                  <span className="font-medium text-document-muted">{property.key}</span>
+                  <span className="mx-1 text-document-subtle">:</span>
+                  <span>{property.value}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
         <Textarea
           aria-label="Markdown source"
           value={markdown}
