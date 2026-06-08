@@ -11,10 +11,12 @@ describe('room references', () => {
   const access: RoomAccess = {
     roomId: 'room with spaces',
     roomSecret: 'client-side-secret',
+    appUrl: 'https://rooms.example.test',
+    syncUrl: 'https://rooms.example.test',
     serverUrl: 'https://rooms.example.test',
   };
 
-  it('round-trips mdroom tokens with stable client-side key material', () => {
+  it('round-trips fold tokens with stable client-side key material', () => {
     const token = createRoomToken(access);
     const parsed = parseRoomReference(token);
 

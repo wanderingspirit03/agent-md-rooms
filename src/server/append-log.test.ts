@@ -12,7 +12,7 @@ import { parseServerCliOptions } from './entrypoint.js';
 
 describe('production append-log server', () => {
   it('starts with file-backed persistence and reports health', async () => {
-    const dataDirectory = await mkdtemp(join(tmpdir(), 'mdroom-server-'));
+    const dataDirectory = await mkdtemp(join(tmpdir(), 'fold-server-'));
     const server = new EncryptedAppendLogServer(new FileAppendLogStore(dataDirectory));
 
     try {
@@ -22,7 +22,7 @@ describe('production append-log server', () => {
 
       expect(response.status).toBe(200);
       expect(health.ok).toBe(true);
-      expect(health.service).toBe('agent-md-rooms');
+      expect(health.service).toBe('fold');
       expect(health.store).toEqual({
         kind: 'file',
       });
@@ -36,7 +36,7 @@ describe('production append-log server', () => {
   });
 
   it('supports append and status APIs', async () => {
-    const dataDirectory = await mkdtemp(join(tmpdir(), 'mdroom-server-'));
+    const dataDirectory = await mkdtemp(join(tmpdir(), 'fold-server-'));
     const server = new EncryptedAppendLogServer(new FileAppendLogStore(dataDirectory));
     const roomId = 'server-api-room';
 
@@ -81,7 +81,7 @@ describe('production append-log server', () => {
   });
 
   it('returns 400 for invalid updates', async () => {
-    const dataDirectory = await mkdtemp(join(tmpdir(), 'mdroom-server-'));
+    const dataDirectory = await mkdtemp(join(tmpdir(), 'fold-server-'));
     const server = new EncryptedAppendLogServer(new FileAppendLogStore(dataDirectory));
 
     try {
@@ -102,7 +102,7 @@ describe('production append-log server', () => {
   });
 
   it('rejects malformed room paths and oversized encrypted updates', async () => {
-    const dataDirectory = await mkdtemp(join(tmpdir(), 'mdroom-server-'));
+    const dataDirectory = await mkdtemp(join(tmpdir(), 'fold-server-'));
     const server = new EncryptedAppendLogServer(new FileAppendLogStore(dataDirectory));
 
     try {
@@ -131,7 +131,7 @@ describe('production append-log server', () => {
   });
 
   it('closes oversized WebSocket messages before appending them', async () => {
-    const dataDirectory = await mkdtemp(join(tmpdir(), 'mdroom-server-'));
+    const dataDirectory = await mkdtemp(join(tmpdir(), 'fold-server-'));
     const server = new EncryptedAppendLogServer(new FileAppendLogStore(dataDirectory));
 
     try {
@@ -160,7 +160,7 @@ describe('production append-log server', () => {
   });
 
   it('replays file-backed append-log records after restart', async () => {
-    const dataDirectory = await mkdtemp(join(tmpdir(), 'mdroom-server-'));
+    const dataDirectory = await mkdtemp(join(tmpdir(), 'fold-server-'));
     const roomId = 'restart-replay-room';
     let firstServer: EncryptedAppendLogServer | undefined;
     let secondServer: EncryptedAppendLogServer | undefined;

@@ -4,17 +4,24 @@ import {
   buildRouteMap,
   run,
   type Application,
+  buildChoiceParser,
 } from '@stricli/core';
-import type { MdroomCommandContext } from './context.js';
+import type { FoldCommandContext } from './context.js';
 import {
   acceptProposal,
+  addRoomProfile,
+  createRoomInvite,
   exportMarkdown,
+  forgetRoomProfile,
   listProposals,
+  listRoomProfiles,
   patchMarkdown,
   proposeMarkdown,
   publishMarkdown,
   rejectProposal,
   roomStatus,
+  setRoomProfileUrls,
+  showRoomProfile,
   showProposal,
 } from './operations.js';
 import {
@@ -25,12 +32,20 @@ import {
   writeProposalsHuman,
   writeProposeHuman,
   writePublishHuman,
+  writeRoomForgetHuman,
+  writeRoomInviteHuman,
+  writeRoomListHuman,
+  writeRoomProfileHuman,
   writeShowProposalHuman,
   writeStatusHuman,
 } from './output.js';
 
 type PublishFlags = {
   server?: string;
+  appUrl?: string;
+  syncUrl?: string;
+  alias?: string;
+  path?: string;
   json: boolean;
   save: boolean;
 };
@@ -38,6 +53,7 @@ type PublishFlags = {
 type ExportFlags = {
   room: string;
   output?: string;
+  path?: string;
   json: boolean;
 };
 
@@ -48,12 +64,14 @@ type StatusFlags = {
 
 type PatchFlags = {
   room: string;
+  path?: string;
   summary?: string;
   json: boolean;
 };
 
 type ProposeFlags = {
   room: string;
+  path?: string;
   title?: string;
   comment?: string;
   json: boolean;
@@ -64,18 +82,66 @@ type ProposalRoomFlags = {
   json: boolean;
 };
 
-export const app: Application<MdroomCommandContext> = buildApplication(
+type RoomAddFlags = {
+  alias: string;
+  json: boolean;
+};
+
+type RoomAliasFlags = {
+  json: boolean;
+};
+
+type RoomSetUrlFlags = {
+  appUrl?: string;
+  syncUrl?: string;
+  json: boolean;
+};
+
+type RoomInviteFlags = {
+  for: 'human' | 'agent';
+  json: boolean;
+};
+
+export const app: Application<FoldCommandContext> = buildApplication(
   buildRouteMap({
     routes: {
-      publish: buildCommand<PublishFlags, [string], MdroomCommandContext>({
+      publish: buildCommand<PublishFlags, [string], FoldCommandContext>({
         parameters: {
           flags: {
             server: {
               kind: 'parsed',
               parse: parseString,
               optional: true,
-              brief: 'Room server origin for generated links',
+              brief: 'Compatibility shorthand for app and sync URL',
               placeholder: 'url',
+            },
+            appUrl: {
+              kind: 'parsed',
+              parse: parseString,
+              optional: true,
+              brief: 'Human web app origin for generated room links',
+              placeholder: 'url',
+            },
+            syncUrl: {
+              kind: 'parsed',
+              parse: parseString,
+              optional: true,
+              brief: 'Append-log API/WebSocket origin',
+              placeholder: 'url',
+            },
+            alias: {
+              kind: 'parsed',
+              parse: parseString,
+              optional: true,
+              brief: 'Local room alias to save',
+              placeholder: 'name',
+            },
+            path: {
+              kind: 'parsed',
+              parse: parseString,
+              optional: true,
+              brief: 'Room path for a single published Markdown file',
+              placeholder: 'path',
             },
             json: {
               kind: 'boolean',
@@ -87,7 +153,7 @@ export const app: Application<MdroomCommandContext> = buildApplication(
               kind: 'boolean',
               default: true,
               withNegated: true,
-              brief: 'Save room metadata in .mdroom/rooms.json',
+              brief: 'Save room profile in .fold/rooms.json',
             },
           },
           positional: {
@@ -105,25 +171,29 @@ export const app: Application<MdroomCommandContext> = buildApplication(
           brief: 'Publish Markdown into a local encrypted room foundation',
           customUsage: ['<file.md> [--server <url>] [--json] [--no-save]'],
         },
-        async func(this: MdroomCommandContext, flags, filePath) {
+        async func(this: FoldCommandContext, flags, filePath) {
           const result = await publishMarkdown({
             cwd: this.cwd,
             filePath,
             serverUrl: flags.server,
+            appUrl: flags.appUrl,
+            syncUrl: flags.syncUrl,
+            alias: flags.alias,
+            path: flags.path,
             save: flags.save,
           });
           if (flags.json) writeJson(this, result);
           else writePublishHuman(this, result);
         },
       }),
-      export: buildCommand<ExportFlags, [], MdroomCommandContext>({
+      export: buildCommand<ExportFlags, [], FoldCommandContext>({
         parameters: {
           flags: {
             room: {
               kind: 'parsed',
               parse: parseString,
-              brief: 'Room URL or mdroom token',
-              placeholder: 'url-or-token',
+              brief: 'Room alias, URL, or token',
+              placeholder: 'alias-or-url-or-token',
             },
             output: {
               kind: 'parsed',
@@ -131,6 +201,13 @@ export const app: Application<MdroomCommandContext> = buildApplication(
               optional: true,
               brief: 'File to write exported Markdown',
               placeholder: 'file',
+            },
+            path: {
+              kind: 'parsed',
+              parse: parseString,
+              optional: true,
+              brief: 'Export one project file by room path',
+              placeholder: 'path',
             },
             json: {
               kind: 'boolean',
@@ -142,26 +219,34 @@ export const app: Application<MdroomCommandContext> = buildApplication(
         },
         docs: {
           brief: 'Export Markdown from local encrypted room metadata',
-          customUsage: ['--room <url-or-token> [--output <file>] [--json]'],
+          customUsage: ['--room <alias-or-url-or-token> [--path <room-path>] [--output <file-or-directory>] [--json]'],
         },
-        async func(this: MdroomCommandContext, flags) {
+        async func(this: FoldCommandContext, flags) {
           const result = await exportMarkdown({
             cwd: this.cwd,
             room: flags.room,
             outputPath: flags.output,
+            path: flags.path,
           });
           if (flags.json) writeJson(this, result);
           else writeExportHuman(this, result);
         },
       }),
-      patch: buildCommand<PatchFlags, [string], MdroomCommandContext>({
+      patch: buildCommand<PatchFlags, [string], FoldCommandContext>({
         parameters: {
           flags: {
             room: {
               kind: 'parsed',
               parse: parseString,
-              brief: 'Room URL or mdroom token',
-              placeholder: 'url-or-token',
+              brief: 'Room alias, URL, or token',
+              placeholder: 'alias-or-url-or-token',
+            },
+            path: {
+              kind: 'parsed',
+              parse: parseString,
+              optional: true,
+              brief: 'Room path for a single-file proposal',
+              placeholder: 'path',
             },
             summary: {
               kind: 'parsed',
@@ -190,27 +275,35 @@ export const app: Application<MdroomCommandContext> = buildApplication(
         },
         docs: {
           brief: 'Submit an encrypted whole-document patch suggestion',
-          customUsage: ['<file.md> --room <url-or-token> [--summary <text>] [--json]'],
+          customUsage: ['<file.md> --room <alias-or-url-or-token> [--path <room-path>] [--summary <text>] [--json]'],
         },
-        async func(this: MdroomCommandContext, flags, filePath) {
+        async func(this: FoldCommandContext, flags, filePath) {
           const result = await patchMarkdown({
             cwd: this.cwd,
             filePath,
             room: flags.room,
+            path: flags.path,
             summary: flags.summary,
           });
           if (flags.json) writeJson(this, result);
           else writePatchHuman(this, result);
         },
       }),
-      propose: buildCommand<ProposeFlags, [string], MdroomCommandContext>({
+      propose: buildCommand<ProposeFlags, [string], FoldCommandContext>({
         parameters: {
           flags: {
             room: {
               kind: 'parsed',
               parse: parseString,
-              brief: 'Room URL or mdroom token',
-              placeholder: 'url-or-token',
+              brief: 'Room alias, URL, or token',
+              placeholder: 'alias-or-url-or-token',
+            },
+            path: {
+              kind: 'parsed',
+              parse: parseString,
+              optional: true,
+              brief: 'Room path for a single-file proposal',
+              placeholder: 'path',
             },
             title: {
               kind: 'parsed',
@@ -246,13 +339,14 @@ export const app: Application<MdroomCommandContext> = buildApplication(
         },
         docs: {
           brief: 'Submit an encrypted whole-document proposal',
-          customUsage: ['<file.md> --room <url-or-token> [--title <text>] [--comment <text>] [--json]'],
+          customUsage: ['<file-or-directory> --room <alias-or-url-or-token> [--path <room-path>] [--title <text>] [--comment <text>] [--json]'],
         },
-        async func(this: MdroomCommandContext, flags, filePath) {
+        async func(this: FoldCommandContext, flags, filePath) {
           const result = await proposeMarkdown({
             cwd: this.cwd,
             filePath,
             room: flags.room,
+            path: flags.path,
             title: flags.title,
             comment: flags.comment,
           });
@@ -260,15 +354,15 @@ export const app: Application<MdroomCommandContext> = buildApplication(
           else writeProposeHuman(this, result);
         },
       }),
-      proposals: buildCommand<ProposalRoomFlags, [], MdroomCommandContext>({
+      proposals: buildCommand<ProposalRoomFlags, [], FoldCommandContext>({
         parameters: {
           flags: roomOnlyFlags(),
         },
         docs: {
           brief: 'List encrypted room proposals',
-          customUsage: ['--room <url-or-token> [--json]'],
+          customUsage: ['--room <alias-or-url-or-token> [--json]'],
         },
-        async func(this: MdroomCommandContext, flags) {
+        async func(this: FoldCommandContext, flags) {
           const result = await listProposals({
             cwd: this.cwd,
             room: flags.room,
@@ -277,7 +371,7 @@ export const app: Application<MdroomCommandContext> = buildApplication(
           else writeProposalsHuman(this, result);
         },
       }),
-      'show-proposal': buildCommand<ProposalRoomFlags, [string], MdroomCommandContext>({
+      'show-proposal': buildCommand<ProposalRoomFlags, [string], FoldCommandContext>({
         parameters: {
           flags: roomOnlyFlags(),
           positional: {
@@ -293,9 +387,9 @@ export const app: Application<MdroomCommandContext> = buildApplication(
         },
         docs: {
           brief: 'Show one encrypted proposal',
-          customUsage: ['<proposal-id> --room <url-or-token> [--json]'],
+          customUsage: ['<proposal-id> --room <alias-or-url-or-token> [--json]'],
         },
-        async func(this: MdroomCommandContext, flags, proposalId) {
+        async func(this: FoldCommandContext, flags, proposalId) {
           const result = await showProposal({
             cwd: this.cwd,
             room: flags.room,
@@ -305,7 +399,7 @@ export const app: Application<MdroomCommandContext> = buildApplication(
           else writeShowProposalHuman(this, result);
         },
       }),
-      accept: buildCommand<ProposalRoomFlags, [string], MdroomCommandContext>({
+      accept: buildCommand<ProposalRoomFlags, [string], FoldCommandContext>({
         parameters: {
           flags: roomOnlyFlags(),
           positional: {
@@ -321,9 +415,9 @@ export const app: Application<MdroomCommandContext> = buildApplication(
         },
         docs: {
           brief: 'Accept an encrypted proposal and append canonical Markdown',
-          customUsage: ['<proposal-id> --room <url-or-token> [--json]'],
+          customUsage: ['<proposal-id> --room <alias-or-url-or-token> [--json]'],
         },
-        async func(this: MdroomCommandContext, flags, proposalId) {
+        async func(this: FoldCommandContext, flags, proposalId) {
           const result = await acceptProposal({
             cwd: this.cwd,
             room: flags.room,
@@ -333,7 +427,7 @@ export const app: Application<MdroomCommandContext> = buildApplication(
           else writeDecisionHuman(this, result);
         },
       }),
-      reject: buildCommand<ProposalRoomFlags, [string], MdroomCommandContext>({
+      reject: buildCommand<ProposalRoomFlags, [string], FoldCommandContext>({
         parameters: {
           flags: roomOnlyFlags(),
           positional: {
@@ -349,9 +443,9 @@ export const app: Application<MdroomCommandContext> = buildApplication(
         },
         docs: {
           brief: 'Reject an encrypted proposal',
-          customUsage: ['<proposal-id> --room <url-or-token> [--json]'],
+          customUsage: ['<proposal-id> --room <alias-or-url-or-token> [--json]'],
         },
-        async func(this: MdroomCommandContext, flags, proposalId) {
+        async func(this: FoldCommandContext, flags, proposalId) {
           const result = await rejectProposal({
             cwd: this.cwd,
             room: flags.room,
@@ -361,14 +455,193 @@ export const app: Application<MdroomCommandContext> = buildApplication(
           else writeDecisionHuman(this, result);
         },
       }),
-      status: buildCommand<StatusFlags, [], MdroomCommandContext>({
+      room: buildRouteMap({
+        routes: {
+          add: buildCommand<RoomAddFlags, [string], FoldCommandContext>({
+            parameters: {
+              flags: {
+                alias: {
+                  kind: 'parsed',
+                  parse: parseString,
+                  brief: 'Local alias for this room',
+                  placeholder: 'name',
+                },
+                json: jsonFlag(),
+              },
+              positional: {
+                kind: 'tuple',
+                parameters: [
+                  {
+                    parse: parseString,
+                    placeholder: 'url-or-token',
+                    brief: 'Secret Fold room URL or token',
+                  },
+                ],
+              },
+            },
+            docs: {
+              brief: 'Import a room URL/token and save a local alias',
+              customUsage: ['<url-or-token> --alias <name> [--json]'],
+            },
+            async func(this: FoldCommandContext, flags, room) {
+              const result = await addRoomProfile({ cwd: this.cwd, room, alias: flags.alias });
+              if (flags.json) writeJson(this, result);
+              else writeRoomProfileHuman(this, result);
+            },
+          }),
+          list: buildCommand<RoomAliasFlags, [], FoldCommandContext>({
+            parameters: {
+              flags: { json: jsonFlag() },
+            },
+            docs: {
+              brief: 'List saved room aliases',
+              customUsage: ['[--json]'],
+            },
+            async func(this: FoldCommandContext, flags) {
+              const result = await listRoomProfiles({ cwd: this.cwd });
+              if (flags.json) writeJson(this, result);
+              else writeRoomListHuman(this, result);
+            },
+          }),
+          show: buildCommand<RoomAliasFlags, [string], FoldCommandContext>({
+            parameters: {
+              flags: { json: jsonFlag() },
+              positional: {
+                kind: 'tuple',
+                parameters: [
+                  {
+                    parse: parseString,
+                    placeholder: 'alias',
+                    brief: 'Saved room alias',
+                  },
+                ],
+              },
+            },
+            docs: {
+              brief: 'Show one saved room profile',
+              customUsage: ['<alias> [--json]'],
+            },
+            async func(this: FoldCommandContext, flags, alias) {
+              const result = await showRoomProfile({ cwd: this.cwd, alias });
+              if (flags.json) writeJson(this, result);
+              else writeRoomProfileHuman(this, result);
+            },
+          }),
+          'set-url': buildCommand<RoomSetUrlFlags, [string], FoldCommandContext>({
+            parameters: {
+              flags: {
+                appUrl: {
+                  kind: 'parsed',
+                  parse: parseString,
+                  optional: true,
+                  brief: 'Human web app origin',
+                  placeholder: 'url',
+                },
+                syncUrl: {
+                  kind: 'parsed',
+                  parse: parseString,
+                  optional: true,
+                  brief: 'Append-log API/WebSocket origin',
+                  placeholder: 'url',
+                },
+                json: jsonFlag(),
+              },
+              positional: {
+                kind: 'tuple',
+                parameters: [
+                  {
+                    parse: parseString,
+                    placeholder: 'alias',
+                    brief: 'Saved room alias',
+                  },
+                ],
+              },
+            },
+            docs: {
+              brief: 'Update app/sync URLs for a saved room',
+              customUsage: ['<alias> [--app-url <url>] [--sync-url <url>] [--json]'],
+            },
+            async func(this: FoldCommandContext, flags, alias) {
+              const result = await setRoomProfileUrls({
+                cwd: this.cwd,
+                alias,
+                appUrl: flags.appUrl,
+                syncUrl: flags.syncUrl,
+              });
+              if (flags.json) writeJson(this, result);
+              else writeRoomProfileHuman(this, result);
+            },
+          }),
+          forget: buildCommand<RoomAliasFlags, [string], FoldCommandContext>({
+            parameters: {
+              flags: { json: jsonFlag() },
+              positional: {
+                kind: 'tuple',
+                parameters: [
+                  {
+                    parse: parseString,
+                    placeholder: 'alias',
+                    brief: 'Saved room alias',
+                  },
+                ],
+              },
+            },
+            docs: {
+              brief: 'Forget a saved local room alias',
+              customUsage: ['<alias> [--json]'],
+            },
+            async func(this: FoldCommandContext, flags, alias) {
+              const result = await forgetRoomProfile({ cwd: this.cwd, alias });
+              if (flags.json) writeJson(this, result);
+              else writeRoomForgetHuman(this, result);
+            },
+          }),
+          invite: buildCommand<RoomInviteFlags, [string], FoldCommandContext>({
+            parameters: {
+              flags: {
+                for: {
+                  kind: 'parsed',
+                  parse: buildChoiceParser(['human', 'agent'] as const),
+                  default: 'human',
+                  brief: 'Invite audience',
+                  placeholder: 'human|agent',
+                },
+                json: jsonFlag(),
+              },
+              positional: {
+                kind: 'tuple',
+                parameters: [
+                  {
+                    parse: parseString,
+                    placeholder: 'alias',
+                    brief: 'Saved room alias',
+                  },
+                ],
+              },
+            },
+            docs: {
+              brief: 'Print a human or agent invite for a saved room',
+              customUsage: ['<alias> [--for human|agent] [--json]'],
+            },
+            async func(this: FoldCommandContext, flags, alias) {
+              const result = await createRoomInvite({ cwd: this.cwd, alias, audience: flags.for });
+              if (flags.json) writeJson(this, result);
+              else writeRoomInviteHuman(this, result);
+            },
+          }),
+        },
+        docs: {
+          brief: 'Manage saved room aliases and invites',
+        },
+      }),
+      status: buildCommand<StatusFlags, [], FoldCommandContext>({
         parameters: {
           flags: {
             room: {
               kind: 'parsed',
               parse: parseString,
-              brief: 'Room URL or mdroom token',
-              placeholder: 'url-or-token',
+              brief: 'Room alias, URL, or token',
+              placeholder: 'alias-or-url-or-token',
             },
             json: {
               kind: 'boolean',
@@ -380,9 +653,9 @@ export const app: Application<MdroomCommandContext> = buildApplication(
         },
         docs: {
           brief: 'Show local room metadata status',
-          customUsage: ['--room <url-or-token> [--json]'],
+          customUsage: ['--room <alias-or-url-or-token> [--json]'],
         },
-        async func(this: MdroomCommandContext, flags) {
+        async func(this: FoldCommandContext, flags) {
           const result = await roomStatus({
             cwd: this.cwd,
             room: flags.room,
@@ -398,7 +671,7 @@ export const app: Application<MdroomCommandContext> = buildApplication(
     },
   }),
   {
-    name: 'mdroom',
+    name: 'fold',
     scanner: {
       caseStyle: 'allow-kebab-for-camel',
     },
@@ -409,7 +682,7 @@ export const app: Application<MdroomCommandContext> = buildApplication(
   },
 );
 
-export async function runMdroomCli(inputs: readonly string[], context: MdroomCommandContext): Promise<void> {
+export async function runFoldCli(inputs: readonly string[], context: FoldCommandContext): Promise<void> {
   await run(app, inputs, context);
 }
 
@@ -435,14 +708,23 @@ function roomOnlyFlags(): {
     room: {
       kind: 'parsed',
       parse: parseString,
-      brief: 'Room URL or mdroom token',
-      placeholder: 'url-or-token',
+      brief: 'Room alias, URL, or token',
+      placeholder: 'alias-or-url-or-token',
     },
-    json: {
-      kind: 'boolean',
-      default: false,
-      withNegated: false,
-      brief: 'Print a stable JSON result',
-    },
+    json: jsonFlag(),
+  };
+}
+
+function jsonFlag(): {
+  kind: 'boolean';
+  default: false;
+  withNegated: false;
+  brief: string;
+} {
+  return {
+    kind: 'boolean',
+    default: false,
+    withNegated: false,
+    brief: 'Print a stable JSON result',
   };
 }

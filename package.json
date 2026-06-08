@@ -1,5 +1,5 @@
 {
-  "name": "agent-md-rooms",
+  "name": "fold",
   "version": "0.0.0",
   "private": true,
   "workspaces": [
@@ -8,7 +8,7 @@
   "type": "module",
   "description": "OSS plan and spikes for encrypted Markdown rooms created by coding agents.",
   "bin": {
-    "mdroom": "./src/cli/bin.ts"
+    "fold": "./src/cli/bin.ts"
   },
   "scripts": {
     "cli": "tsx src/cli/bin.ts",

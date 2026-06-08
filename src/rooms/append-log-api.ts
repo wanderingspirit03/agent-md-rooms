@@ -51,7 +51,7 @@ export async function fetchRoomStatus(access: RoomAccess): Promise<RoomStatusRes
 }
 
 function roomApiUrl(access: RoomAccess, endpoint: 'updates' | 'status'): string {
-  const base = new URL(access.serverUrl);
+  const base = new URL(access.syncUrl ?? access.serverUrl);
   const basePath = base.pathname.replace(/\/+$/, '');
   base.pathname = `${basePath}/rooms/${encodeURIComponent(access.roomId)}/${endpoint}`;
   base.search = '';

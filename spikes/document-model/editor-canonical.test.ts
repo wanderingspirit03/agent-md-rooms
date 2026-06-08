@@ -62,7 +62,7 @@ describe("editor-canonical document model", () => {
     expect(report.output).toContain("```mermaid\nflowchart LR");
     expect(report.output).toContain("```math\n\\sum_{i=1}^{n}");
     expect(report.output).toContain(
-      "[Project repo](https://github.com/wanderingspirit03/agent-md-rooms)",
+      "[Project repo](https://github.com/wanderingspirit03/fold)",
     );
     expect(report.output).toContain("![Diagram](./diagram.png)");
   });

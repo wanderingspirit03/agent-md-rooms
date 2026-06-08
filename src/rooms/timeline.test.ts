@@ -13,7 +13,7 @@ describe('encrypted room timeline', () => {
     const access = createRoomAccess();
     const events: TimelineEvent[] = [
       {
-        schema: 'mdroom.timeline-event.v1',
+        schema: 'fold.timeline-event.v1',
         id: 'evt-publish',
         type: 'publish',
         createdAt: '2026-06-07T00:00:00.000Z',
@@ -23,7 +23,7 @@ describe('encrypted room timeline', () => {
         message: 'Published Markdown room',
       },
       {
-        schema: 'mdroom.timeline-event.v1',
+        schema: 'fold.timeline-event.v1',
         id: 'evt-propose',
         type: 'proposal_submitted',
         createdAt: '2026-06-07T00:01:00.000Z',
@@ -33,7 +33,7 @@ describe('encrypted room timeline', () => {
         message: 'Submitted proposal',
       },
       {
-        schema: 'mdroom.timeline-event.v1',
+        schema: 'fold.timeline-event.v1',
         id: 'evt-accept',
         type: 'proposal_accepted',
         createdAt: '2026-06-07T00:02:00.000Z',
@@ -43,7 +43,7 @@ describe('encrypted room timeline', () => {
         message: 'Accepted proposal',
       },
       {
-        schema: 'mdroom.timeline-event.v1',
+        schema: 'fold.timeline-event.v1',
         id: 'evt-reject',
         type: 'proposal_rejected',
         createdAt: '2026-06-07T00:03:00.000Z',

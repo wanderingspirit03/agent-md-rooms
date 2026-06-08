@@ -4,11 +4,11 @@
 
 Build an OSS, self-hostable collaboration platform for `.md` files created by humans and agents. The first product should feel like an Excalidraw-style private room plus a Notion-leaning Markdown workspace: instant encrypted sharing links, polished reading and editing, distinct human and agent personas, reviewable agent changes, inline comments, agent-friendly CLI workflows, and durable Markdown export.
 
-The core collaboration unit is one Markdown document in a room. A lightweight personal workspace helps each user find their rooms, agents, pending reviews, and recent Markdown artifacts. Heavy team workspaces, full agent-run archives, billing, and enterprise account systems are intentionally deferred.
+The core collaboration unit is a Markdown project room: one or more Markdown files addressed by project-relative paths. A lightweight personal workspace helps each user find their rooms, agents, pending reviews, and recent Markdown artifacts. Heavy team workspaces, full agent-run archives, billing, and enterprise account systems are intentionally deferred.
 
 ## Product Goals
 
-- Let any human or autonomous agent turn a Markdown file into a private collaborative room with one command or upload.
+- Let any human or autonomous agent turn a Markdown file or small Markdown project tree into a private collaborative room with one command or upload.
 - Let humans read, edit, comment, and resolve threads in a polished web UI.
 - Let agents submit follow-up edits, review comments, and change explanations through the CLI or future webhooks.
 - Keep Markdown portable: users can always export the current accepted document as raw `.md`.
@@ -196,31 +196,31 @@ Implementation defaults:
 Proposed commands:
 
 ```bash
-mdroom publish file.md
-mdroom patch file.md --room <url-or-token>
-mdroom propose file.md --room <url-or-token> --title "Tighten positioning" --comment "I made the opening sharper and added a concrete ICP section."
-mdroom proposals --room <url-or-token>
-mdroom show-proposal <proposal-id> --room <url-or-token>
-mdroom accept <proposal-id> --room <url-or-token>
-mdroom reject <proposal-id> --room <url-or-token>
-mdroom patch file.md --room <url-or-token> --summary "Tighten positioning"
-mdroom comment --room <url-or-token> --text "..."
-mdroom export --room <url-or-token>
-mdroom status --room <url-or-token>
-mdroom context --room <url-or-token>
+fold publish file.md
+fold patch file.md --room <url-or-token>
+fold propose file.md --room <url-or-token> --title "Tighten positioning" --comment "I made the opening sharper and added a concrete ICP section."
+fold proposals --room <url-or-token>
+fold show-proposal <proposal-id> --room <url-or-token>
+fold accept <proposal-id> --room <url-or-token>
+fold reject <proposal-id> --room <url-or-token>
+fold patch file.md --room <url-or-token> --summary "Tighten positioning"
+fold comment --room <url-or-token> --text "..."
+fold export --room <url-or-token>
+fold status --room <url-or-token>
+fold context --room <url-or-token>
 ```
 
 Current proposal command behavior to preserve:
 
-2. `mdroom propose file.md --room <url-or-token> --title "..." --comment "..."` submits `file.md` as an encrypted whole-document proposal against the current accepted Markdown. The CLI should create a pending proposal record, assign the proposer a room/system-generated persona, store the title/comment as review metadata, and leave the accepted document unchanged until a human accepts it.
-3. `mdroom proposals --room <url-or-token>` lists decrypted proposal summaries for the room, including proposal id, status, title, and persona. Status should be derived by replaying encrypted room records, not by trusting mutable plaintext server-side state.
+2. `fold propose file.md --room <url-or-token> --title "..." --comment "..."` submits `file.md` as an encrypted whole-document proposal against the current accepted Markdown. The CLI should create a pending proposal record, assign the proposer a room/system-generated persona, store the title/comment as review metadata, and leave the accepted document unchanged until a human accepts it.
+3. `fold proposals --room <url-or-token>` lists decrypted proposal summaries for the room, including proposal id, status, title, and persona. Status should be derived by replaying encrypted room records, not by trusting mutable plaintext server-side state.
 
 CLI requirements:
 
 - Print useful human output by default.
 - Support `--json` on every command from day one with documented, stable response schemas for agent workflows.
-- Store room metadata project-locally by default in `.mdroom/` so an agent can retrieve the current room token without repeated prompting.
-- Keep the metadata format explicit and portable, for example `.mdroom/rooms.json`, while ensuring generated files are easy to add to `.gitignore`.
+- Store room profiles project-locally by default in `.fold/` so an agent can retrieve the current room key by alias without repeated prompting.
+- Keep the metadata format explicit and portable, for example `.fold/rooms.json`, while ensuring generated files are easy to add to `.gitignore`.
 - Accept an explicit room URL or token for stateless automation.
 - Store encrypted-room access tokens locally only when the user or agent opts into local metadata for that room.
 - Never send the room key to the server.
@@ -238,7 +238,7 @@ Default room mode should be `suggestions`.
 
 Suggested changes are modeled separately from Yjs document sync. The agent can submit proposed Markdown or structured patches, and the client renders them as encrypted review items before applying accepted changes to the live document.
 
-The first patch format should be whole-document Markdown replacement plus a generated diff for review. `mdroom patch file.md` should submit a reviewable suggestion by default; trusted direct edits require an explicit room policy and CLI intent such as `--direct`. Structured AST patches or editor-native transaction proposals can come later if whole-document diffs feel too blunt.
+The first patch format should be whole-document Markdown replacement plus a generated diff for review. `fold patch file.md` should submit a reviewable suggestion by default; trusted direct edits require an explicit room policy and CLI intent such as `--direct`. Structured AST patches or editor-native transaction proposals can come later if whole-document diffs feel too blunt.
 
 ### Agent Change Objects
 
@@ -289,10 +289,25 @@ Future browser interactions can support `@agent` summons, such as `@copy-editor 
 Rooms should eventually provide a clean context packet for another agent:
 
 ```bash
-mdroom context --room <url-or-token>
+fold context --room <url-or-token>
 ```
 
 The context packet should include the accepted Markdown, room instructions, unresolved comments, pending suggestions, accepted/rejected patch summaries, open decisions, and any safe persona metadata needed for continuation. This makes the room useful as an agent-to-agent handoff layer without scraping chat history.
+
+### Room Access and Project CLI
+
+The product-facing CLI name is `fold`. Keep the CLI lean by reusing the same verbs for single files and project directories:
+
+```bash
+fold publish <file-or-directory> --alias <name>
+fold room add <room-url-or-token> --alias <name>
+fold room invite <name> --for human|agent
+fold status --room <name> --json
+fold export --room <name> [--path docs/PLAN.md] --output <file-or-directory>
+fold propose <file-or-directory> --room <name> [--path docs/PLAN.md] --title "..." --comment "..."
+```
+
+Room profiles store `appUrl`, `syncUrl`, `roomId`, and client-side key material. `appUrl` is the browser/web app origin; `syncUrl` is the append-log HTTP/WebSocket origin. They may be identical on Railway or a reverse-proxied deployment, but they can differ for local development and self-hosting. Invites should warn when either URL appears local-only, such as `localhost`, `127.0.0.1`, or private LAN addresses.
 
 ### Room Instructions
 

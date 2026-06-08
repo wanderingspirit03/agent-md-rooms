@@ -5,9 +5,9 @@ import { decryptUpdate, deriveRoomKey, encryptUpdate } from './crypto.js';
 import type { EncryptedUpdateRecord } from './server.js';
 
 const OPAQUE_ROOM_RECORD_SENDER_ID_PREFIXES = [
-  'mdroom-cli:event',
-  'mdroom-cli:proposal',
-  'mdroom-cli:suggestion',
+  'fold-cli:event',
+  'fold-cli:proposal',
+  'fold-cli:suggestion',
 ] as const;
 
 export interface EncryptedYjsClientOptions {

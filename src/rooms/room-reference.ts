@@ -1,11 +1,13 @@
 import { webcrypto } from 'node:crypto';
 
-export const ROOM_TOKEN_PREFIX = 'mdroom:v1:';
+export const ROOM_TOKEN_PREFIX = 'fold:v1:';
 export const DEFAULT_SERVER_URL = 'http://localhost:8787';
 
 export interface RoomAccess {
   roomId: string;
   roomSecret: string;
+  appUrl: string;
+  syncUrl: string;
   serverUrl: string;
 }
 
@@ -19,14 +21,18 @@ interface EncodedRoomToken {
   v: 1;
   roomId: string;
   roomSecret: string;
-  serverUrl: string;
+  appUrl?: string;
+  syncUrl?: string;
+  serverUrl?: string;
 }
 
-export function createRoomAccess(serverUrl = DEFAULT_SERVER_URL): RoomAccess {
+export function createRoomAccess(serverUrl = DEFAULT_SERVER_URL, appUrl = serverUrl, syncUrl = serverUrl): RoomAccess {
   return {
     roomId: randomBase64Url(16),
     roomSecret: randomBase64Url(32),
-    serverUrl: normalizeServerUrl(serverUrl),
+    appUrl: normalizeServerUrl(appUrl),
+    syncUrl: normalizeServerUrl(syncUrl),
+    serverUrl: normalizeServerUrl(syncUrl),
   };
 }
 
@@ -35,7 +41,8 @@ export function createRoomToken(access: RoomAccess): string {
     v: 1,
     roomId: access.roomId,
     roomSecret: access.roomSecret,
-    serverUrl: normalizeServerUrl(access.serverUrl),
+    appUrl: normalizeServerUrl(access.appUrl ?? access.serverUrl),
+    syncUrl: normalizeServerUrl(access.syncUrl ?? access.serverUrl),
   };
 
   return `${ROOM_TOKEN_PREFIX}${Buffer.from(JSON.stringify(token), 'utf8').toString('base64url')}`;
@@ -50,11 +57,15 @@ export function parseRoomReference(input: string): ParsedRoomReference {
 }
 
 export function roomUrlForAccess(access: RoomAccess): string {
-  return `${serverRoomUrlForAccess(access)}#key=${encodeURIComponent(access.roomSecret)}`;
+  return `${appRoomUrlForAccess(access)}#key=${encodeURIComponent(access.roomSecret)}`;
 }
 
 export function serverRoomUrlForAccess(access: RoomAccess): string {
-  return `${normalizeServerUrl(access.serverUrl)}/room/${encodeURIComponent(access.roomId)}`;
+  return appRoomUrlForAccess(access);
+}
+
+export function appRoomUrlForAccess(access: RoomAccess): string {
+  return `${normalizeServerUrl(access.appUrl ?? access.serverUrl)}/room/${encodeURIComponent(access.roomId)}`;
 }
 
 export function normalizeServerUrl(input: string): string {
@@ -81,17 +92,19 @@ function parseRoomToken(input: string): RoomAccess {
   try {
     raw = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as unknown;
   } catch (error) {
-    throw new Error('Invalid mdroom token encoding', { cause: error });
+    throw new Error('Invalid fold token encoding', { cause: error });
   }
 
   if (!isEncodedRoomToken(raw)) {
-    throw new Error('Invalid mdroom token schema');
+    throw new Error('Invalid fold token schema');
   }
 
   return {
     roomId: raw.roomId,
     roomSecret: raw.roomSecret,
-    serverUrl: normalizeServerUrl(raw.serverUrl),
+    appUrl: normalizeServerUrl(raw.appUrl ?? raw.serverUrl ?? DEFAULT_SERVER_URL),
+    syncUrl: normalizeServerUrl(raw.syncUrl ?? raw.serverUrl ?? raw.appUrl ?? DEFAULT_SERVER_URL),
+    serverUrl: normalizeServerUrl(raw.syncUrl ?? raw.serverUrl ?? raw.appUrl ?? DEFAULT_SERVER_URL),
   };
 }
 
@@ -100,7 +113,7 @@ function parseRoomUrl(input: string): ParsedRoomReference {
   try {
     parsed = new URL(input);
   } catch (error) {
-    throw new Error('Room must be a mdroom token or room URL', { cause: error });
+    throw new Error('Room must be a fold token or room URL', { cause: error });
   }
 
   const roomPath = roomPathFromUrl(parsed);
@@ -118,6 +131,8 @@ function parseRoomUrl(input: string): ParsedRoomReference {
   return parsedFromAccess({
     roomId: roomPath.roomId,
     roomSecret,
+    appUrl: roomPath.serverUrl,
+    syncUrl: roomPath.serverUrl,
     serverUrl: roomPath.serverUrl,
   }, 'url');
 }
@@ -125,7 +140,9 @@ function parseRoomUrl(input: string): ParsedRoomReference {
 function parsedFromAccess(access: RoomAccess, kind: ParsedRoomReference['kind']): ParsedRoomReference {
   const normalized = {
     ...access,
-    serverUrl: normalizeServerUrl(access.serverUrl),
+    appUrl: normalizeServerUrl(access.appUrl ?? access.serverUrl),
+    syncUrl: normalizeServerUrl(access.syncUrl ?? access.serverUrl),
+    serverUrl: normalizeServerUrl(access.syncUrl ?? access.serverUrl),
   };
 
   return {
@@ -158,8 +175,11 @@ function isEncodedRoomToken(value: unknown): value is EncodedRoomToken {
     candidate.roomId.length > 0 &&
     typeof candidate.roomSecret === 'string' &&
     candidate.roomSecret.length > 0 &&
-    typeof candidate.serverUrl === 'string' &&
-    candidate.serverUrl.length > 0
+    (
+      (typeof candidate.serverUrl === 'string' && candidate.serverUrl.length > 0) ||
+      (typeof candidate.appUrl === 'string' && candidate.appUrl.length > 0) ||
+      (typeof candidate.syncUrl === 'string' && candidate.syncUrl.length > 0)
+    )
   );
 }
 

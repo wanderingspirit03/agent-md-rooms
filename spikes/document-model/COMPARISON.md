@@ -204,7 +204,7 @@ Block math:
 
 ## Links And Images
 
-[Project repo](https://github.com/wanderingspirit03/agent-md-rooms)
+[Project repo](https://github.com/wanderingspirit03/fold)
 
 ![Diagram](./diagram.png)
 
@@ -236,7 +236,7 @@ Block math:
 
 ## Links And Images
 
-[Project repo](https://github.com/wanderingspirit03/agent-md-rooms)
+[Project repo](https://github.com/wanderingspirit03/fold)
 
 ![Diagram](./diagram.png)
 
@@ -268,7 +268,7 @@ Block math:
 
 ## Links And Images
 
-[Project repo](https://github.com/wanderingspirit03/agent-md-rooms)
+[Project repo](https://github.com/wanderingspirit03/fold)
 
 ![Diagram](./diagram.png)
 ````

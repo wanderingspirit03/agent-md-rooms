@@ -3,9 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
+  Bot,
   Check,
   ChevronDown,
+  Clipboard,
   Command,
+  Copy,
   Download,
   File,
   FileText,
@@ -27,6 +30,14 @@ import type { RoomPersona } from "../../lib/personas";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { ThemeToggle } from "../ThemeToggle";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -50,6 +61,7 @@ interface RoomShellProps {
   persona?: RoomPersona | null;
   mode: RoomMode;
   error?: string | null;
+  agentInvite?: AgentInvite | null;
   onBack: () => void;
   onExport: () => void;
   onModeChange: (mode: RoomMode) => void;
@@ -74,6 +86,7 @@ export function RoomShell({
   persona,
   mode,
   error,
+  agentInvite,
   onBack,
   onExport,
   onModeChange,
@@ -88,7 +101,9 @@ export function RoomShell({
   const [reviewOpen, setReviewOpen] = useState(false);
   const [projectFilesOpen, setProjectFilesOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [agentInviteOpen, setAgentInviteOpen] = useState(false);
   const [projectLinkCopied, setProjectLinkCopied] = useState(false);
+  const [agentInviteCopied, setAgentInviteCopied] = useState(false);
   const [recentFilePaths, setRecentFilePaths] = useState<string[]>([]);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const selectedFile = useMemo(
@@ -155,6 +170,12 @@ export function RoomShell({
     setProjectLinkCopied(true);
     window.setTimeout(() => setProjectLinkCopied(false), 1400);
     onCopyProjectLink?.();
+  };
+  const copyAgentInvite = async () => {
+    if (!agentInvite) return;
+    await copyText(agentInvite.text);
+    setAgentInviteCopied(true);
+    window.setTimeout(() => setAgentInviteCopied(false), 1400);
   };
   const openImportPicker = () => importInputRef.current?.click();
   const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -256,6 +277,20 @@ export function RoomShell({
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>{reviewLabel}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setAgentInviteOpen(true)}
+                        aria-label="Invite agent"
+                        disabled={!agentInvite}
+                      >
+                        <Bot className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Invite agent</TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -372,6 +407,10 @@ export function RoomShell({
               void copyProjectLink();
               setCommandOpen(false);
             }}
+            onInviteAgent={() => {
+              setAgentInviteOpen(true);
+              setCommandOpen(false);
+            }}
             onOpenReview={() => {
               setReviewOpen(true);
               setCommandOpen(false);
@@ -382,9 +421,22 @@ export function RoomShell({
             }}
           />
         )}
+        <AgentInviteDialog
+          invite={agentInvite}
+          open={agentInviteOpen}
+          copied={agentInviteCopied}
+          onOpenChange={setAgentInviteOpen}
+          onCopy={() => void copyAgentInvite()}
+        />
       </div>
     </TooltipProvider>
   );
+}
+
+interface AgentInvite {
+  alias: string;
+  skillUrl: string;
+  text: string;
 }
 
 interface ProjectFile {
@@ -975,6 +1027,7 @@ function ProjectCommandPalette({
   onModeChange,
   onExport,
   onCopyProjectLink,
+  onInviteAgent,
   onOpenReview,
   onFocusCommentComposer,
 }: {
@@ -991,6 +1044,7 @@ function ProjectCommandPalette({
   onModeChange: (mode: RoomMode) => void;
   onExport: () => void;
   onCopyProjectLink: () => void;
+  onInviteAgent: () => void;
   onOpenReview: () => void;
   onFocusCommentComposer: () => void;
 }) {
@@ -1044,6 +1098,13 @@ function ProjectCommandPalette({
       detail: "Add local .md to project",
       icon: <Upload className="h-4 w-4" />,
       action: onImportFile,
+    },
+    {
+      id: "invite-agent",
+      label: "Invite agent",
+      detail: "Copy CLI onboarding block",
+      icon: <Bot className="h-4 w-4" />,
+      action: onInviteAgent,
     },
     {
       id: "copy-link",
@@ -1243,6 +1304,73 @@ function ProjectCommandPalette({
       </div>
     </>
   );
+}
+
+function AgentInviteDialog({
+  invite,
+  open,
+  copied,
+  onOpenChange,
+  onCopy,
+}: {
+  invite?: AgentInvite | null;
+  open: boolean;
+  copied: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCopy: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl gap-0 overflow-hidden border-studio-line bg-studio-paper p-0 text-ink shadow-[0_14px_44px_rgba(0,0,0,0.24)]">
+        <DialogHeader className="border-b border-studio-line px-4 py-3 sm:px-5">
+          <div className="flex items-center gap-2 text-[11px] font-medium uppercase text-ink-subtle">
+            <Bot className="h-3.5 w-3.5 text-midnight-strong" />
+            Agent invite
+          </div>
+          <DialogTitle className="mt-1 text-[15px]">Copy onboarding instructions</DialogTitle>
+          <DialogDescription className="mt-1 text-xs leading-5">
+            Paste this block into an agent session so it can install the room alias and read the local skill.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 px-4 py-4 sm:px-5">
+          <div className="flex min-h-9 items-center gap-2 rounded-md border border-studio-line bg-studio-sunken px-3">
+            <Clipboard className="h-4 w-4 shrink-0 text-ink-subtle" />
+            <p className="min-w-0 flex-1 truncate text-xs text-ink-muted">
+              {invite ? invite.skillUrl : "No invite available"}
+            </p>
+          </div>
+          <pre className="max-h-[320px] overflow-auto rounded-md border border-studio-line bg-studio-sunken p-3 font-mono text-xs leading-5 text-ink">
+            {invite?.text ?? "Configure the room key before inviting an agent."}
+          </pre>
+        </div>
+        <DialogFooter className="border-t border-studio-line bg-studio-paper px-4 py-3 sm:px-5">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+          <Button onClick={onCopy} disabled={!invite}>
+            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            {copied ? "Copied" : "Copy invite"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const input = window.document.createElement("textarea");
+    input.value = text;
+    input.setAttribute("readonly", "");
+    input.style.position = "fixed";
+    input.style.opacity = "0";
+    window.document.body.appendChild(input);
+    input.select();
+    window.document.execCommand("copy");
+    window.document.body.removeChild(input);
+  }
 }
 
 function normalizePaletteFilePath(value: string) {

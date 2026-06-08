@@ -12,8 +12,8 @@ import type { RoomAccess } from './room-reference.js';
 export const MARKDOWN_YTEXT_NAME = 'markdown';
 export const MARKDOWN_CANONICAL = 'y.text:markdown';
 export const ENCRYPTED_SNAPSHOT_FORMAT = 'encrypted-yjs-update-v1';
-export const DOCUMENT_UPDATE_SENDER_ID = 'mdroom-cli:document';
-export const SUGGESTION_UPDATE_SENDER_ID_PREFIX = 'mdroom-cli:suggestion';
+export const DOCUMENT_UPDATE_SENDER_ID = 'fold-cli:document';
+export const SUGGESTION_UPDATE_SENDER_ID_PREFIX = 'fold-cli:suggestion';
 
 export interface EncryptedMarkdownSnapshot extends EncryptedPayload {
   format: typeof ENCRYPTED_SNAPSHOT_FORMAT;

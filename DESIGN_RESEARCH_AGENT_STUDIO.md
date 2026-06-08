@@ -1,8 +1,8 @@
-# Agent MD Rooms — Agent Studio Design Research
+# Fold — Agent Studio Design Research
 
 ## Working thesis
 
-Agent MD Rooms should become an **Agent Studio**: a private, encrypted workspace where agent-created Markdown feels alive, reviewable, and worth keeping.
+Fold should become an **Agent Studio**: a private, encrypted workspace where agent-created Markdown feels alive, reviewable, and worth keeping.
 
 The product should not feel like a generic SaaS dashboard. It should feel like a room where AI work is staged, inspected, annotated, and shaped into a final artifact.
 
@@ -20,7 +20,7 @@ The product should not feel like a generic SaaS dashboard. It should feel like a
 
 **Agent Studio**
 
-A studio has a central artifact, side benches, working notes, collaborators, and tools that appear when needed. This maps cleanly to Agent MD Rooms:
+A studio has a central artifact, side benches, working notes, collaborators, and tools that appear when needed. This maps cleanly to Fold:
 
 - Main canvas: the Markdown artifact.
 - Right bench: proposals, comments, timeline, personas.
@@ -171,7 +171,7 @@ This gives us a practical default:
 
 ## Implementation notes for the current repo
 
-- Keep `shadcn/ui`/Radix as primitive accessibility infrastructure, but wrap them in Agent MD Rooms product components.
+- Keep `shadcn/ui`/Radix as primitive accessibility infrastructure, but wrap them in Fold product components.
 - Do not add broad decorative gradients to the main room.
 - Avoid card-in-card dashboard composition.
 - Use the current right rail structure, but redesign it as an `AgentBench` instead of tabs inside a panel.
