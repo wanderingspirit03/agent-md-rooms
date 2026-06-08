@@ -494,6 +494,26 @@ export default function RoomPage() {
     setEditMode("edit");
     void persistProjectFileSnapshot(path, nextMarkdown);
   };
+  const handleImportProjectFile = async (file: File) => {
+    const baseName = file.name || "imported.md";
+    const importedPath = uniqueProjectFilePath(
+      normalizeProjectFilePath(`docs/${baseName}`),
+      virtualFilesRef.current,
+    );
+    if (!importedPath || importedPath === LIVE_FILE_PATH) return;
+
+    try {
+      const text = await file.text();
+      setVirtualFiles((current) => ({ ...current, [importedPath]: text }));
+      setSelectedFilePath(importedPath);
+      setSelectedQuote("");
+      setNewCommentText("");
+      setEditMode("read");
+      void persistProjectFileSnapshot(importedPath, text);
+    } catch (err) {
+      setSyncError(`Could not import Markdown file: ${String(err)}`);
+    }
+  };
 
   const projectFiles = useMemo(
     () => createProjectFiles(selectedFilePath, virtualFiles, projectFileUpdatedAt),
@@ -549,6 +569,7 @@ export default function RoomPage() {
         onBack={() => router.push("/")}
         onExport={handleDownloadMarkdown}
         onCreateFile={handleCreateProjectFile}
+        onImportFile={handleImportProjectFile}
         onFocusCommentComposer={() => setComposerFocusToken((token) => token + 1)}
         onModeChange={(nextMode) => {
           if (editMode === "edit" && nextMode !== "edit") flushProjectFileSnapshot(selectedFilePath);
@@ -756,6 +777,23 @@ function normalizeProjectFilePath(rawPath: string) {
     .join("/");
   if (!collapsed) return "";
   return collapsed.toLowerCase().endsWith(".md") ? collapsed : `${collapsed}.md`;
+}
+
+function uniqueProjectFilePath(path: string, existingFiles: Record<string, string>) {
+  const normalized = normalizeProjectFilePath(path);
+  if (!normalized) return "";
+  const existing = new Set([...Object.keys(existingFiles), LIVE_FILE_PATH]);
+  if (!existing.has(normalized)) return normalized;
+
+  const parts = normalized.split("/");
+  const fileName = parts.pop() || "imported.md";
+  const folder = parts.join("/");
+  const stem = fileName.replace(/\.md$/i, "");
+  for (let index = 2; index < 100; index += 1) {
+    const candidate = `${folder ? `${folder}/` : ""}${stem}-${index}.md`;
+    if (!existing.has(candidate)) return candidate;
+  }
+  return `${folder ? `${folder}/` : ""}${stem}-${Date.now()}.md`;
 }
 
 function folderForPath(path: string) {

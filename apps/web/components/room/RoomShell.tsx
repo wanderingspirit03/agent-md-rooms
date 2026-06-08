@@ -18,6 +18,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Upload,
   X,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -53,6 +54,7 @@ interface RoomShellProps {
   onModeChange: (mode: RoomMode) => void;
   onFileSelect: (path: string) => void;
   onCreateFile: (path: string) => void;
+  onImportFile: (file: File) => void;
   onCopyProjectLink?: () => void;
   onFocusCommentComposer?: () => void;
   document: ReactNode;
@@ -76,6 +78,7 @@ export function RoomShell({
   onModeChange,
   onFileSelect,
   onCreateFile,
+  onImportFile,
   onCopyProjectLink,
   onFocusCommentComposer,
   document,
@@ -85,6 +88,7 @@ export function RoomShell({
   const [projectFilesOpen, setProjectFilesOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [recentFilePaths, setRecentFilePaths] = useState<string[]>([]);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   const selectedFile = useMemo(
     () => files.find((file) => file.path === selectedFilePath) ?? files[0],
     [files, selectedFilePath],
@@ -145,10 +149,26 @@ export function RoomShell({
     }
     onCopyProjectLink?.();
   };
+  const openImportPicker = () => importInputRef.current?.click();
+  const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+    if (!file) return;
+    onImportFile(file);
+  };
 
   return (
     <TooltipProvider>
       <div className="min-h-dvh bg-studio text-ink">
+        <input
+          ref={importInputRef}
+          type="file"
+          accept=".md,.markdown,text/markdown,text/plain"
+          className="sr-only"
+          tabIndex={-1}
+          aria-hidden="true"
+          onChange={handleImportFileChange}
+        />
         <div className="grid min-h-dvh md:grid-cols-[286px_minmax(0,1fr)]">
           <ProjectFileSidebar
             roomId={roomId}
@@ -313,6 +333,10 @@ export function RoomShell({
             onCreateFile={(path) => {
               onCreateFile(path);
               setProjectFilesOpen(false);
+              setCommandOpen(false);
+            }}
+            onImportFile={() => {
+              openImportPicker();
               setCommandOpen(false);
             }}
             onModeChange={(nextMode) => {
@@ -773,6 +797,7 @@ function ProjectCommandPalette({
   onClose,
   onFileSelect,
   onCreateFile,
+  onImportFile,
   onModeChange,
   onExport,
   onCopyProjectLink,
@@ -788,6 +813,7 @@ function ProjectCommandPalette({
   onClose: () => void;
   onFileSelect: (path: string) => void;
   onCreateFile: (path: string) => void;
+  onImportFile: () => void;
   onModeChange: (mode: RoomMode) => void;
   onExport: () => void;
   onCopyProjectLink: () => void;
@@ -837,6 +863,13 @@ function ProjectCommandPalette({
       detail: `${pendingCount} ${pendingCount === 1 ? "suggestion" : "suggestions"} in current file`,
       icon: <ListChecks className="h-4 w-4" />,
       action: onOpenReview,
+    },
+    {
+      id: "import-file",
+      label: "Import Markdown file",
+      detail: "Add local .md to project",
+      icon: <Upload className="h-4 w-4" />,
+      action: onImportFile,
     },
     {
       id: "copy-link",
@@ -1040,6 +1073,7 @@ function ModeButton({
   return (
     <button
       type="button"
+      aria-pressed={active}
       onClick={onClick}
       className={cn(
         "inline-flex h-7 items-center gap-1.5 rounded px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong",
