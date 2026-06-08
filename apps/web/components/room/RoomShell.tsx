@@ -16,6 +16,7 @@ import {
   FolderOpen,
   ListChecks,
   Link2,
+  LockKeyhole,
   MessageSquare,
   MessageSquarePlus,
   PanelRightOpen,
@@ -121,6 +122,7 @@ export function RoomShell({
   const reviewLabel = reviewCount > 0
     ? `Open review, ${reviewCount} ${reviewCount === 1 ? "item" : "items"}`
     : "Open review";
+  const securityLabel = !connected ? "E2EE offline" : !ready ? "E2EE replaying" : "E2EE";
 
   useEffect(() => {
     if (!selectedFilePath) return;
@@ -213,8 +215,8 @@ export function RoomShell({
           <div className="min-w-0 border-l border-studio-line bg-studio-sunken">
             <header className="sticky top-0 z-30 border-b border-studio-line bg-studio-paper/95 backdrop-blur">
               <div className="flex h-12 items-center justify-between gap-3 px-3 sm:px-4">
-                <div className="flex min-w-0 items-center gap-2">
-                  <Button variant="ghost" size="icon" onClick={() => setProjectFilesOpen(true)} aria-label="Open project files" className="md:hidden">
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <Button variant="ghost" size="icon" onClick={() => setProjectFilesOpen(true)} aria-label="Open project files" className="shrink-0 md:hidden">
                     <FolderClosed className="h-4 w-4" />
                   </Button>
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-studio-line bg-studio-sunken text-ink-muted">
@@ -226,7 +228,7 @@ export function RoomShell({
                   </div>
                 </div>
 
-                <div className="flex min-w-0 items-center gap-1.5">
+                <div className="flex shrink-0 items-center gap-1.5">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -234,6 +236,7 @@ export function RoomShell({
                         size="icon"
                         onClick={() => setCommandOpen(true)}
                         aria-label="Open command palette"
+                        className="hidden sm:inline-flex"
                       >
                         <Command className="h-4 w-4" />
                       </Button>
@@ -241,6 +244,23 @@ export function RoomShell({
                     <TooltipContent>Command palette</TooltipContent>
                   </Tooltip>
                   <ThemeToggle />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span
+                        role="status"
+                        aria-label={securityLabel}
+                        title={securityLabel}
+                        className={cn(
+                          "hidden h-9 w-9 shrink-0 items-center justify-center gap-1.5 rounded-md border border-studio-line bg-studio-sunken px-2 text-[11px] font-medium text-ink-muted sm:inline-flex sm:w-auto",
+                          connected && ready && "text-ink",
+                        )}
+                      >
+                        <LockKeyhole className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">E2EE</span>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>{securityLabel}</TooltipContent>
+                  </Tooltip>
                   <div className="hidden rounded-md border border-studio-line bg-studio-sunken p-0.5 sm:flex">
                     <ModeButton active={mode === "read"} onClick={() => onModeChange("read")}>
                       <FileText className="h-3.5 w-3.5" />
@@ -305,7 +325,7 @@ export function RoomShell({
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" onClick={onExport} aria-label="Export Markdown">
+                      <Button variant="ghost" size="icon" onClick={onExport} aria-label="Export Markdown" className="hidden sm:inline-flex">
                         <Download className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
@@ -1451,7 +1471,7 @@ function ModeIconButton({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "inline-flex h-8 w-8 items-center justify-center rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong",
+        "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong",
         active ? "bg-midnight text-white shadow-sm" : "text-ink-muted hover:bg-porcelain hover:text-ink",
       )}
     >
