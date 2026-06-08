@@ -8,7 +8,7 @@ import { extractMarkdownProperties } from "../../lib/markdown-properties";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
-import type { ChatComment, RoomMode } from "./types";
+import type { ChatComment, Proposal, RoomMode } from "./types";
 
 interface DocumentSurfaceProps {
   mode: RoomMode;
@@ -18,6 +18,8 @@ interface DocumentSurfaceProps {
   selectedQuote: string;
   onSelectedQuoteChange: (quote: string) => void;
   comments: ChatComment[];
+  proposals: Proposal[];
+  onOpenProposal: (proposal: Proposal) => void;
   newCommentText: string;
   composerFocusToken: number;
   onNewCommentTextChange: (value: string) => void;
@@ -32,6 +34,8 @@ export function DocumentSurface({
   selectedQuote,
   onSelectedQuoteChange,
   comments,
+  proposals,
+  onOpenProposal,
   newCommentText,
   composerFocusToken,
   onNewCommentTextChange,
@@ -176,15 +180,29 @@ export function DocumentSurface({
             )}
             <MarkdownRenderer
               content={parsedMarkdown.content}
-              textHighlights={comments
-                .filter((comment) => comment.anchorType === "text-range" && comment.selectedQuote)
-                .map((comment) => ({
-                  id: comment.id,
-                  text: comment.selectedQuote!,
-                  label: "comment",
-                  before: comment.beforeContext,
-                  after: comment.afterContext,
-                }))}
+              textHighlights={[
+                ...comments
+                  .filter((comment) => comment.anchorType === "text-range" && comment.selectedQuote)
+                  .map((comment) => ({
+                    id: `comment:${comment.id}`,
+                    text: comment.selectedQuote!,
+                    label: "comment",
+                    kind: "comment" as const,
+                    before: comment.beforeContext,
+                    after: comment.afterContext,
+                  })),
+                ...proposals
+                  .filter((proposal) => proposal.anchorType === "text-range" && proposal.selectedQuote)
+                  .map((proposal) => ({
+                    id: `proposal:${proposal.id}`,
+                    text: proposal.selectedQuote!,
+                    label: proposal.status === "pending" ? "suggestion" : `${proposal.status} suggestion`,
+                    kind: "suggestion" as const,
+                    status: proposal.status,
+                    before: proposal.beforeContext,
+                    after: proposal.afterContext,
+                  })),
+              ]}
               onTextHighlightClick={(commentId, event) => {
                 if (!readSurfaceRef.current) return;
                 const buttonRect = event.currentTarget.getBoundingClientRect();
@@ -192,8 +210,17 @@ export function DocumentSurface({
                 const maxLeft = Math.max(16, surfaceRect.width - 320);
                 onSelectedQuoteChange("");
                 setAnchorPoint(null);
+                if (commentId.startsWith("proposal:")) {
+                  const proposal = proposals.find((item) => item.id === commentId.slice("proposal:".length));
+                  if (proposal) {
+                    setActiveCommentCard(null);
+                    onOpenProposal(proposal);
+                  }
+                  return;
+                }
+                const id = commentId.startsWith("comment:") ? commentId.slice("comment:".length) : commentId;
                 setActiveCommentCard({
-                  commentId,
+                  commentId: id,
                   top: Math.max(18, buttonRect.bottom - surfaceRect.top + 8),
                   left: Math.max(16, Math.min(maxLeft, buttonRect.left - surfaceRect.left - 16)),
                 });

@@ -11,6 +11,8 @@ interface MarkdownRendererProps {
     id: string;
     text: string;
     label: string;
+    kind?: "comment" | "suggestion";
+    status?: "pending" | "accepted" | "rejected";
     before?: string;
     after?: string;
   }>;
@@ -175,6 +177,7 @@ function renderStringWithInlineComments(
   for (const match of nonOverlapping) {
     if (match.start > cursor) parts.push(text.slice(cursor, match.start));
     const highlightedText = text.slice(match.start, match.end);
+    const kind = match.highlight.kind ?? "comment";
     parts.push(
       <button
         key={`${match.highlight.id}-${match.start}`}
@@ -191,7 +194,7 @@ function renderStringWithInlineComments(
           event.stopPropagation();
           onTextHighlightClick?.(match.highlight.id, event);
         }}
-        className="inline cursor-pointer rounded-[3px] border-b border-midnight/45 bg-midnight-soft px-0.5 text-left text-document-ink transition-colors hover:bg-midnight-soft/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+        className={inlineMarkerClassName(kind, match.highlight.status)}
       >
         {highlightedText}
       </button>,
@@ -265,4 +268,16 @@ function normalizeWhitespace(value: string) {
 function truncateForLabel(value: string) {
   const normalized = normalizeWhitespace(value);
   return normalized.length > 56 ? `${normalized.slice(0, 53)}...` : normalized;
+}
+
+function inlineMarkerClassName(
+  kind: NonNullable<NonNullable<MarkdownRendererProps["textHighlights"]>[number]["kind"]>,
+  status?: NonNullable<MarkdownRendererProps["textHighlights"]>[number]["status"],
+) {
+  const base = "inline cursor-pointer rounded-[3px] px-0.5 text-left text-document-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong";
+  if (kind === "suggestion") {
+    const opacity = status === "accepted" || status === "rejected" ? "opacity-70" : "";
+    return `${base} ${opacity} border-b border-dashed border-midnight/55 bg-transparent hover:bg-midnight-soft`;
+  }
+  return `${base} border-b border-midnight/45 bg-midnight-soft hover:bg-midnight-soft/80`;
 }

@@ -588,6 +588,8 @@ export default function RoomPage() {
             selectedQuote={selectedQuote}
             onSelectedQuoteChange={setSelectedQuote}
             comments={selectedFileComments}
+            proposals={selectedFileProposals}
+            onOpenProposal={setSelectedProposal}
             newCommentText={newCommentText}
             composerFocusToken={composerFocusToken}
             onNewCommentTextChange={setNewCommentText}
