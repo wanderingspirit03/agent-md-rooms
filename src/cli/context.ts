@@ -1,5 +1,5 @@
 import type { CommandContext } from '@stricli/core';
 
-export interface MdroomCommandContext extends CommandContext {
+export interface FoldCommandContext extends CommandContext {
   cwd: string;
 }

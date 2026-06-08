@@ -1,19 +1,25 @@
-# mdroom CLI
+# Fold CLI
 
-The CLI is the agent-facing entry point for publishing Markdown rooms, submitting reviewable proposals, accepting/rejecting proposals, checking room status, and exporting canonical Markdown. Commands talk to the encrypted append-log HTTP API; document bodies, proposal bodies, comments, and timeline payloads are encrypted client-side before they leave the CLI.
+The CLI is the agent-facing entry point for publishing Markdown project rooms, saving room aliases, generating invites, submitting reviewable proposals, accepting/rejecting proposals, checking room status, and exporting canonical Markdown. Commands talk to the encrypted append-log HTTP API; document bodies, proposal bodies, comments, project files, and timeline payloads are encrypted client-side before they leave the CLI.
 
 ## Commands
 
 ```bash
-mdroom publish <file.md> [--server <url>] [--json] [--no-save]
-mdroom export --room <url-or-token> [--output <file>] [--json]
-mdroom status --room <url-or-token> [--json]
-mdroom propose <file.md> --room <url-or-token> [--title <text>] [--comment <text>] [--json]
-mdroom proposals --room <url-or-token> [--json]
-mdroom show-proposal <proposal-id> --room <url-or-token> [--json]
-mdroom accept <proposal-id> --room <url-or-token> [--json]
-mdroom reject <proposal-id> --room <url-or-token> [--json]
-mdroom patch <file.md> --room <url-or-token> [--summary <text>] [--json]
+fold publish <file-or-directory> [--server <url>] [--app-url <url>] [--sync-url <url>] [--alias <name>] [--path <room-path>] [--json] [--no-save]
+fold room add <url-or-token> --alias <name> [--json]
+fold room list [--json]
+fold room show <alias> [--json]
+fold room set-url <alias> [--app-url <url>] [--sync-url <url>] [--json]
+fold room forget <alias> [--json]
+fold room invite <alias> [--for human|agent] [--json]
+fold export --room <alias-or-url-or-token> [--path <room-path>] [--output <file-or-directory>] [--json]
+fold status --room <alias-or-url-or-token> [--json]
+fold propose <file-or-directory> --room <alias-or-url-or-token> [--path <room-path>] [--title <text>] [--comment <text>] [--json]
+fold proposals --room <alias-or-url-or-token> [--json]
+fold show-proposal <proposal-id> --room <alias-or-url-or-token> [--json]
+fold accept <proposal-id> --room <alias-or-url-or-token> [--json]
+fold reject <proposal-id> --room <alias-or-url-or-token> [--json]
+fold patch <file.md> --room <alias-or-url-or-token> [--path <room-path>] [--summary <text>] [--json]
 ```
 
 During development, run the CLI through:
@@ -26,7 +32,7 @@ For a local fresh setup:
 
 ```bash
 npm run server -- --port 8787 --data ./data
-npm run --silent cli -- publish ./notes.md --server http://127.0.0.1:8787 --json
+npm run --silent cli -- publish ./notes.md --server http://127.0.0.1:8787 --alias notes --json
 ```
 
 Use `--silent` with `npm run` when parsing JSON. Without it, npm can print its run banner before the CLI output.
@@ -34,48 +40,50 @@ Use `--silent` with `npm run` when parsing JSON. Without it, npm can print its r
 ## Current Behavior
 
 - Markdown is canonical as raw text in `Y.Text` named `markdown`.
+- Rooms can also carry an encrypted Markdown project snapshot: multiple `.md` files keyed by room path.
 - `publish` creates a local room id and client-side room secret.
-- The initial Markdown state is encoded as a Yjs update, encrypted locally, and posted to `POST /rooms/:roomId/updates`.
-- Unless `--no-save` is passed, metadata is written to `.mdroom/rooms.json`.
-- `export` fetches encrypted records from `GET /rooms/:roomId/updates`, decrypts and replays document records locally, and writes or prints Markdown.
+- The initial primary Markdown state is encoded as a Yjs update, encrypted locally, and posted to `POST /rooms/:roomId/updates`; project snapshots are encrypted JSON room payloads.
+- Unless `--no-save` is passed, room profiles are written to `.fold/rooms.json`.
+- `export` fetches encrypted records from `GET /rooms/:roomId/updates`, decrypts and replays accepted project records locally, and writes one Markdown file or a project directory.
 - `status` calls `GET /rooms/:roomId/status`, which returns metadata only: `roomId`, `recordCount`, and `latestSeq`.
-- `propose` submits an encrypted whole-document replacement proposal. It does not mutate the accepted Markdown document. Its JSON response is compact and returns proposal ids, status, persona, and hashes, not the full proposed Markdown.
+- `propose` submits an encrypted whole-file or whole-project replacement proposal. It does not mutate accepted Markdown. Its JSON response is compact and returns proposal ids, status, persona, hashes, and project summaries, not full proposed Markdown.
 - `proposals` lists decrypted proposal summaries by replaying encrypted room records.
 - `show-proposal` decrypts one proposal, including proposed Markdown and timeline events.
 - `accept` appends an encrypted canonical document update plus an encrypted proposal-accepted event. Its JSON response is compact and does not echo the accepted Markdown body.
 - `reject` appends an encrypted proposal-rejected event without changing canonical Markdown. Its JSON response is compact and does not echo the rejected Markdown body.
 - `patch` is a compatibility wrapper around `propose`.
 - `--json` emits stable schema identifiers for agent workflows:
-  - `mdroom.publish.result.v1`
-  - `mdroom.export.result.v1`
-  - `mdroom.status.result.v1`
-  - `mdroom.propose.result.v1`
-  - `mdroom.proposals.result.v1`
-  - `mdroom.show-proposal.result.v1`
-  - `mdroom.accept.result.v1`
-  - `mdroom.reject.result.v1`
-  - `mdroom.patch.result.v1`
+  - `fold.publish.result.v1`
+  - `fold.export.result.v1`
+  - `fold.status.result.v1`
+  - `fold.propose.result.v1`
+  - `fold.proposals.result.v1`
+  - `fold.show-proposal.result.v1`
+  - `fold.accept.result.v1`
+  - `fold.reject.result.v1`
+  - `fold.patch.result.v1`
 
 ## Agent Workflow
 
 Agents should prefer JSON output and explicit room references:
 
 ```bash
-ROOM_JSON=$(npm run --silent cli -- publish ./plan.md --server http://127.0.0.1:8787 --json)
+ROOM_JSON=$(npm run --silent cli -- publish ./project --server http://127.0.0.1:8787 --alias launch --json)
 ROOM_URL=$(node -e 'let s=""; process.stdin.on("data", d => s += d); process.stdin.on("end", () => console.log(JSON.parse(s).room.url));' <<< "$ROOM_JSON")
-npm run --silent cli -- status --room "$ROOM_URL" --json
-npm run --silent cli -- propose ./plan.next.md --room "$ROOM_URL" --title "Tighten plan" --comment "Proposed by agent workflow." --json
-npm run --silent cli -- proposals --room "$ROOM_URL" --json
-npm run --silent cli -- export --room "$ROOM_URL" --output ./accepted.md --json
+npm run --silent cli -- room add "$ROOM_URL" --alias launch
+npm run --silent cli -- status --room launch --json
+npm run --silent cli -- export --room launch --output ./accepted-project --json
+npm run --silent cli -- propose ./accepted-project --room launch --title "Tighten plan" --comment "Proposed by agent workflow." --json
+npm run --silent cli -- proposals --room launch --json
 ```
 
-When testing the development CLI from another project directory, call the entrypoint directly so `.mdroom/rooms.json` is written in that project instead of this repo:
+When testing the development CLI from another project directory, call the entrypoint directly so `.fold/rooms.json` is written in that project instead of this repo:
 
 ```bash
-/path/to/agent-md-rooms/node_modules/.bin/tsx /path/to/agent-md-rooms/src/cli/bin.ts publish ./plan.md --server http://127.0.0.1:8787 --json
+/path/to/fold/node_modules/.bin/tsx /path/to/fold/src/cli/bin.ts publish ./plan.md --server http://127.0.0.1:8787 --json
 ```
 
-Use `--no-save` for stateless automation that should not write `.mdroom/rooms.json`:
+Use `--no-save` for stateless automation that should not write `.fold/rooms.json`:
 
 ```bash
 npm run --silent cli -- publish ./plan.md --server http://127.0.0.1:8787 --no-save --json
@@ -94,12 +102,30 @@ The fragment key is client-side key material. Parsing always separates `serverRo
 The CLI token shape is:
 
 ```text
-mdroom:v1:<base64url-json>
+fold:v1:<base64url-json>
 ```
 
-The decoded token contains `v`, `roomId`, `roomSecret`, and `serverUrl`. Treat it like a secret because it grants local decryption access.
+The decoded token contains `v`, `roomId`, `roomSecret`, `appUrl`, and `syncUrl`. Older compatibility tokens may contain `serverUrl`. Treat any token like a secret because it grants local decryption access.
 
-`.mdroom/rooms.json` is a local access-token store. It can contain room URLs and tokens with client-side key material so agents can reuse a room without prompting. The directory is ignored by this repo's `.gitignore`; do not commit or share it unless you intentionally want to share room access.
+`.fold/rooms.json` is a local access-token store. It can contain room URLs and tokens with client-side key material so agents can reuse a room alias without prompting. Do not commit or share it unless you intentionally want to share room access.
+
+Room profiles store separate URLs:
+
+- `appUrl`: the web app origin humans open.
+- `syncUrl`: the append-log API/WebSocket origin clients call.
+- `serverUrl`: compatibility alias for `syncUrl`.
+
+`fold room invite` warns when `appUrl` or `syncUrl` looks local-only, such as `localhost`, `127.0.0.1`, or private LAN addresses.
+
+## Agent Skill
+
+The web app exposes an agent skill at:
+
+```text
+/.well-known/fold/agent-skill.md
+```
+
+Agent invites point to this skill and then instruct the agent to run `fold room add ... --alias ...`.
 
 ## TODO: Server Integration
 
@@ -126,4 +152,4 @@ The current fresh local workflow has been verified with:
 - `export --output --json`
 - `publish --no-save --json`
 
-The verification also checked that fresh test Markdown phrases were not present as plaintext in `./data` or `.mdroom`.
+The verification also checked that fresh test Markdown phrases were not present as plaintext in `./data` or `.fold`.

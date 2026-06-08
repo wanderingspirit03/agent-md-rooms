@@ -60,25 +60,25 @@ export async function runServerCli(argv = process.argv.slice(2)): Promise<void> 
   try {
     url = await server.start({ host: options.host, port: options.port });
   } catch (error) {
-    console.error('mdroom server failed to start');
+    console.error('fold server failed to start');
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
     return;
   }
 
-  console.log(`mdroom server listening at ${url}`);
+  console.log(`fold server listening at ${url}`);
   console.log(`append-log store: file (${options.dataDirectory})`);
 
   let stopping = false;
   const stop = async (signal: NodeJS.Signals): Promise<void> => {
     if (stopping) return;
     stopping = true;
-    console.log(`received ${signal}; shutting down mdroom server`);
+    console.log(`received ${signal}; shutting down fold server`);
     try {
       await server.stop();
-      console.log('mdroom server stopped');
+      console.log('fold server stopped');
     } catch (error) {
-      console.error('mdroom server shutdown failed');
+      console.error('fold server shutdown failed');
       console.error(error instanceof Error ? error.message : String(error));
       process.exitCode = 1;
     }

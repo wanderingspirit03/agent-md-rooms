@@ -6,12 +6,12 @@ describe('room personas', () => {
     const first = assignPersona({
       roomId: 'room-a',
       participantKind: 'agent',
-      participantFingerprint: 'mdroom-cli:proposal',
+      participantFingerprint: 'fold-cli:proposal',
     });
     const second = assignPersona({
       roomId: 'room-a',
       participantKind: 'agent',
-      participantFingerprint: 'mdroom-cli:proposal',
+      participantFingerprint: 'fold-cli:proposal',
     });
 
     expect(second).toEqual(first);

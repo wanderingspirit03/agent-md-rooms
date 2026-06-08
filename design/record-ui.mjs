@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const outDir = '/root/repos/agent-md-rooms/design/review-artifacts';
+const outDir = '/root/repos/fold/design/review-artifacts';
 await fs.mkdir(outDir, { recursive: true });
 
 const browser = await chromium.launch({ headless: true });

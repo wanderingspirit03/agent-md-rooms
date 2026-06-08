@@ -5,10 +5,13 @@ import { describe, expect, it } from 'vitest';
 import { EncryptedAppendLogServer } from '../../spikes/e2ee-yjs-append-log/server.js';
 import { decryptMarkdownFromRecords } from '../rooms/markdown-snapshot.js';
 import { defaultMetadataPath, readRoomMetadata } from '../rooms/metadata.js';
-import { parseRoomReference } from '../rooms/room-reference.js';
+import { createRoomToken, parseRoomReference, type RoomAccess } from '../rooms/room-reference.js';
 import {
   acceptProposal,
+  addRoomProfile,
+  createRoomInvite,
   exportMarkdown,
+  listRoomProfiles,
   listProposals,
   patchMarkdown,
   proposeMarkdown,
@@ -20,7 +23,7 @@ import {
 
 describe('CLI operations', () => {
   it('publishes Markdown as encrypted local metadata by default', async () => {
-    const cwd = await mkdtemp(join(tmpdir(), 'mdroom-cli-'));
+    const cwd = await mkdtemp(join(tmpdir(), 'fold-cli-'));
     const server = new EncryptedAppendLogServer();
     const serverUrl = await server.start();
     try {
@@ -33,13 +36,14 @@ describe('CLI operations', () => {
         save: true,
       });
 
-      expect(result.schema).toBe('mdroom.publish.result.v1');
+      expect(result.schema).toBe('fold.publish.result.v1');
       expect(result.mode).toBe('server-backed');
       expect(result.room.url).toContain('#key=');
       expect(result.room.serverRoomUrl).not.toContain('#key=');
       expect(result.metadata.saved).toBe(true);
       expect(result.document.canonical).toBe('y.text:markdown');
-      expect(result.server.recordCount).toBe(2);
+      expect(result.server.recordCount).toBe(3);
+      expect(result.project.fileCount).toBe(1);
 
       const rawMetadata = await readFile(defaultMetadataPath(cwd), 'utf8');
       expect(rawMetadata).not.toContain('Private body.');
@@ -54,7 +58,7 @@ describe('CLI operations', () => {
   });
 
   it('does not write metadata when --no-save behavior is requested', async () => {
-    const cwd = await mkdtemp(join(tmpdir(), 'mdroom-cli-'));
+    const cwd = await mkdtemp(join(tmpdir(), 'fold-cli-'));
     const server = new EncryptedAppendLogServer();
     const serverUrl = await server.start();
     try {
@@ -68,7 +72,7 @@ describe('CLI operations', () => {
       });
 
       expect(result.metadata.saved).toBe(false);
-      expect(result.server.recordCount).toBe(2);
+      expect(result.server.recordCount).toBe(3);
       await expect(readFile(defaultMetadataPath(cwd), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
     } finally {
       await server.stop();
@@ -77,7 +81,7 @@ describe('CLI operations', () => {
   });
 
   it('exports Markdown by decrypting the saved Y.Text snapshot locally', async () => {
-    const cwd = await mkdtemp(join(tmpdir(), 'mdroom-cli-'));
+    const cwd = await mkdtemp(join(tmpdir(), 'fold-cli-'));
     const server = new EncryptedAppendLogServer();
     const serverUrl = await server.start();
     try {
@@ -96,10 +100,10 @@ describe('CLI operations', () => {
         outputPath: 'out/exported.md',
       });
 
-      expect(exported.schema).toBe('mdroom.export.result.v1');
+      expect(exported.schema).toBe('fold.export.result.v1');
       expect(exported.document.markdown).toBe(markdown);
       expect(exported.output.written).toBe(true);
-      expect(exported.server.recordCount).toBe(2);
+      expect(exported.server.recordCount).toBe(3);
       expect(await readFile(join(cwd, 'out', 'exported.md'), 'utf8')).toBe(markdown);
     } finally {
       await server.stop();
@@ -108,7 +112,7 @@ describe('CLI operations', () => {
   });
 
   it('reports local room status with a stable schema', async () => {
-    const cwd = await mkdtemp(join(tmpdir(), 'mdroom-cli-'));
+    const cwd = await mkdtemp(join(tmpdir(), 'fold-cli-'));
     const server = new EncryptedAppendLogServer();
     const serverUrl = await server.start();
     try {
@@ -126,11 +130,11 @@ describe('CLI operations', () => {
         room: published.room.url,
       });
 
-      expect(status.schema).toBe('mdroom.status.result.v1');
+      expect(status.schema).toBe('fold.status.result.v1');
       expect(status.metadata.found).toBe(true);
       expect(status.document?.bytes).toBe(Buffer.byteLength('status text', 'utf8'));
       expect(status.server.checked).toBe(true);
-      expect(status.server.recordCount).toBe(2);
+      expect(status.server.recordCount).toBe(3);
       expect(status.room.serverRoomUrl).not.toContain('#key=');
     } finally {
       await server.stop();
@@ -139,7 +143,7 @@ describe('CLI operations', () => {
   });
 
   it('finds local metadata by room URL when the server has a base path', async () => {
-    const cwd = await mkdtemp(join(tmpdir(), 'mdroom-cli-'));
+    const cwd = await mkdtemp(join(tmpdir(), 'fold-cli-'));
     const server = new EncryptedAppendLogServer();
     const serverUrl = await server.start();
     try {
@@ -163,7 +167,7 @@ describe('CLI operations', () => {
 
       expect(published.room.serverRoomUrl).toContain('/base/room/');
       expect(status.metadata.found).toBe(true);
-      expect(status.server.recordCount).toBe(2);
+      expect(status.server.recordCount).toBe(3);
       expect(exported.document.markdown).toBe(markdown);
     } finally {
       await server.stop();
@@ -172,7 +176,7 @@ describe('CLI operations', () => {
   });
 
   it('submits encrypted whole-document patch suggestions as proposals without changing export', async () => {
-    const cwd = await mkdtemp(join(tmpdir(), 'mdroom-cli-'));
+    const cwd = await mkdtemp(join(tmpdir(), 'fold-cli-'));
     const server = new EncryptedAppendLogServer();
     const serverUrl = await server.start();
     try {
@@ -198,9 +202,9 @@ describe('CLI operations', () => {
         room: published.room.url,
       });
 
-      expect(patch.schema).toBe('mdroom.patch.result.v1');
+      expect(patch.schema).toBe('fold.patch.result.v1');
       expect(patch.mode).toBe('suggestion');
-      expect(patch.server.recordCount).toBe(4);
+      expect(patch.server.recordCount).toBe(5);
       expect(patch.base.sha256).toBe(published.document.sha256);
       expect(patch.proposed.bytes).toBe(Buffer.byteLength(proposed, 'utf8'));
       expect(exported.document.markdown).toBe(original);
@@ -208,8 +212,8 @@ describe('CLI operations', () => {
       const serverStorage = server.store.serialized(published.room.roomId);
       expect(serverStorage).not.toContain(original);
       expect(serverStorage).not.toContain(proposed);
-      const proposalRecord = server.store.list(published.room.roomId)[2];
-      expect(proposalRecord?.senderId).toContain('mdroom-cli:proposal');
+      const proposalRecord = server.store.list(published.room.roomId)[3];
+      expect(proposalRecord?.senderId).toContain('fold-cli:proposal');
       const proposals = await listProposals({ cwd, room: published.room.url });
       expect(proposals.proposals).toHaveLength(1);
       expect(proposals.proposals[0]?.title).toBe('Update body copy');
@@ -222,7 +226,7 @@ describe('CLI operations', () => {
   });
 
   it('lists, shows, accepts, and rejects encrypted proposal records by replaying events', async () => {
-    const cwd = await mkdtemp(join(tmpdir(), 'mdroom-cli-'));
+    const cwd = await mkdtemp(join(tmpdir(), 'fold-cli-'));
     const server = new EncryptedAppendLogServer();
     const serverUrl = await server.start();
     try {
@@ -290,15 +294,15 @@ describe('CLI operations', () => {
         parseRoomReference(published.room.token),
       );
 
-      expect(accepted.schema).toBe('mdroom.accept.result.v1');
+      expect(accepted.schema).toBe('fold.accept.result.v1');
       expect(accepted.proposal.status).toBe('accepted');
       expect(JSON.stringify(accepted)).not.toContain(acceptedMarkdown);
-      expect(rejected.schema).toBe('mdroom.reject.result.v1');
+      expect(rejected.schema).toBe('fold.reject.result.v1');
       expect(rejected.proposal.status).toBe('rejected');
       expect(proposals.proposals.map((proposal) => proposal.status)).toEqual(['accepted', 'rejected']);
       expect(exported.document.markdown).toBe(acceptedMarkdown);
       expect(canonicalMarkdown).toBe(acceptedMarkdown);
-      expect(server.store.list(published.room.roomId).filter((record) => record.senderId === 'mdroom-cli:document')).toHaveLength(2);
+      expect(server.store.list(published.room.roomId).filter((record) => record.senderId === 'fold-cli:document')).toHaveLength(2);
 
       const serverStorage = server.store.serialized(published.room.roomId);
       expect(serverStorage).not.toContain(original);
@@ -309,6 +313,203 @@ describe('CLI operations', () => {
         room: published.room.token,
         proposalId: acceptedProposal.proposal.id,
       })).rejects.toThrow(/already accepted/);
+    } finally {
+      await server.stop();
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('saves room aliases and generates agent invites with local URL warnings', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'fold-room-'));
+    const server = new EncryptedAppendLogServer();
+    const serverUrl = await server.start();
+    try {
+      await writeFile(join(cwd, 'room.md'), '# Alias Room', 'utf8');
+      const published = await publishMarkdown({
+        cwd,
+        filePath: 'room.md',
+        serverUrl,
+        alias: 'launch',
+        save: true,
+      });
+
+      const status = await roomStatus({ cwd, room: 'launch' });
+      const list = await listRoomProfiles({ cwd });
+      const invite = await createRoomInvite({
+        cwd,
+        alias: 'launch',
+        audience: 'agent',
+      });
+
+      expect(status.room.alias).toBe('launch');
+      expect(invite.invite.text).toContain('fold room add');
+      expect(invite.invite.text).toContain('--alias');
+      expect(invite.invite.text).toContain('fold:v1:');
+      expect(invite.invite.text).not.toContain('#key=');
+      expect(invite.warnings.length).toBeGreaterThan(0);
+      expect(invite.room.url).toBe(published.room.serverRoomUrl);
+      expect(invite.room.token).toBe('[redacted]');
+      expect(invite.room.hasClientKey).toBe(false);
+      expect(list.rooms[0]?.token).toBe('[redacted]');
+      expect(list.rooms[0]?.url).not.toContain('#key=');
+      expect(list.rooms[0]?.hasClientKey).toBe(false);
+    } finally {
+      await server.stop();
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('agent invite tokens preserve split app and sync URLs when imported', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'fold-split-url-'));
+    const otherCwd = await mkdtemp(join(tmpdir(), 'fold-split-url-other-'));
+    try {
+      const access: RoomAccess = {
+        roomId: 'split-room',
+        roomSecret: 'split-secret',
+        appUrl: 'https://app.example.test',
+        syncUrl: 'https://sync.example.test',
+        serverUrl: 'https://sync.example.test',
+      };
+      const added = await addRoomProfile({
+        cwd,
+        room: createRoomToken(access),
+        alias: 'split',
+      });
+      const invite = await createRoomInvite({ cwd, alias: 'split', audience: 'agent' });
+      const token = /fold:v1:[A-Za-z0-9_-]+/.exec(invite.invite.text)?.[0] ?? '';
+      const imported = await addRoomProfile({ cwd: otherCwd, room: token, alias: 'split' });
+      expect(added.room.appUrl).toBe('https://app.example.test');
+      expect(added.room.syncUrl).toBe('https://sync.example.test');
+      expect(imported.room.appUrl).toBe('https://app.example.test');
+      expect(imported.room.syncUrl).toBe('https://sync.example.test');
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+      await rm(otherCwd, { recursive: true, force: true });
+    }
+  });
+
+  it('publishes, exports, proposes, and accepts a Markdown project directory through existing verbs', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'fold-project-'));
+    const server = new EncryptedAppendLogServer();
+    const serverUrl = await server.start();
+    try {
+      await mkdir(join(cwd, 'project', 'docs'), { recursive: true });
+      await writeFile(join(cwd, 'project', 'README.md'), '# Project\n\nOriginal readme.', 'utf8');
+      await writeFile(join(cwd, 'project', 'docs', 'PLAN.md'), '# Plan\n\nOriginal plan.', 'utf8');
+      const published = await publishMarkdown({
+        cwd,
+        filePath: 'project',
+        serverUrl,
+        alias: 'project',
+        save: true,
+      });
+
+      const exported = await exportMarkdown({
+        cwd,
+        room: 'project',
+        outputPath: 'exported',
+      });
+      expect(published.project.fileCount).toBe(2);
+      expect(exported.project.files.map((file) => file.path)).toEqual(['docs/PLAN.md', 'README.md']);
+      expect(await readFile(join(cwd, 'exported', 'docs', 'PLAN.md'), 'utf8')).toContain('Original plan.');
+
+      await mkdir(join(cwd, 'next', 'docs'), { recursive: true });
+      await writeFile(join(cwd, 'next', 'README.md'), '# Project\n\nUpdated readme.', 'utf8');
+      await writeFile(join(cwd, 'next', 'docs', 'PLAN.md'), '# Plan\n\nUpdated plan.', 'utf8');
+      const proposed = await proposeMarkdown({
+        cwd,
+        filePath: 'next',
+        room: 'project',
+        title: 'Update project',
+      });
+      expect(proposed.proposal.kind).toBe('project-replacement');
+      expect(proposed.project.proposed.fileCount).toBe(2);
+
+      await acceptProposal({
+        cwd,
+        room: 'project',
+        proposalId: proposed.proposal.id,
+      });
+      await exportMarkdown({
+        cwd,
+        room: 'project',
+        outputPath: 'accepted',
+      });
+      expect(await readFile(join(cwd, 'accepted', 'README.md'), 'utf8')).toContain('Updated readme.');
+      expect(await readFile(join(cwd, 'accepted', 'docs', 'PLAN.md'), 'utf8')).toContain('Updated plan.');
+    } finally {
+      await server.stop();
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('merges a single-file proposal into a multi-file project without dropping other files', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'fold-file-proposal-'));
+    const server = new EncryptedAppendLogServer();
+    const serverUrl = await server.start();
+    try {
+      await mkdir(join(cwd, 'project', 'docs'), { recursive: true });
+      await writeFile(join(cwd, 'project', 'README.md'), '# Readme\n\nKeep me.', 'utf8');
+      await writeFile(join(cwd, 'project', 'docs', 'PLAN.md'), '# Plan\n\nOld plan.', 'utf8');
+      const published = await publishMarkdown({
+        cwd,
+        filePath: 'project',
+        serverUrl,
+        alias: 'merge',
+        save: true,
+      });
+      await mkdir(join(cwd, 'draft', 'docs'), { recursive: true });
+      await writeFile(join(cwd, 'draft', 'docs', 'PLAN.md'), '# Plan\n\nNew plan.', 'utf8');
+
+      const proposed = await proposeMarkdown({
+        cwd,
+        filePath: 'draft/docs/PLAN.md',
+        room: 'merge',
+        path: 'docs/PLAN.md',
+        title: 'Update plan only',
+      });
+      expect(proposed.proposal.kind).toBe('file-replacement');
+      await acceptProposal({ cwd, room: 'merge', proposalId: proposed.proposal.id });
+      await exportMarkdown({ cwd, room: published.room.token, outputPath: 'merged' });
+
+      expect(await readFile(join(cwd, 'merged', 'README.md'), 'utf8')).toContain('Keep me.');
+      expect(await readFile(join(cwd, 'merged', 'docs', 'PLAN.md'), 'utf8')).toContain('New plan.');
+    } finally {
+      await server.stop();
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('replays web-created project file snapshots in CLI project exports', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'fold-web-file-'));
+    const server = new EncryptedAppendLogServer();
+    const serverUrl = await server.start();
+    try {
+      await writeFile(join(cwd, 'README.md'), '# Project\n\nOriginal readme.', 'utf8');
+      const published = await publishMarkdown({
+        cwd,
+        filePath: 'README.md',
+        serverUrl,
+        alias: 'web-files',
+        save: true,
+      });
+      const access = parseRoomReference(published.room.token);
+      const { encryptJsonRecord } = await import('../rooms/timeline.js');
+      await server.store.append(access.roomId, await encryptJsonRecord(access, 'web-client:file:test', {
+        type: 'project_file_snapshot',
+        path: 'docs/PLAN.md',
+        markdown: '# Plan\n\nCreated in the web UI.',
+        updatedAt: new Date().toISOString(),
+      }));
+
+      await exportMarkdown({
+        cwd,
+        room: 'web-files',
+        outputPath: 'web-export',
+      });
+
+      expect(await readFile(join(cwd, 'web-export', 'README.md'), 'utf8')).toContain('Original readme.');
+      expect(await readFile(join(cwd, 'web-export', 'docs', 'PLAN.md'), 'utf8')).toContain('Created in the web UI.');
     } finally {
       await server.stop();
       await rm(cwd, { recursive: true, force: true });

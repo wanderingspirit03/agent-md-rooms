@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
-import { runMdroomCli } from './app.js';
+import { runFoldCli } from './app.js';
 
-await runMdroomCli(process.argv.slice(2), {
+await runFoldCli(process.argv.slice(2), {
   process,
   cwd: process.cwd(),
 });

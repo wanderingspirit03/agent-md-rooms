@@ -6,6 +6,10 @@ import type {
   ProposalsResult,
   ProposeResult,
   PublishResult,
+  RoomForgetResult,
+  RoomInviteResult,
+  RoomListResult,
+  RoomProfileResult,
   ShowProposalResult,
   StatusResult,
 } from './results.js';
@@ -109,4 +113,40 @@ export function writeDecisionHuman(context: CommandContext, result: DecidePropos
     `→ Server records: ${result.server.recordCount}`,
     '',
   ].filter(Boolean).join('\n'));
+}
+
+export function writeRoomProfileHuman(context: CommandContext, result: RoomProfileResult): void {
+  context.process.stdout.write([
+    `✓ Saved room ${result.metadata.alias}`,
+    `→ Room URL: ${result.room.url}`,
+    `→ App URL: ${result.room.appUrl}`,
+    `→ Sync URL: ${result.room.syncUrl}`,
+    `→ Metadata: ${result.metadata.path}`,
+    '',
+  ].join('\n'));
+}
+
+export function writeRoomListHuman(context: CommandContext, result: RoomListResult): void {
+  if (result.rooms.length === 0) {
+    context.process.stdout.write('No saved rooms found.\n');
+    return;
+  }
+  context.process.stdout.write(`${result.rooms.map((room) => [
+    `${room.alias ?? room.roomId}  ${room.roomId}`,
+    `  ${room.appUrl}`,
+  ].join('\n')).join('\n')}\n`);
+}
+
+export function writeRoomForgetHuman(context: CommandContext, result: RoomForgetResult): void {
+  context.process.stdout.write(`✓ Forgot room ${result.metadata.alias}\n`);
+}
+
+export function writeRoomInviteHuman(context: CommandContext, result: RoomInviteResult): void {
+  const warnings = result.warnings.map((warning) => `⚠ ${warning}`);
+  context.process.stdout.write([
+    ...warnings,
+    ...(warnings.length > 0 ? [''] : []),
+    result.invite.text,
+    '',
+  ].join('\n'));
 }

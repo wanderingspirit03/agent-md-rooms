@@ -209,9 +209,9 @@ describe('encrypted Yjs append-log spike', () => {
 
       const roomKey = await deriveRoomKey(roomId, roomSecret);
       for (const senderId of [
-        'mdroom-cli:suggestion:test',
-        'mdroom-cli:proposal:test',
-        'mdroom-cli:event:test',
+        'fold-cli:suggestion:test',
+        'fold-cli:proposal:test',
+        'fold-cli:event:test',
       ]) {
         const opaque = await encryptUpdate(
           Buffer.from(JSON.stringify({ proposedMarkdown: '# Suggested only' }), 'utf8'),
@@ -279,7 +279,7 @@ describe('encrypted Yjs append-log spike', () => {
     const roomId = 'durable-room';
     const roomSecret = 'durable-url-fragment-key';
     const secretMarkdown = '# Durable private report\n\nThis text should only exist after client-side decryption.';
-    const storeDirectory = await mkdtemp(join(tmpdir(), 'agent-md-rooms-'));
+    const storeDirectory = await mkdtemp(join(tmpdir(), 'fold-'));
     let firstServer: EncryptedAppendLogServer | undefined;
     let secondServer: EncryptedAppendLogServer | undefined;
     let writer: EncryptedYjsClient | undefined;

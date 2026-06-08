@@ -19,7 +19,9 @@ import { assignWebPersona, type RoomPersona } from "../../../lib/personas";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
-const DOCUMENT_SENDER_ID = "mdroom-cli:document";
+const DOCUMENT_SENDER_ID = "fold-cli:document";
+const PROJECT_SCHEMA = "fold.project.v1";
+const PROJECT_SENDER_ID = "fold-cli:project";
 const LIVE_FILE_PATH = "reports/launch-review.md";
 const DEFAULT_PROJECT_FILE_PATH = "docs/PLAN.md";
 
@@ -30,6 +32,13 @@ interface ProjectFileSnapshot {
   updatedAt: string;
   authorPersonaId: string;
   persona: RoomPersona;
+}
+
+interface ProjectSnapshot {
+  schema: typeof PROJECT_SCHEMA;
+  primaryPath: string;
+  files: Array<{ path: string; markdown: string }>;
+  updatedAt: string;
 }
 
 export default function RoomPage() {
@@ -254,7 +263,7 @@ export default function RoomPage() {
       ciphertext: rec.ciphertext,
     };
 
-    if (rec.senderId.startsWith("mdroom-cli:proposal")) {
+    if (rec.senderId.startsWith("fold-cli:proposal")) {
       const parsed = await decryptJson<any>(payload, cryptKey, rec);
       setProposals((prev) => upsertProposal(prev, {
         id: parsed.id,
@@ -265,17 +274,19 @@ export default function RoomPage() {
         proposedMarkdown: parsed.proposedMarkdown || parsed.proposed?.markdown || "",
         createdAt: parsed.createdAt,
         status: "pending",
+        kind: parsed.kind,
         filePath: parsed.filePath || parsed.path || LIVE_FILE_PATH,
         anchorType: parsed.anchorType || parsed.anchor?.anchorType,
         selectedQuote: parsed.selectedQuote || parsed.anchor?.selectedQuote,
         createdFromMarkdown: parsed.createdFromMarkdown || parsed.anchor?.createdFromMarkdown,
         beforeContext: parsed.beforeContext || parsed.anchor?.beforeContext,
         afterContext: parsed.afterContext || parsed.anchor?.afterContext,
+        proposedProject: isProjectSnapshot(parsed.proposedProject) ? parsed.proposedProject : undefined,
       }));
       return;
     }
 
-    if (rec.senderId.startsWith("mdroom-cli:event")) {
+    if (rec.senderId.startsWith("fold-cli:event")) {
       const parsed = await decryptJson<TimelineEvent>(payload, cryptKey, rec);
       setTimeline((prev) => [parsed, ...prev].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
       if (parsed.type === "proposal_accepted" || parsed.type === "proposal_rejected") {
@@ -292,6 +303,13 @@ export default function RoomPage() {
     if (rec.senderId.startsWith("web-client:comment")) {
       const parsed = await decryptJson<ChatComment>(payload, cryptKey, rec);
       setComments((prev) => upsertComment(prev, parsed));
+      return;
+    }
+
+    if (rec.senderId.startsWith(PROJECT_SENDER_ID)) {
+      const parsed = await decryptJson<ProjectSnapshot>(payload, cryptKey, rec);
+      if (!isProjectSnapshot(parsed)) return;
+      applyProjectSnapshot(parsed);
       return;
     }
 
@@ -323,9 +341,13 @@ export default function RoomPage() {
     if (!keyRef.current || !yTextRef.current || !localMyPersona) return;
 
     try {
+      const acceptedProject = proposal.proposedProject ? normalizeProjectSnapshot(proposal.proposedProject) : null;
+      const acceptedPrimaryMarkdown = acceptedProject
+        ? acceptedProject.files.find((file) => file.path === acceptedProject.primaryPath)?.markdown ?? proposal.proposedMarkdown
+        : proposal.proposedMarkdown;
       const documentUpdate = createMarkdownReplacementUpdate(
         yTextRef.current.toString(),
-        proposal.proposedMarkdown,
+        acceptedPrimaryMarkdown,
       );
       const encryptedDocument = await encryptUpdate(documentUpdate, keyRef.current, {
         roomId,
@@ -333,6 +355,17 @@ export default function RoomPage() {
       });
       const documentResponse = await postEncryptedRecord(DOCUMENT_SENDER_ID, encryptedDocument);
       if (!documentResponse.ok) throw new Error(`Server returned ${documentResponse.status}`);
+
+      if (acceptedProject) {
+        const senderId = `${PROJECT_SENDER_ID}:${Date.now()}`;
+        const encryptedProject = await encryptUpdate(encoder.encode(JSON.stringify(acceptedProject)), keyRef.current, {
+          roomId,
+          senderId,
+        });
+        const projectResponse = await postEncryptedRecord(senderId, encryptedProject);
+        if (!projectResponse.ok) throw new Error(`Server returned ${projectResponse.status}`);
+        applyProjectSnapshot(acceptedProject);
+      }
 
       const createdAt = new Date().toISOString();
       const eventRecord: TimelineEvent = {
@@ -345,13 +378,24 @@ export default function RoomPage() {
       };
       const encryptedEvent = await encryptUpdate(encoder.encode(JSON.stringify(eventRecord)), keyRef.current, {
         roomId,
-        senderId: `mdroom-cli:event:${eventRecord.id}`,
+        senderId: `fold-cli:event:${eventRecord.id}`,
       });
-      const eventResponse = await postEncryptedRecord(`mdroom-cli:event:${eventRecord.id}`, encryptedEvent);
+      const eventResponse = await postEncryptedRecord(`fold-cli:event:${eventRecord.id}`, encryptedEvent);
       if (!eventResponse.ok) throw new Error(`Server returned ${eventResponse.status}`);
       setSelectedProposal(null);
     } catch (err) {
       setSyncError(`Could not accept proposal: ${String(err)}`);
+    }
+  };
+
+  const applyProjectSnapshot = (snapshot: ProjectSnapshot) => {
+    const normalized = normalizeProjectSnapshot(snapshot);
+    const files = Object.fromEntries(normalized.files.map((file) => [file.path, file.markdown]));
+    const updatedAt = Object.fromEntries(normalized.files.map((file) => [file.path, normalized.updatedAt]));
+    setVirtualFiles(files);
+    setProjectFileUpdatedAt(updatedAt);
+    if (!hasLoadedPreferredFile || !files[selectedFilePath]) {
+      setSelectedFilePath(normalized.primaryPath);
     }
   };
 
@@ -370,9 +414,9 @@ export default function RoomPage() {
       };
       const encryptedEvent = await encryptUpdate(encoder.encode(JSON.stringify(eventRecord)), keyRef.current, {
         roomId,
-        senderId: `mdroom-cli:event:${eventRecord.id}`,
+        senderId: `fold-cli:event:${eventRecord.id}`,
       });
-      await postEncryptedRecord(`mdroom-cli:event:${eventRecord.id}`, encryptedEvent);
+      await postEncryptedRecord(`fold-cli:event:${eventRecord.id}`, encryptedEvent);
       setSelectedProposal(null);
     } catch (err) {
       setSyncError(`Could not reject proposal: ${String(err)}`);
@@ -538,6 +582,15 @@ export default function RoomPage() {
   const selectedFileTimeline = timeline.filter((event) => !event.proposalId || selectedProposalIds.has(event.proposalId));
   const selectedFilePendingCount = selectedFileProposals.filter((proposal) => proposal.status === "pending").length;
   const selectedFileParticipants = uniquePersonas(selectedFileProposals, selectedFileComments, localMyPersona);
+  const agentInvite = useMemo(() => {
+    if (!roomId || !roomSecret || typeof window === "undefined") return null;
+    return createAgentInvite({
+      roomId,
+      roomSecret,
+      appUrl: window.location.origin,
+      syncUrl: serverUrl,
+    });
+  }, [roomId, roomSecret, serverUrl]);
 
   if (!isKeyConfigured) {
     return (
@@ -568,6 +621,7 @@ export default function RoomPage() {
         error={syncError}
         onBack={() => router.push("/")}
         onExport={handleDownloadMarkdown}
+        agentInvite={agentInvite}
         onCreateFile={handleCreateProjectFile}
         onImportFile={handleImportProjectFile}
         onFocusCommentComposer={() => setComposerFocusToken((token) => token + 1)}
@@ -711,6 +765,42 @@ function createMarkdownReplacementUpdate(currentMarkdown: string, replacementMar
   }
 }
 
+function normalizeProjectSnapshot(snapshot: ProjectSnapshot): ProjectSnapshot {
+  const byPath = new Map<string, string>();
+  for (const file of snapshot.files) {
+    const path = normalizeProjectFilePath(file.path);
+    if (!path) continue;
+    byPath.set(path, file.markdown);
+  }
+  const files = Array.from(byPath.entries())
+    .map(([path, markdown]) => ({ path, markdown }))
+    .sort((left, right) => left.path.localeCompare(right.path));
+  const primaryPath = normalizeProjectFilePath(snapshot.primaryPath);
+  return {
+    schema: PROJECT_SCHEMA,
+    primaryPath: files.some((file) => file.path === primaryPath) ? primaryPath : files[0]?.path ?? DEFAULT_PROJECT_FILE_PATH,
+    files,
+    updatedAt: snapshot.updatedAt || new Date().toISOString(),
+  };
+}
+
+function isProjectSnapshot(value: unknown): value is ProjectSnapshot {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<ProjectSnapshot>;
+  return (
+    candidate.schema === PROJECT_SCHEMA &&
+    typeof candidate.primaryPath === "string" &&
+    typeof candidate.updatedAt === "string" &&
+    Array.isArray(candidate.files) &&
+    candidate.files.every((file) => (
+      file &&
+      typeof file === "object" &&
+      typeof (file as { path?: unknown }).path === "string" &&
+      typeof (file as { markdown?: unknown }).markdown === "string"
+    ))
+  );
+}
+
 function createProjectFiles(
   selectedFilePath: string,
   virtualFiles: Record<string, string>,
@@ -826,6 +916,61 @@ function initialMarkdownForPath(path: string) {
     .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
     .join(" ") || "Untitled";
   return `# ${title}\n\n`;
+}
+
+function createAgentInvite({
+  roomId,
+  roomSecret,
+  appUrl,
+  syncUrl,
+}: {
+  roomId: string;
+  roomSecret: string;
+  appUrl: string;
+  syncUrl: string;
+}) {
+  const alias = `room-${roomId.slice(0, 8)}`;
+  const normalizedAppUrl = appUrl.replace(/\/$/, "");
+  const normalizedSyncUrl = syncUrl.replace(/\/$/, "");
+  const token = createRoomToken({
+    roomId,
+    roomSecret,
+    appUrl: normalizedAppUrl,
+    syncUrl: normalizedSyncUrl,
+  });
+  const skillUrl = `${normalizedAppUrl}/.well-known/fold/agent-skill.md`;
+  return {
+    alias,
+    skillUrl,
+    text: [
+      "Read the Fold agent skill:",
+      skillUrl,
+      "",
+      "Then run:",
+      `fold room add ${JSON.stringify(token)} --alias ${JSON.stringify(alias)}`,
+      `fold status --room ${JSON.stringify(alias)} --json`,
+    ].join("\n"),
+  };
+}
+
+function createRoomToken(access: { roomId: string; roomSecret: string; appUrl: string; syncUrl: string }) {
+  const encoded = base64UrlEncode(JSON.stringify({
+    v: 1,
+    roomId: access.roomId,
+    roomSecret: access.roomSecret,
+    appUrl: access.appUrl,
+    syncUrl: access.syncUrl,
+  }));
+  return `fold:v1:${encoded}`;
+}
+
+function base64UrlEncode(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join("");
+  return window.btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
 function createInitialVirtualFiles(): Record<string, string> {

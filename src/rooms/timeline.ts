@@ -8,8 +8,8 @@ import {
 import type { EncryptedUpdateRecord, IncomingEncryptedUpdate } from '../server/append-log.js';
 import type { RoomAccess } from './room-reference.js';
 
-export const TIMELINE_EVENT_SCHEMA = 'mdroom.timeline-event.v1';
-export const TIMELINE_EVENT_SENDER_ID_PREFIX = 'mdroom-cli:event';
+export const TIMELINE_EVENT_SCHEMA = 'fold.timeline-event.v1';
+export const TIMELINE_EVENT_SENDER_ID_PREFIX = 'fold-cli:event';
 
 export type TimelineEventType =
   | 'publish'

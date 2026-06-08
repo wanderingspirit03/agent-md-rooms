@@ -14,7 +14,7 @@ import {
 import type { RoomAccess } from './room-reference.js';
 
 export const PATCH_SUGGESTION_KIND = 'whole-document-replacement';
-export const PATCH_SUGGESTION_SCHEMA = 'mdroom.patch-suggestion.v1';
+export const PATCH_SUGGESTION_SCHEMA = 'fold.patch-suggestion.v1';
 
 export interface PatchSuggestion {
   schema: typeof PATCH_SUGGESTION_SCHEMA;

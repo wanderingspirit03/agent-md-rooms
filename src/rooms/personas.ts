@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 export type ParticipantKind = 'human' | 'agent';
 
 export interface RoomPersona {
-  schema: 'mdroom.persona.v1';
+  schema: 'fold.persona.v1';
   id: string;
   kind: ParticipantKind;
   name: string;
@@ -59,7 +59,7 @@ export function assignPersona(options: AssignPersonaOptions): RoomPersona {
     .slice(0, 24);
 
   return {
-    schema: 'mdroom.persona.v1',
+    schema: 'fold.persona.v1',
     id,
     kind: options.participantKind,
     name,

@@ -5,7 +5,7 @@ import { URL } from 'node:url';
 import { WebSocket, WebSocketServer, type RawData } from 'ws';
 import type { EncryptedPayload } from '../../spikes/e2ee-yjs-append-log/crypto.js';
 
-export const SERVER_SERVICE_NAME = 'agent-md-rooms';
+export const SERVER_SERVICE_NAME = 'fold';
 export const SERVER_VERSION = '0.0.0';
 const MAX_JSON_BODY_BYTES = 1_000_000;
 const MAX_WEBSOCKET_MESSAGE_BYTES = 1_000_000;

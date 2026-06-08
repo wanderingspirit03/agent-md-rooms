@@ -8,6 +8,6 @@ await page.waitForURL(/\/room\//, { timeout: 15000 });
 await page.getByRole('button', { name: /edit/i }).click();
 await page.locator('textarea').first().fill(`# Mobile Room\n\nA selected Markdown document should be readable and reviewable on a phone.\n\n- Security is calm\n- Threads remain useful\n`);
 await page.getByRole('button', { name: 'Read mode' }).click();
-await page.screenshot({ path: '/root/repos/agent-md-rooms/design/review-artifacts/room-mobile-390x844.png', fullPage: true });
+await page.screenshot({ path: '/root/repos/fold/design/review-artifacts/room-mobile-390x844.png', fullPage: true });
 await browser.close();
-console.log('/root/repos/agent-md-rooms/design/review-artifacts/room-mobile-390x844.png');
+console.log('/root/repos/fold/design/review-artifacts/room-mobile-390x844.png');

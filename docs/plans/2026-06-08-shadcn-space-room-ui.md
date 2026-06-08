@@ -2,7 +2,7 @@
 
 > **For Hermes:** Use subagent-driven-development skill to implement this plan task-by-task.
 
-**Goal:** Redesign the current Agent MD Rooms web room into a quiet encrypted Markdown studio using existing shadcn/Radix primitives plus selective Shadcn Space components.
+**Goal:** Redesign the current Fold web room into a quiet encrypted Markdown studio using existing shadcn/Radix primitives plus selective Shadcn Space components.
 
 **Architecture:** Keep the current Markdown-canonical/E2EE room behavior intact. Refactor the monolithic room page into domain-named UI components, use Shadcn Space only as a copy/paste/registry source for interaction primitives and variants, and preserve a project-specific visual system instead of adopting generic templates wholesale.
 

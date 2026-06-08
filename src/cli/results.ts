@@ -1,14 +1,18 @@
 import type { MarkdownDocumentSummary } from '../rooms/markdown-snapshot.js';
+import type { ProjectSummary } from '../rooms/project-state.js';
 import type { ProposalStatus, ProposalView } from '../rooms/proposals.js';
 import type { TimelineEvent } from '../rooms/timeline.js';
 
 export interface PublicRoomResult {
   roomId: string;
+  alias: string | null;
+  appUrl: string;
+  syncUrl: string;
   serverUrl: string;
   serverRoomUrl: string;
   url: string;
   token: string;
-  hasClientKey: true;
+  hasClientKey: boolean;
 }
 
 export interface MetadataResult {
@@ -17,12 +21,13 @@ export interface MetadataResult {
 }
 
 export interface PublishResult {
-  schema: 'mdroom.publish.result.v1';
+  schema: 'fold.publish.result.v1';
   ok: true;
   mode: 'server-backed';
   room: PublicRoomResult;
   metadata: MetadataResult;
   document: MarkdownDocumentSummary;
+  project: ProjectSummary;
   server: {
     recordCount: number;
     latestSeq: number;
@@ -30,7 +35,7 @@ export interface PublishResult {
 }
 
 export interface ExportResult {
-  schema: 'mdroom.export.result.v1';
+  schema: 'fold.export.result.v1';
   ok: true;
   mode: 'server-backed';
   room: PublicRoomResult;
@@ -43,10 +48,12 @@ export interface ExportResult {
     written: boolean;
     bytes: number;
     sha256: string;
+    paths?: string[];
   };
   document: MarkdownDocumentSummary & {
     markdown: string;
   };
+  project: ProjectSummary;
   server: {
     recordCount: number;
     latestSeq: number | null;
@@ -54,7 +61,7 @@ export interface ExportResult {
 }
 
 export interface StatusResult {
-  schema: 'mdroom.status.result.v1';
+  schema: 'fold.status.result.v1';
   ok: true;
   mode: 'server-backed';
   room: PublicRoomResult;
@@ -66,6 +73,7 @@ export interface StatusResult {
     updatedAt: string | null;
   };
   document: MarkdownDocumentSummary | null;
+  project: ProjectSummary | null;
   server: {
     checked: true;
     recordCount: number;
@@ -74,7 +82,7 @@ export interface StatusResult {
 }
 
 export interface PatchResult {
-  schema: 'mdroom.patch.result.v1';
+  schema: 'fold.patch.result.v1';
   ok: true;
   mode: 'suggestion';
   room: PublicRoomResult;
@@ -97,7 +105,7 @@ export interface PatchResult {
 }
 
 export interface ProposeResult {
-  schema: 'mdroom.propose.result.v1';
+  schema: 'fold.propose.result.v1';
   ok: true;
   mode: 'proposal';
   room: PublicRoomResult;
@@ -107,6 +115,10 @@ export interface ProposeResult {
   };
   base: MarkdownDocumentSummary;
   proposed: MarkdownDocumentSummary;
+  project: {
+    base: ProjectSummary;
+    proposed: ProjectSummary;
+  };
   proposal: ProposalSummaryResult;
   timeline: TimelineEvent;
   server: {
@@ -116,7 +128,7 @@ export interface ProposeResult {
 }
 
 export interface ProposalsResult {
-  schema: 'mdroom.proposals.result.v1';
+  schema: 'fold.proposals.result.v1';
   ok: true;
   mode: 'proposal-list';
   room: PublicRoomResult;
@@ -150,10 +162,12 @@ export interface ProposalSummaryResult {
   persona: ProposalView['persona'];
   base: MarkdownDocumentSummary;
   proposed: MarkdownDocumentSummary;
+  path?: string;
+  project?: ProjectSummary;
 }
 
 export interface ShowProposalResult {
-  schema: 'mdroom.show-proposal.result.v1';
+  schema: 'fold.show-proposal.result.v1';
   ok: true;
   mode: 'proposal';
   room: PublicRoomResult;
@@ -166,16 +180,57 @@ export interface ShowProposalResult {
 }
 
 export interface DecideProposalResult {
-  schema: 'mdroom.accept.result.v1' | 'mdroom.reject.result.v1';
+  schema: 'fold.accept.result.v1' | 'fold.reject.result.v1';
   ok: true;
   mode: 'proposal-decision';
   room: PublicRoomResult;
   proposal: ProposalSummaryResult;
   status: 'accepted' | 'rejected';
   document: MarkdownDocumentSummary | null;
+  project: ProjectSummary | null;
   timeline: TimelineEvent;
   server: {
     recordCount: number;
     latestSeq: number;
+  };
+}
+
+export interface RoomProfileResult {
+  schema: 'fold.room.add.result.v1' | 'fold.room.show.result.v1' | 'fold.room.set-url.result.v1';
+  ok: true;
+  room: PublicRoomResult;
+  metadata: {
+    path: string;
+    alias: string;
+  };
+}
+
+export interface RoomListResult {
+  schema: 'fold.room.list.result.v1';
+  ok: true;
+  metadata: {
+    path: string;
+  };
+  rooms: PublicRoomResult[];
+}
+
+export interface RoomForgetResult {
+  schema: 'fold.room.forget.result.v1';
+  ok: true;
+  metadata: {
+    path: string;
+    alias: string;
+  };
+}
+
+export interface RoomInviteResult {
+  schema: 'fold.room.invite.result.v1';
+  ok: true;
+  audience: 'human' | 'agent';
+  room: PublicRoomResult;
+  warnings: string[];
+  invite: {
+    text: string;
+    skillUrl: string | null;
   };
 }

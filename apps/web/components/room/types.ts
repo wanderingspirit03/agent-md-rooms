@@ -6,6 +6,7 @@ export type ThreadAnchorType = "text-range" | "insertion-point" | "block" | "doc
 
 export interface Proposal {
   id: string;
+  kind?: "whole-document-replacement" | "file-replacement" | "project-replacement";
   title: string;
   comment: string;
   authorPersonaId: string;
@@ -19,6 +20,12 @@ export interface Proposal {
   createdFromMarkdown?: string;
   beforeContext?: string;
   afterContext?: string;
+  proposedProject?: {
+    schema: "fold.project.v1";
+    primaryPath: string;
+    files: Array<{ path: string; markdown: string }>;
+    updatedAt: string;
+  };
 }
 
 export interface TimelineEvent {

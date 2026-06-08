@@ -29,13 +29,13 @@ export default function HomePage() {
   const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem("mdroom:recent-rooms");
+    const stored = localStorage.getItem("fold:recent-rooms");
     if (!stored) return;
 
     try {
       setRecentRooms(JSON.parse(stored));
     } catch {
-      localStorage.removeItem("mdroom:recent-rooms");
+      localStorage.removeItem("fold:recent-rooms");
     }
   }, []);
 
@@ -45,7 +45,7 @@ export default function HomePage() {
       ...recentRooms.filter((room) => room.roomId !== roomId),
     ].slice(0, 10);
     setRecentRooms(list);
-    localStorage.setItem("mdroom:recent-rooms", JSON.stringify(list));
+    localStorage.setItem("fold:recent-rooms", JSON.stringify(list));
   };
 
   const handleJoinUrl = (e: React.FormEvent) => {
@@ -89,7 +89,7 @@ export default function HomePage() {
 
   const handleClearHistory = () => {
     setRecentRooms([]);
-    localStorage.removeItem("mdroom:recent-rooms");
+    localStorage.removeItem("fold:recent-rooms");
   };
 
   return (
@@ -110,7 +110,7 @@ export default function HomePage() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button asChild variant="ghost" size="icon" aria-label="GitHub">
-                    <a href="https://github.com/wanderingspirit03/agent-md-rooms" target="_blank" rel="noreferrer">
+                    <a href="https://github.com/wanderingspirit03/fold" target="_blank" rel="noreferrer">
                       <Github className="h-4 w-4" />
                     </a>
                   </Button>

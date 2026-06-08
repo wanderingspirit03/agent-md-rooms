@@ -18,7 +18,7 @@ describe('encrypted proposal model', () => {
       proposedMarkdown: '# Proposed',
       title: 'Update body',
       comment: 'Tighten copy.',
-      participantFingerprint: 'mdroom-cli:proposal',
+      participantFingerprint: 'fold-cli:proposal',
     });
     store.append(access.roomId, submitted.update);
 

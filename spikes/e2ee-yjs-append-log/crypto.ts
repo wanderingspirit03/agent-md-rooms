@@ -25,7 +25,7 @@ export async function deriveRoomKey(roomId: string, roomSecret: string): Promise
     {
       name: 'HKDF',
       hash: 'SHA-256',
-      salt: encoder.encode(`agent-md-rooms:${roomId}`),
+      salt: encoder.encode(`fold:${roomId}`),
       info: encoder.encode('yjs-update-append-log:v1'),
     },
     inputKey,
