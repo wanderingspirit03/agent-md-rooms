@@ -481,8 +481,13 @@ function ProjectFilesBody({
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const createInputRef = useRef<HTMLInputElement | null>(null);
   const normalizedQuery = query.trim().toLowerCase();
+  const requestedSearchPath = normalizeSidebarCreatePath(query);
   const fileTree = useMemo(() => buildProjectFileTree(files, normalizedQuery), [files, normalizedQuery]);
   const hasSearchResults = fileTree.files.length > 0 || fileTree.folders.some((folder) => treeHasFiles(folder));
+  const hasExactSearchPath = requestedSearchPath
+    ? files.some((file) => file.path.toLowerCase() === requestedSearchPath.toLowerCase())
+    : false;
+  const canCreateFromSearch = Boolean(normalizedQuery && requestedSearchPath && !hasExactSearchPath);
   const toggleFolder = (name: string) => {
     setOpenFolders((current) => ({ ...current, [name]: !(current[name] ?? true) }));
   };
@@ -494,6 +499,9 @@ function ProjectFilesBody({
     event.preventDefault();
     const path = newFilePath.trim();
     if (!path) return;
+    createFile(path);
+  };
+  const createFile = (path: string) => {
     onCreateFile(path);
     setQuery("");
     setNewFilePath("docs/untitled.md");
@@ -587,6 +595,12 @@ function ProjectFilesBody({
               </button>
             </form>
           )}
+          {canCreateFromSearch && (
+            <SidebarCreateFile
+              path={requestedSearchPath}
+              onCreateFile={() => createFile(requestedSearchPath)}
+            />
+          )}
           {fileTree.files.map((file) => (
             <SidebarFile key={file.path} file={file} depth={0} onFileSelect={handleFileSelect} />
           ))}
@@ -601,7 +615,7 @@ function ProjectFilesBody({
               onFileSelect={handleFileSelect}
             />
           ))}
-          {normalizedQuery && !hasSearchResults && (
+          {normalizedQuery && !hasSearchResults && !canCreateFromSearch && (
             <p className="px-2 py-3 text-xs text-ink-subtle">No files found</p>
           )}
         </SidebarSection>
@@ -685,6 +699,27 @@ function SidebarFile({
       <File className="h-3.5 w-3.5 shrink-0 text-ink-subtle group-hover:text-ink-muted" />
       <span className="min-w-0 flex-1 truncate">{file.name}</span>
       {file.status && <span className="rounded bg-studio-sunken px-1 text-[10px] text-ink-subtle">{file.status}</span>}
+    </button>
+  );
+}
+
+function SidebarCreateFile({
+  path,
+  onCreateFile,
+}: {
+  path: string;
+  onCreateFile: () => void;
+}) {
+  const name = path.split("/").pop() || path;
+
+  return (
+    <button
+      type="button"
+      onClick={onCreateFile}
+      className="mb-1 flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm text-ink-muted transition-colors hover:bg-porcelain hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+    >
+      <Plus className="h-3.5 w-3.5 shrink-0 text-midnight-strong" />
+      <span className="min-w-0 flex-1 truncate">Create {name}</span>
     </button>
   );
 }
@@ -1068,6 +1103,19 @@ function normalizePaletteFilePath(value: string) {
     .join("/");
   if (!collapsed) return "";
   return collapsed.toLowerCase().endsWith(".md") ? collapsed : `${collapsed}.md`;
+}
+
+function normalizeSidebarCreatePath(value: string) {
+  const trimmed = value.trim().replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!trimmed || trimmed.length < 2) return "";
+  const collapsed = trimmed
+    .split("/")
+    .map((part) => part.trim())
+    .filter((part) => part && part !== "." && part !== "..")
+    .join("/");
+  if (!collapsed) return "";
+  const path = collapsed.includes("/") ? collapsed : `docs/${collapsed}`;
+  return path.toLowerCase().endsWith(".md") ? path : `${path}.md`;
 }
 
 function truncatePaletteDetail(value: string) {
