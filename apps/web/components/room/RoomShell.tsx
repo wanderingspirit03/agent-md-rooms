@@ -177,6 +177,7 @@ export function RoomShell({
             onBack={onBack}
             onFileSelect={onFileSelect}
             onCreateFile={onCreateFile}
+            onImportFile={openImportPicker}
           />
 
           <div className="min-w-0 border-l border-studio-line bg-studio-sunken">
@@ -282,6 +283,10 @@ export function RoomShell({
                   onCreateFile(path);
                   setProjectFilesOpen(false);
                 }}
+                onImportFile={() => {
+                  openImportPicker();
+                  setProjectFilesOpen(false);
+                }}
               />
             </div>
             <button
@@ -381,6 +386,7 @@ function ProjectFileSidebar({
   onBack,
   onFileSelect,
   onCreateFile,
+  onImportFile,
 }: {
   roomId: string;
   files: ProjectFile[];
@@ -388,6 +394,7 @@ function ProjectFileSidebar({
   onBack: () => void;
   onFileSelect: (path: string) => void;
   onCreateFile: (path: string) => void;
+  onImportFile: () => void;
 }) {
   return (
     <aside className="hidden min-h-dvh flex-col bg-studio-paper text-ink md:flex">
@@ -397,6 +404,7 @@ function ProjectFileSidebar({
         recentFiles={recentFiles}
         onFileSelect={onFileSelect}
         onCreateFile={onCreateFile}
+        onImportFile={onImportFile}
       />
     </aside>
   );
@@ -437,11 +445,13 @@ function ProjectFilesBody({
   recentFiles,
   onFileSelect,
   onCreateFile,
+  onImportFile,
 }: {
   files: ProjectFile[];
   recentFiles: ProjectFile[];
   onFileSelect: (path: string) => void;
   onCreateFile: (path: string) => void;
+  onImportFile: () => void;
 }) {
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({
     docs: true,
@@ -515,14 +525,26 @@ function ProjectFilesBody({
           title="Project"
           className={cn(!normalizedQuery && recentFiles.length > 1 && "mt-4")}
           action={
-            <button
-              type="button"
-              aria-label="Create Markdown file"
-              onClick={() => setIsCreatingFile((open) => !open)}
-              className="inline-flex h-6 w-6 items-center justify-center rounded text-ink-subtle hover:bg-porcelain hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
-            >
-              <Plus className="h-3.5 w-3.5" />
-            </button>
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                aria-label="Import Markdown file"
+                title="Import Markdown file"
+                onClick={onImportFile}
+                className="inline-flex h-6 w-6 items-center justify-center rounded text-ink-subtle hover:bg-porcelain hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+              >
+                <Upload className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                aria-label="Create Markdown file"
+                title="Create Markdown file"
+                onClick={() => setIsCreatingFile((open) => !open)}
+                className="inline-flex h-6 w-6 items-center justify-center rounded text-ink-subtle hover:bg-porcelain hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            </div>
           }
         >
           {isCreatingFile && (
