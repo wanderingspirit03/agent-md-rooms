@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle, Quote, XCircle } from "lucide-react";
+import { Check, Quote, X } from "lucide-react";
 import MarkdownRenderer from "../MarkdownRenderer";
 import { extractMarkdownProperties } from "../../lib/markdown-properties";
 import { Button } from "../ui/button";
@@ -32,63 +32,74 @@ export function ThreadReviewDialog({
 
   return (
     <Dialog open={Boolean(proposal)} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl border-studio-line bg-studio-paper text-ink">
+      <DialogContent className="max-h-[min(860px,calc(100dvh-2rem))] max-w-3xl gap-0 overflow-hidden border-studio-line bg-studio-paper p-0 text-ink shadow-[0_28px_90px_rgba(0,0,0,0.38)]">
         {proposal && (
           <>
-            <DialogHeader>
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <StatusText status={proposal.status} />
-                <PersonaChip persona={proposal.persona} compact />
+            <DialogHeader className="border-b border-studio-line px-4 py-3 sm:px-5">
+              <div className="flex items-start justify-between gap-8 pr-8">
+                <div className="min-w-0">
+                  <StatusText status={proposal.status} />
+                  <DialogTitle className="mt-1 truncate text-[15px]">{proposal.title}</DialogTitle>
+                  <DialogDescription className="mt-1 line-clamp-2 text-xs leading-5">
+                    {proposal.comment || "Suggested Markdown replacement."}
+                  </DialogDescription>
+                </div>
+                <PersonaChip persona={proposal.persona} compact className="mt-0.5 hidden shrink-0 sm:inline-flex" />
               </div>
-              <DialogTitle>{proposal.title}</DialogTitle>
-              <DialogDescription>
-                {proposal.comment || "Suggested Markdown replacement attached to this review thread."}
-              </DialogDescription>
             </DialogHeader>
 
-            <div className="rounded-md border border-studio-line bg-studio-sunken p-3">
-              <p className="text-xs font-medium uppercase text-ink-subtle">Thread anchor</p>
-              {proposal.selectedQuote ? (
-                <div className="mt-2 flex gap-2 rounded-md border border-studio-line bg-studio-sunken px-2 py-1.5 text-xs leading-5 text-ink-muted">
-                  <Quote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-midnight-strong" />
-                  <span className="line-clamp-2">{proposal.selectedQuote}</span>
-                </div>
-              ) : (
-                <p className="mt-1 text-sm text-ink-muted">
-                  {proposal.anchorType === "block" ? "Section suggestion" : "Whole-document suggestion"}
+            <div className="min-h-0 overflow-y-auto px-4 py-3 sm:px-5">
+              <div className="mb-3 flex min-h-8 items-center gap-2 rounded-md border border-studio-line bg-studio-sunken px-2.5 py-1.5">
+                <Quote className="h-3.5 w-3.5 shrink-0 text-midnight-strong" />
+                <p className="min-w-0 truncate text-xs leading-5 text-ink-muted">
+                  {proposal.selectedQuote
+                    ? proposal.selectedQuote
+                    : proposal.anchorType === "block"
+                      ? "Section suggestion"
+                      : "Whole-document suggestion"}
                 </p>
-              )}
-            </div>
+              </div>
 
-            <p className="text-xs font-medium uppercase text-ink-subtle">Preview replacement</p>
-            <div className="max-h-[52dvh] overflow-y-auto rounded-md border border-document-edge bg-document p-5">
-              {parsedProposal?.properties.length ? (
-                <div className="mb-6 rounded-md border border-document-edge bg-black/[0.025] px-3 py-2">
-                  <div className="flex flex-wrap gap-x-4 gap-y-1">
-                    {parsedProposal.properties.map((property) => (
-                      <span key={property.key} className="text-xs leading-5 text-document-subtle">
-                        <span className="font-medium text-document-muted">{property.key}</span>
-                        <span className="mx-1 text-document-subtle">:</span>
-                        <span>{property.value}</span>
-                      </span>
-                    ))}
-                  </div>
+              <div className="overflow-hidden rounded-md border border-document-edge bg-document">
+                <div className="border-b border-document-edge bg-black/[0.025] px-4 py-2">
+                  <p className="text-[11px] font-medium uppercase text-document-subtle">Suggested Markdown</p>
                 </div>
-              ) : null}
-              <MarkdownRenderer content={parsedProposal?.content ?? proposal.proposedMarkdown} />
+                <div className="max-h-[54dvh] overflow-y-auto px-4 py-5 sm:px-6">
+                  {parsedProposal?.properties.length ? (
+                    <div className="mb-6 rounded-md border border-document-edge bg-black/[0.025] px-3 py-2">
+                      <div className="flex flex-wrap gap-x-4 gap-y-1">
+                        {parsedProposal.properties.map((property) => (
+                          <span key={property.key} className="text-xs leading-5 text-document-subtle">
+                            <span className="font-medium text-document-muted">{property.key}</span>
+                            <span className="mx-1 text-document-subtle">:</span>
+                            <span>{property.value}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  <MarkdownRenderer content={parsedProposal?.content ?? proposal.proposedMarkdown} />
+                </div>
+              </div>
             </div>
 
-            {proposal.status === "pending" && (
-              <DialogFooter>
+            {proposal.status === "pending" ? (
+              <DialogFooter className="border-t border-studio-line bg-studio-paper px-4 py-3 sm:px-5">
                 <Button variant="outline" onClick={() => onReject(proposal)}>
-                  <XCircle className="h-4 w-4" />
+                  <X className="h-4 w-4" />
                   Reject
                 </Button>
                 <Button onClick={() => onAccept(proposal)}>
-                  <CheckCircle className="h-4 w-4" />
-                  Accept replacement
+                  <Check className="h-4 w-4" />
+                  Accept
                 </Button>
               </DialogFooter>
+            ) : (
+              <div className="border-t border-studio-line bg-studio-paper px-4 py-3 sm:px-5">
+                <p className="text-xs text-ink-subtle">
+                  {proposal.status === "accepted" ? "This suggestion has been accepted." : "This suggestion has been rejected."}
+                </p>
+              </div>
             )}
           </>
         )}
@@ -98,10 +109,17 @@ export function ThreadReviewDialog({
 }
 
 function StatusText({ status }: { status: Proposal["status"] }) {
-  const className =
-    status === "accepted" ? "text-emerald-400" : status === "rejected" ? "text-rose-400" : "text-midnight-strong";
-  const label =
-    status === "accepted" ? "Accepted suggestion" : status === "rejected" ? "Rejected suggestion" : "Open suggested edit";
+  const state =
+    status === "accepted"
+      ? { label: "Accepted", className: "text-emerald-400" }
+      : status === "rejected"
+        ? { label: "Rejected", className: "text-rose-400" }
+        : { label: "Suggestion", className: "text-midnight-strong" };
 
-  return <span className={`text-xs font-medium ${className}`}>{label}</span>;
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${state.className}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      {state.label}
+    </span>
+  );
 }
