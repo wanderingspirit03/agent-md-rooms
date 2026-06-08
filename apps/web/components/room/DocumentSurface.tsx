@@ -19,6 +19,7 @@ interface DocumentSurfaceProps {
   onSelectedQuoteChange: (quote: string) => void;
   comments: ChatComment[];
   proposals: Proposal[];
+  activeProposalId?: string | null;
   onOpenProposal: (proposal: Proposal) => void;
   newCommentText: string;
   composerFocusToken: number;
@@ -35,6 +36,7 @@ export function DocumentSurface({
   onSelectedQuoteChange,
   comments,
   proposals,
+  activeProposalId = null,
   onOpenProposal,
   newCommentText,
   composerFocusToken,
@@ -306,7 +308,7 @@ export function DocumentSurface({
             )}
             <MarkdownRenderer
               content={parsedMarkdown.content}
-              activeTextHighlightId={activeCommentCard ? `comment:${activeCommentCard.commentId}` : null}
+              activeTextHighlightId={activeCommentCard ? `comment:${activeCommentCard.commentId}` : activeProposalId ? `proposal:${activeProposalId}` : null}
               textHighlights={[
                 ...comments
                   .filter((comment) => comment.anchorType === "text-range" && comment.selectedQuote)
