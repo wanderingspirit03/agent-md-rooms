@@ -81,3 +81,56 @@ html {
   background-repeat: no-repeat;
   background-size: contain;
 }
+
+.copy-project-link-button::before {
+  border-radius: inherit;
+  content: "";
+  inset: 6px;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  transform: scale(0.74);
+}
+
+.copy-project-link-button--copied::before {
+  animation: copy-project-link-pulse 520ms ease-out;
+  background: hsl(var(--midnight-soft));
+}
+
+.copy-project-link-icon--copied {
+  animation: copy-project-link-icon-pop 220ms ease-out;
+}
+
+@keyframes copy-project-link-pulse {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.55);
+  }
+  72% {
+    opacity: 0.28;
+    transform: scale(1.12);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes copy-project-link-icon-pop {
+  0% {
+    transform: scale(0.82);
+  }
+  58% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copy-project-link-button--copied::before,
+  .copy-project-link-icon--copied {
+    animation: none;
+  }
+}

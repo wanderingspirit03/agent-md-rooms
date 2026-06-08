@@ -470,11 +470,23 @@ function ProjectFilesHeader({
             onClick={onCopyProjectLink}
             aria-label={projectLinkCopied ? "Project link copied" : "Copy project link"}
             className={cn(
-              "h-11 w-11 transition-all duration-200",
-              projectLinkCopied && "scale-95 bg-midnight-soft text-midnight-strong",
+              "copy-project-link-button relative h-11 w-11 overflow-hidden transition-all duration-200 active:scale-[0.96]",
+              projectLinkCopied &&
+                "copy-project-link-button--copied scale-95 bg-midnight-soft text-midnight-strong ring-1 ring-midnight-strong/40",
             )}
           >
-            {projectLinkCopied ? <Check className="h-4 w-4" /> : <Link2 className="h-4 w-4" />}
+            <span
+              key={projectLinkCopied ? "copied" : "idle"}
+              className={cn(
+                "relative z-10 inline-flex items-center justify-center transition-transform duration-200",
+                projectLinkCopied && "copy-project-link-icon--copied",
+              )}
+            >
+              {projectLinkCopied ? <Check className="h-4 w-4" /> : <Link2 className="h-4 w-4" />}
+            </span>
+            <span className="sr-only" aria-live="polite">
+              {projectLinkCopied ? "Project link copied" : ""}
+            </span>
           </Button>
         </TooltipTrigger>
         <TooltipContent>{projectLinkCopied ? "Copied" : "Copy project link"}</TooltipContent>

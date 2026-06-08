@@ -74,7 +74,13 @@ export function AgentBench({
             <SoftRailState text="No suggestions." />
           ) : (
             recentProposals.map((proposal) => (
-              <ProposalSlip key={proposal.id} proposal={proposal} onOpen={onOpenProposal} />
+              <ProposalSlip
+                key={proposal.id}
+                proposal={proposal}
+                onOpen={onOpenProposal}
+                onAccept={onAcceptProposal}
+                onReject={onRejectProposal}
+              />
             ))
           )}
         </section>
