@@ -110,7 +110,7 @@ export default function RoomPage() {
 
   useEffect(() => {
     if (!roomId || hasLoadedPreferredFile) return;
-    const knownFiles = createProjectFiles(selectedFilePath, virtualFilesRef.current, {}, [], []);
+    const knownFiles = createProjectFiles(selectedFilePath, virtualFilesRef.current, [], []);
     let storedPath = "";
     try {
       storedPath = window.localStorage.getItem(lastOpenedFileStorageKey(roomId)) || "";
@@ -586,8 +586,8 @@ export default function RoomPage() {
   };
 
   const projectFiles = useMemo(
-    () => createProjectFiles(selectedFilePath, virtualFiles, projectFileUpdatedAt, comments, proposals, !hasRemoteProjectState, projectPrimaryPath || LIVE_FILE_PATH),
-    [selectedFilePath, virtualFiles, projectFileUpdatedAt, comments, proposals, hasRemoteProjectState, projectPrimaryPath],
+    () => createProjectFiles(selectedFilePath, virtualFiles, comments, proposals, !hasRemoteProjectState, projectPrimaryPath || LIVE_FILE_PATH),
+    [selectedFilePath, virtualFiles, comments, proposals, hasRemoteProjectState, projectPrimaryPath],
   );
   useEffect(() => {
     if (!pendingPreferredFilePath) return;
@@ -832,7 +832,6 @@ function isProjectSnapshot(value: unknown): value is ProjectSnapshot {
 function createProjectFiles(
   selectedFilePath: string,
   virtualFiles: Record<string, string>,
-  projectFileUpdatedAt: Record<string, string>,
   comments: ChatComment[],
   proposals: Proposal[],
   includeLegacyLiveFile = true,
@@ -873,7 +872,7 @@ function createProjectFiles(
   return files.map((file) => ({
     ...file,
     active: file.path === selectedFilePath,
-    status: file.status || (projectFileUpdatedAt[file.path] ? "synced" : undefined),
+    status: file.status,
     commentCount: commentCounts.get(file.path) || 0,
     pendingCount: pendingProposalCounts.get(file.path) || 0,
   }));
