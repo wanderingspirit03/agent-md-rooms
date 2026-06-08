@@ -306,6 +306,7 @@ export function DocumentSurface({
             )}
             <MarkdownRenderer
               content={parsedMarkdown.content}
+              activeTextHighlightId={activeCommentCard ? `comment:${activeCommentCard.commentId}` : null}
               textHighlights={[
                 ...comments
                   .filter((comment) => comment.anchorType === "text-range" && comment.selectedQuote)

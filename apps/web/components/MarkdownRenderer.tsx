@@ -7,6 +7,7 @@ import remarkMath from "remark-math";
 
 interface MarkdownRendererProps {
   content: string;
+  activeTextHighlightId?: string | null;
   textHighlights?: Array<{
     id: string;
     text: string;
@@ -21,6 +22,7 @@ interface MarkdownRendererProps {
 
 export default function MarkdownRenderer({
   content,
+  activeTextHighlightId = null,
   textHighlights = [],
   onTextHighlightClick,
 }: MarkdownRendererProps) {
@@ -32,33 +34,33 @@ export default function MarkdownRenderer({
         components={{
           h1: ({ children }) => (
             <h1 className="mb-6 mt-0 border-b border-document-edge pb-5 text-[2rem] font-semibold leading-tight tracking-normal text-document-ink">
-              {renderWithInlineComments(children, textHighlights, onTextHighlightClick)}
+              {renderWithInlineComments(children, textHighlights, activeTextHighlightId, onTextHighlightClick)}
             </h1>
           ),
           h2: ({ children }) => (
             <h2 className="mb-3 mt-9 text-xl font-semibold tracking-normal text-document-ink">
-              {renderWithInlineComments(children, textHighlights, onTextHighlightClick)}
+              {renderWithInlineComments(children, textHighlights, activeTextHighlightId, onTextHighlightClick)}
             </h2>
           ),
           h3: ({ children }) => (
             <h3 className="mb-2 mt-7 text-base font-semibold text-document-ink">
-              {renderWithInlineComments(children, textHighlights, onTextHighlightClick)}
+              {renderWithInlineComments(children, textHighlights, activeTextHighlightId, onTextHighlightClick)}
             </h3>
           ),
           h4: ({ children }) => (
             <h4 className="mb-2 mt-5 text-sm font-semibold text-document-ink">
-              {renderWithInlineComments(children, textHighlights, onTextHighlightClick)}
+              {renderWithInlineComments(children, textHighlights, activeTextHighlightId, onTextHighlightClick)}
             </h4>
           ),
           p: ({ children }) => (
             <p className="my-3.5 text-[15.5px] leading-7 text-document-muted">
-              {renderWithInlineComments(children, textHighlights, onTextHighlightClick)}
+              {renderWithInlineComments(children, textHighlights, activeTextHighlightId, onTextHighlightClick)}
             </p>
           ),
           ul: ({ children }) => <ul className="my-3.5 list-disc space-y-1.5 pl-6 text-[15.5px] leading-7">{children}</ul>,
           ol: ({ children }) => <ol className="my-3.5 list-decimal space-y-1.5 pl-6 text-[15.5px] leading-7">{children}</ol>,
           li: ({ children }) => (
-            <li className="pl-1">{renderWithInlineComments(children, textHighlights, onTextHighlightClick)}</li>
+            <li className="pl-1">{renderWithInlineComments(children, textHighlights, activeTextHighlightId, onTextHighlightClick)}</li>
           ),
           input: ({ type, checked, ...props }) => {
             if (type === "checkbox") {
@@ -143,19 +145,21 @@ export default function MarkdownRenderer({
 function renderWithInlineComments(
   children: React.ReactNode,
   highlights: NonNullable<MarkdownRendererProps["textHighlights"]>,
+  activeTextHighlightId: MarkdownRendererProps["activeTextHighlightId"],
   onTextHighlightClick?: MarkdownRendererProps["onTextHighlightClick"],
 ) {
   if (highlights.length === 0) return children;
 
   return React.Children.map(children, (child) => {
     if (typeof child !== "string") return child;
-    return renderStringWithInlineComments(child, highlights, onTextHighlightClick);
+    return renderStringWithInlineComments(child, highlights, activeTextHighlightId, onTextHighlightClick);
   });
 }
 
 function renderStringWithInlineComments(
   text: string,
   highlights: NonNullable<MarkdownRendererProps["textHighlights"]>,
+  activeTextHighlightId: MarkdownRendererProps["activeTextHighlightId"],
   onTextHighlightClick?: MarkdownRendererProps["onTextHighlightClick"],
 ) {
   const matches = highlights
@@ -178,6 +182,7 @@ function renderStringWithInlineComments(
     if (match.start > cursor) parts.push(text.slice(cursor, match.start));
     const highlightedText = text.slice(match.start, match.end);
     const kind = match.highlight.kind ?? "comment";
+    const active = activeTextHighlightId === match.highlight.id;
     parts.push(
       <button
         key={`${match.highlight.id}-${match.start}`}
@@ -194,7 +199,7 @@ function renderStringWithInlineComments(
           event.stopPropagation();
           onTextHighlightClick?.(match.highlight.id, event);
         }}
-        className={inlineMarkerClassName(kind, match.highlight.status)}
+        className={inlineMarkerClassName(kind, match.highlight.status, active)}
       >
         {highlightedText}
       </button>,
@@ -273,11 +278,13 @@ function truncateForLabel(value: string) {
 function inlineMarkerClassName(
   kind: NonNullable<NonNullable<MarkdownRendererProps["textHighlights"]>[number]["kind"]>,
   status?: NonNullable<MarkdownRendererProps["textHighlights"]>[number]["status"],
+  active = false,
 ) {
   const base = "inline cursor-pointer rounded-[3px] px-0.5 text-left text-document-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong";
+  const activeClass = active ? "shadow-[0_0_0_2px_hsl(var(--midnight-soft))] ring-1 ring-midnight-strong/50" : "";
   if (kind === "suggestion") {
     const opacity = status === "accepted" || status === "rejected" ? "opacity-70" : "";
-    return `${base} ${opacity} border-b border-dashed border-midnight/55 bg-transparent hover:bg-midnight-soft`;
+    return `${base} ${activeClass} ${opacity} border-b border-dashed border-midnight/55 ${active ? "bg-midnight-soft" : "bg-transparent hover:bg-midnight-soft"}`;
   }
-  return `${base} border-b border-midnight/45 bg-midnight-soft hover:bg-midnight-soft/80`;
+  return `${base} ${activeClass} border-b border-midnight/45 bg-midnight-soft hover:bg-midnight-soft/80`;
 }
