@@ -9,6 +9,7 @@ import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { PersonaChip } from "./PersonaChip";
+import { SelectionAnchor } from "./SelectionAnchor";
 import type { ChatComment, Proposal, RoomMode } from "./types";
 
 interface DocumentSurfaceProps {
@@ -54,6 +55,7 @@ export function DocumentSurface({
   } | null>(null);
   const [fileCommentsOpen, setFileCommentsOpen] = useState(false);
   const [fileComposerOpen, setFileComposerOpen] = useState(false);
+  const [inlineComposerOpen, setInlineComposerOpen] = useState(false);
   const parsedMarkdown = useMemo(() => extractMarkdownProperties(markdown), [markdown]);
   const fileComments = useMemo(
     () => comments.filter((comment) => comment.anchorType !== "text-range" || !comment.selectedQuote),
@@ -72,6 +74,7 @@ export function DocumentSurface({
     if (composerFocusToken === 0) return;
     if (selectedQuote && anchorPoint) {
       setFileComposerOpen(false);
+      setInlineComposerOpen(true);
       window.requestAnimationFrame(() => composerRef.current?.focus());
       return;
     }
@@ -86,9 +89,9 @@ export function DocumentSurface({
   }, [fileComposerOpen, selectedQuote]);
 
   useEffect(() => {
-    if (!selectedQuote || !anchorPoint) return;
+    if (!selectedQuote || !anchorPoint || !inlineComposerOpen) return;
     window.requestAnimationFrame(() => composerRef.current?.focus());
-  }, [selectedQuote, anchorPoint]);
+  }, [inlineComposerOpen, selectedQuote, anchorPoint]);
 
   useEffect(() => {
     if (!activeCommentCard && !anchorPoint) return;
@@ -97,6 +100,7 @@ export function DocumentSurface({
       if (event.key !== "Escape") return;
       setActiveCommentCard(null);
       setAnchorPoint(null);
+      setInlineComposerOpen(false);
       onSelectedQuoteChange("");
     };
 
@@ -105,10 +109,14 @@ export function DocumentSurface({
       if (!(target instanceof HTMLElement)) return;
       if (target.closest("[data-comment-popover]")) return;
       if (target.closest("[data-comment-composer]")) return;
+      if (target.closest("[data-selection-anchor]")) return;
       if (target.closest("[data-file-comment-control]")) return;
       if (target.closest("[data-inline-comment-marker]")) return;
       setActiveCommentCard(null);
       setFileCommentsOpen(false);
+      setInlineComposerOpen(false);
+      setAnchorPoint(null);
+      onSelectedQuoteChange("");
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -122,12 +130,14 @@ export function DocumentSurface({
   const captureSelection = (event?: React.SyntheticEvent) => {
     const target = event?.target;
     if (target instanceof HTMLElement && target.closest("[data-comment-composer]")) return;
+    if (target instanceof HTMLElement && target.closest("[data-selection-anchor]")) return;
     if (target instanceof HTMLElement && target.closest("[data-inline-comment-marker]")) return;
 
     const selection = window.getSelection();
     const selectedText = selection?.toString().trim() || "";
     if (!selection || selectedText.length < 2 || !readSurfaceRef.current) {
       setAnchorPoint(null);
+      setInlineComposerOpen(false);
       onSelectedQuoteChange("");
       return;
     }
@@ -139,6 +149,7 @@ export function DocumentSurface({
     const surfaceRect = readSurfaceRef.current.getBoundingClientRect();
     onSelectedQuoteChange(expandPartialWordSelection(markdown, selectedText).slice(0, 180));
     setActiveCommentCard(null);
+    setInlineComposerOpen(false);
     const preferredLeft = rangeRect.right - surfaceRect.left + 16;
     const maxLeft = Math.max(16, surfaceRect.width - 356);
     setAnchorPoint({
@@ -191,6 +202,7 @@ export function DocumentSurface({
                 setFileComposerOpen(false);
                 setActiveCommentCard(null);
                 setAnchorPoint(null);
+                setInlineComposerOpen(false);
                 onSelectedQuoteChange("");
                 onOpenProposal(pendingProposals[0]);
               }}
@@ -225,6 +237,7 @@ export function DocumentSurface({
               setFileCommentsOpen(false);
               setActiveCommentCard(null);
               setAnchorPoint(null);
+              setInlineComposerOpen(false);
               onSelectedQuoteChange("");
             }}
           >
@@ -414,14 +427,33 @@ export function DocumentSurface({
             <p className="whitespace-pre-wrap text-sm leading-6 text-ink-muted">{activeComment.text}</p>
           </div>
         )}
-        {selectedQuote && anchorPoint && (
+        {selectedQuote && anchorPoint && !inlineComposerOpen && (
+          <div
+            className="absolute z-10 w-[min(340px,calc(100%-2rem))]"
+            style={{ top: anchorPoint.top, left: anchorPoint.left }}
+          >
+            <SelectionAnchor
+              quote={selectedQuote}
+              onAddNote={() => {
+                setInlineComposerOpen(true);
+                window.requestAnimationFrame(() => composerRef.current?.focus());
+              }}
+            />
+          </div>
+        )}
+        {selectedQuote && anchorPoint && inlineComposerOpen && (
           <div
             className="absolute z-10 w-[min(340px,calc(100%-2rem))]"
             style={{ top: anchorPoint.top, left: anchorPoint.left }}
           >
             <form
               data-comment-composer
-              onSubmit={onPostComment}
+              onSubmit={(event) => {
+                onPostComment(event);
+                setInlineComposerOpen(false);
+                setAnchorPoint(null);
+                onSelectedQuoteChange("");
+              }}
               className="rounded-md border border-midnight/30 bg-studio-paper p-2 text-ink shadow-[0_16px_42px_rgba(0,0,0,0.22)]"
             >
               <div className="mb-2 flex items-start gap-2 px-1">
@@ -444,6 +476,7 @@ export function DocumentSurface({
                   className="text-xs text-ink-subtle hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
                   onClick={() => {
                     setAnchorPoint(null);
+                    setInlineComposerOpen(false);
                     onSelectedQuoteChange("");
                   }}
                 >

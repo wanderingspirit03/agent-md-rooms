@@ -1,29 +1,42 @@
 "use client";
 
-import { CornerDownRight, MessageSquarePlus } from "lucide-react";
-import { Button } from "../ui/button";
+import { MessageSquarePlus } from "lucide-react";
 
 interface SelectionAnchorProps {
   quote: string;
   onAddNote: () => void;
-  onAskAgent: () => void;
 }
 
-export function SelectionAnchor({ quote, onAddNote, onAskAgent }: SelectionAnchorProps) {
+export function SelectionAnchor({ quote, onAddNote }: SelectionAnchorProps) {
   return (
-    <div className="rounded-lg border border-cyan-200 bg-white px-3 py-2 shadow-[0_12px_32px_rgba(36,48,52,0.14)]">
-      <div className="mb-2 max-w-[260px] truncate text-xs text-ink-muted">
-        <span className="text-ink-subtle">Selected</span> "{quote}"
-      </div>
-      <div className="flex items-center gap-2">
-        <Button type="button" size="sm" onClick={onAddNote}>
+    <div
+      data-selection-anchor
+      className="rounded-md border border-midnight/25 bg-studio-paper px-2.5 py-2 text-ink shadow-[0_10px_28px_rgba(0,0,0,0.16)]"
+    >
+      <div className="flex max-w-[280px] items-center gap-2">
+        <p className="min-w-0 flex-1 truncate text-xs text-ink-subtle">"{quote}"</p>
+        <button
+          type="button"
+          aria-label="Add inline comment"
+          title="Add comment"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded text-midnight-strong transition-colors hover:bg-midnight-mark hover:text-midnight-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onAddNote();
+          }}
+          onMouseDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onAddNote();
+          }}
+        >
           <MessageSquarePlus className="h-3.5 w-3.5" />
-          Add note here
-        </Button>
-        <Button type="button" variant="outline" size="sm" onClick={onAskAgent}>
-          <CornerDownRight className="h-3.5 w-3.5" />
-          Ask agent
-        </Button>
+        </button>
       </div>
     </div>
   );
