@@ -284,8 +284,10 @@ function inlineMarkerClassName(
   const activeClass = active ? "bg-midnight-soft shadow-[0_0_0_2px_hsl(var(--midnight-soft))] ring-1 ring-midnight-strong/45" : "";
   if (kind === "suggestion") {
     const resolved = status === "accepted" || status === "rejected";
-    const resolvedClass = resolved ? "border-dashed bg-transparent opacity-70 hover:bg-midnight-soft" : "bg-midnight-mark hover:bg-midnight-soft";
-    return `${base} ${resolvedClass} border-b-2 border-midnight/50 ${activeClass}`;
+    const resolvedClass = resolved
+      ? "border-b-2 border-dashed border-midnight/45 bg-transparent opacity-70 hover:bg-midnight-soft"
+      : "border-b-2 border-midnight/70 bg-midnight-mark shadow-[inset_0_-1px_0_hsl(var(--midnight-strong))] hover:bg-midnight-soft after:ml-1 after:inline-block after:h-1.5 after:w-1.5 after:rounded-full after:bg-midnight-strong after:align-middle after:content-['']";
+    return `${base} ${resolvedClass} ${activeClass}`;
   }
   return `${base} bg-midnight-mark hover:bg-midnight-soft border-b-2 border-midnight/45 ${activeClass}`;
 }

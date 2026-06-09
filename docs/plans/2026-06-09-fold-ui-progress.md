@@ -35,6 +35,7 @@ Primary reference: `DESIGN.md`.
 - Added compact file-level review counts in the toolbar for comments and pending suggestions.
 - Added a quiet document-surface pending suggestion control so review work is discoverable from the Markdown page itself.
 - Made pending inline suggestion anchors persistently visible with a soft midnight-blue document mark.
+- Added a compact dot and stronger underline cue to pending inline suggestion anchors.
 - Added a dedicated `midnight-mark` token for soft annotation fills instead of stacking opacity modifiers on alpha tokens.
 - Moved review/proposals into a lightweight drawer instead of a permanent heavy rail.
 - Flattened the review drawer scope header so it reads as editor chrome instead of a nested summary card.
@@ -61,7 +62,7 @@ Primary reference: `DESIGN.md`.
 ## Next
 
 - Keep proposal/review drawer controls compact while testing action clarity on mobile.
-- Make suggestion anchors more visible inside the document when a proposal targets selected text.
+- Keep tuning inline annotation contrast across dark and bright themes without making the document feel marked up.
 - Make future multi-user presence and typing/editing states stream from encrypted room/awareness data without revealing document content to the server.
 - Expand saved/checkpoint affordances into named versions when the product needs explicit restore points.
 - Keep empty states sparse and document-native as more project creation/import states are added.
