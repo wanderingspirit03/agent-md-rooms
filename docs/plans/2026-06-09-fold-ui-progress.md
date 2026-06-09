@@ -1,0 +1,75 @@
+# Fold UI Progress Tracker
+
+This tracks the current Obsidian-inspired Fold web UI work on `feat/agent-studio-room-ui`.
+
+## Direction
+
+Fold should feel like a calm encrypted Markdown project workspace:
+
+- project-first file navigation
+- Markdown read/edit surface at the center
+- inline comments and file-level review affordances
+- lightweight review/proposal overlays
+- midnight-blue accents on dark layered chrome
+- no heavy permanent review rail, dashboard framing, badge soup, or AI-styled decoration
+
+Primary reference: `DESIGN.md`.
+
+## Done
+
+- Renamed the visible product language toward Fold and removed vault wording.
+- Added dark-first layered studio tokens with midnight-blue accent and light theme support.
+- Added Fold logo assets in the app chrome and browser tab.
+- Built a project file sidebar with folder expand/collapse, recent files, search, create, and import.
+- Hid legacy seeded/mock folders and routine `synced` badges so the file tree reads like a real project.
+- Kept raw Markdown canonical while rendering read mode with sanitized `react-markdown`.
+- Embedded frontmatter/properties as metadata inside the document/editor surface instead of rendering them as body text.
+- Kept edit mode as Markdown source only; removed extra rich/source controls.
+- Added inline selected-text comment composer and clickable inline comment markers.
+- Simplified comments to one comment type.
+- Made file-level comment controls flow above properties so they do not overlap metadata.
+- Added compact file-level review counts in the toolbar for comments and pending suggestions.
+- Moved review/proposals into a lightweight drawer instead of a permanent heavy rail.
+- Added command palette / quick switcher and made the header filename open it.
+- Added agent connection handoff in the top chrome and removed the large onboarding block.
+- Fixed random/repeated frontmatter key log noise by using stable React keys.
+- Verified recent UI slices with Playwright screenshots on desktop and mobile because `iab` is unavailable in this session.
+- Continue verifying substantial slices with a separate reviewer/subagent before pushing.
+
+## In Progress
+
+- Make review/proposal rows feel more like compact document annotations than PR cards.
+- Keep reducing visible text and secondary chrome while preserving accessible labels/tooltips.
+- Continue checking mobile widths for overlap and horizontal scroll.
+
+## Next
+
+- Improve proposal/review drawer density and action clarity.
+- Make suggestion anchors more visible inside the document when a proposal targets selected text.
+- Add a stronger file-search/quick-switch polish pass if the command palette still feels generic.
+- Add resolved comment state and a simple way to reopen or hide resolved notes.
+- Add named versions/checkpoints for accepted changes and manual saves.
+- Improve empty states for project/file creation without adding marketing-style copy.
+- Continue measuring long-document readability against the Obsidian reference screenshots.
+- Eventually replace the textarea editor candidate with the planned Milkdown prototype after Markdown round-trip verification.
+
+## Verification Baseline
+
+Run before reporting a UI slice complete:
+
+```bash
+npm test
+npm run typecheck
+npm run web:build
+npm run spike:e2ee
+npm run spike:document-model
+npm run spike:document-model:report
+```
+
+Visual verification should include at least:
+
+- desktop room workspace
+- mobile/narrow room workspace
+- drawer or popover touched by the change
+- console/page error capture
+- horizontal overflow check on mobile

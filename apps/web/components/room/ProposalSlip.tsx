@@ -36,7 +36,7 @@ export function ProposalSlip({ proposal, onOpen, onAccept, onReject }: ProposalS
       <button
         type="button"
         onClick={() => onOpen(proposal)}
-        aria-label={`Preview ${proposal.title}`}
+        aria-label={`Open suggestion ${proposal.title}`}
         className="block w-full rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
       >
         <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -78,11 +78,11 @@ export function ProposalSlip({ proposal, onOpen, onAccept, onReject }: ProposalS
           <button
             type="button"
             onClick={() => onOpen(proposal)}
-            aria-label={`Preview ${proposal.title}`}
-            className="inline-flex h-9 items-center gap-1.5 rounded px-2.5 text-xs font-medium text-ink-muted transition-colors hover:bg-studio-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+            aria-label={`Open preview for ${proposal.title}`}
+            title="Preview"
+            className="inline-flex h-9 w-9 items-center justify-center rounded text-ink-subtle transition-colors hover:bg-studio-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
           >
             <Eye className="h-3.5 w-3.5" />
-            Preview
           </button>
         </span>
       </div>
