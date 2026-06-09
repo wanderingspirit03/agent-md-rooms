@@ -42,6 +42,8 @@ Primary reference: `DESIGN.md`.
 - Added command palette / quick switcher and made the header filename open it.
 - Grouped command palette results into create/files/actions with active-file and review-count metadata.
 - Added quiet saved/checkpoint timestamps to file chrome, sidebar rows, and quick-switch metadata.
+- Simplified the blank Markdown document state and added a direct edit affordance.
+- Fixed blank project files so an intentionally empty Markdown file does not fall back to missing-file copy.
 - Removed duplicate root-file path text from the top file header and command palette while preserving full-path search.
 - Added agent connection handoff in the top chrome and removed the large onboarding block.
 - Fixed random/repeated frontmatter key log noise by using stable React keys.
@@ -61,7 +63,7 @@ Primary reference: `DESIGN.md`.
 - Make suggestion anchors more visible inside the document when a proposal targets selected text.
 - Make future multi-user presence and typing/editing states stream from encrypted room/awareness data without revealing document content to the server.
 - Expand saved/checkpoint affordances into named versions when the product needs explicit restore points.
-- Improve empty states for project/file creation without adding marketing-style copy.
+- Keep empty states sparse and document-native as more project creation/import states are added.
 - Continue measuring long-document readability against the Obsidian reference screenshots.
 - Eventually replace the textarea editor candidate with the planned Milkdown prototype after Markdown round-trip verification.
 

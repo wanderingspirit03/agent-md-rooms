@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, FileText, ListChecks, MessageSquare, MessageSquarePlus, Send, X } from "lucide-react";
+import { Check, FileText, ListChecks, MessageSquare, MessageSquarePlus, Pencil, Send, X } from "lucide-react";
 import MarkdownRenderer from "../MarkdownRenderer";
 import MarkdownSourceEditor from "../MarkdownSourceEditor";
 import { extractMarkdownProperties } from "../../lib/markdown-properties";
@@ -24,6 +24,7 @@ interface DocumentSurfaceProps {
   activeProposalId?: string | null;
   onOpenProposal: (proposal: Proposal) => void;
   onResolveComment?: (comment: ChatComment, resolved: boolean) => void;
+  onStartEditing?: () => void;
   newCommentText: string;
   composerFocusToken: number;
   onNewCommentTextChange: (value: string) => void;
@@ -42,6 +43,7 @@ export function DocumentSurface({
   activeProposalId = null,
   onOpenProposal,
   onResolveComment,
+  onStartEditing,
   newCommentText,
   composerFocusToken,
   onNewCommentTextChange,
@@ -403,13 +405,20 @@ export function DocumentSurface({
           </>
         ) : (
           <div className="flex min-h-[560px] flex-col items-center justify-center text-center">
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-document-edge bg-black/[0.03] text-document-subtle">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-md border border-document-edge bg-black/[0.025] text-document-subtle">
               <FileText className="h-5 w-5" />
             </div>
-            <p className="text-sm font-medium text-document-ink">Empty Markdown document</p>
-            <p className="mt-1 max-w-sm text-sm leading-6 text-document-muted">
-              Switch to edit mode to write the first encrypted project draft.
-            </p>
+            <p className="text-sm font-medium text-document-ink">Blank Markdown file</p>
+            {onStartEditing && (
+              <button
+                type="button"
+                className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-md border border-document-edge bg-document/90 px-3 text-xs font-medium text-document-muted transition-colors hover:border-midnight/35 hover:text-document-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+                onClick={onStartEditing}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Edit file
+              </button>
+            )}
           </div>
         )}
         {activeComment && activeCommentCard && (
