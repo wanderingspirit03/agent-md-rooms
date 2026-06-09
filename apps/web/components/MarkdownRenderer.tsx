@@ -280,7 +280,11 @@ function inlineMarkerClassName(
   status?: NonNullable<MarkdownRendererProps["textHighlights"]>[number]["status"],
   active = false,
 ) {
-  const base = "inline cursor-pointer rounded-[2px] px-px text-left text-document-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong";
+  const base = [
+    "relative inline cursor-pointer rounded-[2px] px-px text-left text-document-ink transition-colors touch-manipulation",
+    "before:absolute before:-inset-x-1 before:-inset-y-2 before:content-['']",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong",
+  ].join(" ");
   const activeClass = active ? "bg-midnight-soft shadow-[0_0_0_2px_hsl(var(--midnight-soft))] ring-1 ring-midnight-strong/45" : "";
   if (kind === "suggestion") {
     const resolved = status === "accepted" || status === "rejected";
