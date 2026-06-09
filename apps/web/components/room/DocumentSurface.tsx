@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FileText, ListChecks, MessageSquare, MessageSquarePlus, Send, X } from "lucide-react";
+import { Check, FileText, ListChecks, MessageSquare, MessageSquarePlus, Send, X } from "lucide-react";
 import MarkdownRenderer from "../MarkdownRenderer";
 import MarkdownSourceEditor from "../MarkdownSourceEditor";
 import { extractMarkdownProperties } from "../../lib/markdown-properties";
@@ -23,6 +23,7 @@ interface DocumentSurfaceProps {
   proposals: Proposal[];
   activeProposalId?: string | null;
   onOpenProposal: (proposal: Proposal) => void;
+  onResolveComment?: (comment: ChatComment, resolved: boolean) => void;
   newCommentText: string;
   composerFocusToken: number;
   onNewCommentTextChange: (value: string) => void;
@@ -40,6 +41,7 @@ export function DocumentSurface({
   proposals,
   activeProposalId = null,
   onOpenProposal,
+  onResolveComment,
   newCommentText,
   composerFocusToken,
   onNewCommentTextChange,
@@ -57,17 +59,18 @@ export function DocumentSurface({
   const [fileComposerOpen, setFileComposerOpen] = useState(false);
   const [inlineComposerOpen, setInlineComposerOpen] = useState(false);
   const parsedMarkdown = useMemo(() => extractMarkdownProperties(markdown), [markdown]);
+  const activeComments = useMemo(() => comments.filter((comment) => !comment.resolvedAt), [comments]);
   const fileComments = useMemo(
-    () => comments.filter((comment) => comment.anchorType !== "text-range" || !comment.selectedQuote),
-    [comments],
+    () => activeComments.filter((comment) => comment.anchorType !== "text-range" || !comment.selectedQuote),
+    [activeComments],
   );
   const pendingProposals = useMemo(
     () => proposals.filter((proposal) => proposal.status === "pending"),
     [proposals],
   );
   const activeComment = useMemo(
-    () => comments.find((comment) => comment.id === activeCommentCard?.commentId) || null,
-    [comments, activeCommentCard],
+    () => activeComments.find((comment) => comment.id === activeCommentCard?.commentId) || null,
+    [activeComments, activeCommentCard],
   );
 
   useEffect(() => {
@@ -268,7 +271,20 @@ export function DocumentSurface({
                 <div key={comment.id} className="rounded-md border border-studio-line bg-studio-sunken/60 px-2.5 py-2">
                   <div className="mb-1 flex items-center justify-between gap-2">
                     <p className="truncate text-xs font-medium text-ink">{comment.persona?.name || "Comment"}</p>
-                    <p className="shrink-0 font-mono text-[11px] text-ink-subtle">{formatTime(comment.createdAt)}</p>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <p className="font-mono text-[11px] text-ink-subtle">{formatTime(comment.createdAt)}</p>
+                      {onResolveComment && (
+                        <button
+                          type="button"
+                          aria-label="Resolve file comment"
+                          title="Resolve"
+                          className="inline-flex h-7 w-7 items-center justify-center rounded text-ink-subtle hover:bg-studio-paper hover:text-midnight-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+                          onClick={() => onResolveComment(comment, true)}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <p className="whitespace-pre-wrap text-sm leading-6 text-ink-muted">{comment.text}</p>
                 </div>
@@ -339,7 +355,7 @@ export function DocumentSurface({
               content={parsedMarkdown.content}
               activeTextHighlightId={activeCommentCard ? `comment:${activeCommentCard.commentId}` : activeProposalId ? `proposal:${activeProposalId}` : null}
               textHighlights={[
-                ...comments
+                ...activeComments
                   .filter((comment) => comment.anchorType === "text-range" && comment.selectedQuote)
                   .map((comment) => ({
                     id: `comment:${comment.id}`,
@@ -425,6 +441,19 @@ export function DocumentSurface({
               <span className="truncate">{activeComment.selectedQuote || "Document note"}</span>
             </div>
             <p className="whitespace-pre-wrap text-sm leading-6 text-ink-muted">{activeComment.text}</p>
+            {onResolveComment && (
+              <button
+                type="button"
+                className="mt-3 inline-flex h-8 items-center gap-1.5 rounded px-2 text-xs text-ink-subtle transition-colors hover:bg-studio-sunken hover:text-midnight-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+                onClick={() => {
+                  onResolveComment(activeComment, true);
+                  setActiveCommentCard(null);
+                }}
+              >
+                <Check className="h-3.5 w-3.5" />
+                Resolve
+              </button>
+            )}
           </div>
         )}
         {selectedQuote && anchorPoint && !inlineComposerOpen && (

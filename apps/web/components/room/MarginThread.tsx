@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Eye, Quote, X } from "lucide-react";
+import { Check, Eye, Quote, RotateCcw, X } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { PersonaChip } from "./PersonaChip";
@@ -13,6 +13,7 @@ interface MarginThreadProps {
   onOpenProposal?: (proposal: Proposal) => void;
   onAcceptProposal?: (proposal: Proposal) => void;
   onRejectProposal?: (proposal: Proposal) => void;
+  onResolveComment?: (comment: ChatComment, resolved: boolean) => void;
 }
 
 export function MarginThread({
@@ -22,6 +23,7 @@ export function MarginThread({
   onOpenProposal,
   onAcceptProposal,
   onRejectProposal,
+  onResolveComment,
 }: MarginThreadProps) {
   const persona = comment?.persona || proposal?.persona;
   const text = comment?.text || proposal?.comment || "Start a note or ask an agent to revise this passage.";
@@ -61,6 +63,20 @@ export function MarginThread({
         <p className="mb-2 rounded-md bg-studio-paper px-2 py-1.5 text-xs text-ink-subtle">{anchorLabel}</p>
       )}
       <p className="text-sm leading-6 text-ink-muted">{text}</p>
+      {comment && onResolveComment && (
+        <div className="mt-2 flex justify-end">
+          <button
+            type="button"
+            aria-label={comment.resolvedAt ? "Reopen comment" : "Resolve comment"}
+            title={comment.resolvedAt ? "Reopen" : "Resolve"}
+            className="inline-flex h-8 items-center gap-1.5 rounded px-2 text-xs text-ink-subtle transition-colors hover:bg-studio-sunken hover:text-midnight-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+            onClick={() => onResolveComment(comment, !comment.resolvedAt)}
+          >
+            {comment.resolvedAt ? <RotateCcw className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
+            {comment.resolvedAt ? "Reopen" : "Resolve"}
+          </button>
+        </div>
+      )}
       {proposal && (
         <div className="mt-3 rounded-md border border-midnight/30 bg-midnight-mark p-2">
           <div className="mb-2 flex items-center justify-between gap-2">

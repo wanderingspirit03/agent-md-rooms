@@ -1,6 +1,7 @@
 "use client";
 
-import { Circle, Clock3, FileText, ListChecks, MessageSquare } from "lucide-react";
+import { Circle, Clock3, FileText, ListChecks, MessageSquare, RotateCcw } from "lucide-react";
+import { useState } from "react";
 import type { RoomPersona } from "../../lib/personas";
 import { cn } from "../../lib/utils";
 import { MarginThread } from "./MarginThread";
@@ -17,6 +18,7 @@ interface AgentBenchProps {
   onOpenProposal: (proposal: Proposal) => void;
   onAcceptProposal: (proposal: Proposal) => void;
   onRejectProposal: (proposal: Proposal) => void;
+  onResolveComment: (comment: ChatComment, resolved: boolean) => void;
 }
 
 export function AgentBench({
@@ -29,7 +31,11 @@ export function AgentBench({
   onOpenProposal,
   onAcceptProposal,
   onRejectProposal,
+  onResolveComment,
 }: AgentBenchProps) {
+  const [resolvedOpen, setResolvedOpen] = useState(false);
+  const activeComments = comments.filter((comment) => !comment.resolvedAt);
+  const resolvedComments = comments.filter((comment) => comment.resolvedAt);
   const pendingProposals = proposals.filter((proposal) => proposal.status === "pending");
   const recentProposals = proposals.slice(0, 5);
   const recentTimeline = timeline.slice(0, 4);
@@ -48,7 +54,7 @@ export function AgentBench({
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <ReviewCount
               icon={<MessageSquare className="h-3.5 w-3.5" />}
-              count={comments.length}
+              count={activeComments.length}
               label="comments"
               singularLabel="comment"
             />
@@ -63,14 +69,37 @@ export function AgentBench({
         </div>
 
         <section className="space-y-1">
-          <RailHeading title="Comments" count={comments.length} />
+          <RailHeading title="Comments" count={activeComments.length} />
           {selectedQuote && <MarginThread selectedQuote={selectedQuote} />}
-          {comments.length === 0 && !selectedQuote ? (
+          {activeComments.length === 0 && !selectedQuote ? (
             <PrimaryEmptyRailState />
           ) : (
-            comments.map((comment) => (
-              <MarginThread key={comment.id} comment={comment} />
+            activeComments.map((comment) => (
+              <MarginThread key={comment.id} comment={comment} onResolveComment={onResolveComment} />
             ))
+          )}
+          {resolvedComments.length > 0 && (
+            <div className="pt-1">
+              <button
+                type="button"
+                aria-expanded={resolvedOpen}
+                className="flex h-8 w-full items-center justify-between rounded px-1.5 text-xs text-ink-subtle transition-colors hover:bg-studio-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+                onClick={() => setResolvedOpen((open) => !open)}
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Resolved
+                </span>
+                <span className="font-mono text-[11px]">{resolvedComments.length}</span>
+              </button>
+              {resolvedOpen && (
+                <div className="mt-1 space-y-1 opacity-80">
+                  {resolvedComments.map((comment) => (
+                    <MarginThread key={comment.id} comment={comment} onResolveComment={onResolveComment} />
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </section>
 

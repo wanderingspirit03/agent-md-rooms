@@ -22,6 +22,7 @@ const decoder = new TextDecoder();
 const DOCUMENT_SENDER_ID = "fold-cli:document";
 const PROJECT_SCHEMA = "fold.project.v1";
 const PROJECT_SENDER_ID = "fold-cli:project";
+const COMMENT_EVENT_SENDER_ID = "web-client:comment-event";
 const LIVE_FILE_PATH = "reports/launch-review.md";
 const DEFAULT_PROJECT_FILE_PATH = "docs/PLAN.md";
 
@@ -298,6 +299,13 @@ export default function RoomPage() {
       return;
     }
 
+    if (rec.senderId.startsWith(COMMENT_EVENT_SENDER_ID)) {
+      const parsed = await decryptJson<TimelineEvent>(payload, cryptKey, rec);
+      setTimeline((prev) => [parsed, ...prev].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+      setComments((prev) => applyCommentEvent(prev, parsed));
+      return;
+    }
+
     if (rec.senderId.startsWith("fold-cli:event")) {
       const parsed = await decryptJson<TimelineEvent>(payload, cryptKey, rec);
       setTimeline((prev) => [parsed, ...prev].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
@@ -308,6 +316,9 @@ export default function RoomPage() {
             proposal.id === parsed.proposalId ? { ...proposal, status } : proposal,
           ),
         );
+      }
+      if (parsed.type === "comment_resolved" || parsed.type === "comment_reopened") {
+        setComments((prev) => applyCommentEvent(prev, parsed));
       }
       return;
     }
@@ -482,6 +493,32 @@ export default function RoomPage() {
     }
   };
 
+  const handleResolveComment = async (comment: ChatComment, resolved: boolean) => {
+    if (!keyRef.current || !localMyPersona) return;
+
+    try {
+      const createdAt = new Date().toISOString();
+      const eventRecord: TimelineEvent = {
+        id: `ev-comment-${resolved ? "res" : "open"}-${comment.id}-${Date.now()}`,
+        type: resolved ? "comment_resolved" : "comment_reopened",
+        createdAt,
+        actorPersonaId: localMyPersona.id,
+        commentId: comment.id,
+        filePath: comment.filePath || selectedFilePath,
+        message: `${resolved ? "Resolved" : "Reopened"} comment on ${comment.selectedQuote || comment.filePath || "document"}`,
+      };
+      const encryptedEvent = await encryptUpdate(encoder.encode(JSON.stringify(eventRecord)), keyRef.current, {
+        roomId,
+        senderId: `${COMMENT_EVENT_SENDER_ID}:${eventRecord.id}`,
+      });
+      const response = await postEncryptedRecord(`${COMMENT_EVENT_SENDER_ID}:${eventRecord.id}`, encryptedEvent);
+      if (!response.ok) throw new Error(`Server returned ${response.status}`);
+      setComments((prev) => applyCommentEvent(prev, eventRecord));
+    } catch (err) {
+      setSyncError(`Could not update comment: ${String(err)}`);
+    }
+  };
+
   const persistProjectFileSnapshot = async (path: string, nextMarkdown: string) => {
     if (path === LIVE_FILE_PATH || !keyRef.current || !localMyPersona) return;
 
@@ -604,9 +641,16 @@ export default function RoomPage() {
     : virtualFiles[selectedFilePath] || `# ${selectedFilePath}\n\nNo local Markdown loaded for this file yet.`;
   const defaultRecordFilePath = projectPrimaryPath || LIVE_FILE_PATH;
   const selectedFileComments = comments.filter((comment) => (comment.filePath || defaultRecordFilePath) === selectedFilePath);
+  const selectedFileActiveComments = selectedFileComments.filter((comment) => !comment.resolvedAt);
   const selectedFileProposals = proposals.filter((proposal) => (proposal.filePath || defaultRecordFilePath) === selectedFilePath);
   const selectedProposalIds = new Set(selectedFileProposals.map((proposal) => proposal.id));
-  const selectedFileTimeline = timeline.filter((event) => !event.proposalId || selectedProposalIds.has(event.proposalId));
+  const selectedCommentIds = new Set(selectedFileComments.map((comment) => comment.id));
+  const selectedFileTimeline = timeline.filter((event) => {
+    if (event.proposalId) return selectedProposalIds.has(event.proposalId);
+    if (event.commentId) return selectedCommentIds.has(event.commentId);
+    if (event.filePath) return event.filePath === selectedFilePath;
+    return true;
+  });
   const selectedFilePendingCount = selectedFileProposals.filter((proposal) => proposal.status === "pending").length;
   const selectedFileParticipants = uniquePersonas(selectedFileProposals, selectedFileComments, localMyPersona);
   const agentInvite = useMemo(() => {
@@ -641,7 +685,7 @@ export default function RoomPage() {
         ready={syncProgress}
         recordCount={logRecords.length}
         pendingCount={selectedFilePendingCount}
-        reviewCount={selectedFileComments.length + selectedFilePendingCount}
+        reviewCount={selectedFileActiveComments.length + selectedFilePendingCount}
         selectedQuote={selectedQuote}
         persona={localMyPersona}
         mode={editMode}
@@ -672,6 +716,7 @@ export default function RoomPage() {
             proposals={selectedFileProposals}
             activeProposalId={selectedProposal?.id ?? null}
             onOpenProposal={setSelectedProposal}
+            onResolveComment={handleResolveComment}
             newCommentText={newCommentText}
             composerFocusToken={composerFocusToken}
             onNewCommentTextChange={setNewCommentText}
@@ -702,6 +747,7 @@ export default function RoomPage() {
             onOpenProposal={setSelectedProposal}
             onAcceptProposal={handleAcceptProposal}
             onRejectProposal={handleRejectProposal}
+            onResolveComment={handleResolveComment}
           />
         }
       />
@@ -724,6 +770,25 @@ function upsertProposal(proposals: Proposal[], next: Proposal): Proposal[] {
 function upsertComment(comments: ChatComment[], next: ChatComment): ChatComment[] {
   if (comments.some((comment) => comment.id === next.id)) return comments;
   return [next, ...comments].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+function applyCommentEvent(comments: ChatComment[], event: TimelineEvent): ChatComment[] {
+  if (!event.commentId) return comments;
+  return comments.map((comment) => {
+    if (comment.id !== event.commentId) return comment;
+    if (event.type === "comment_resolved") {
+      return {
+        ...comment,
+        resolvedAt: event.createdAt,
+        resolvedByPersonaId: event.actorPersonaId,
+      };
+    }
+    if (event.type === "comment_reopened") {
+      const { resolvedAt, resolvedByPersonaId, ...reopened } = comment;
+      return reopened;
+    }
+    return comment;
+  });
 }
 
 function uniquePersonas(
@@ -838,7 +903,7 @@ function createProjectFiles(
   defaultRecordFilePath = LIVE_FILE_PATH,
 ) {
   const filesByPath = new Map<string, { name: string; path: string; folder: string; status?: string }>();
-  const commentCounts = countRecordsByFile(comments, defaultRecordFilePath);
+  const commentCounts = countRecordsByFile(comments.filter((comment) => !comment.resolvedAt), defaultRecordFilePath);
   const pendingProposalCounts = countRecordsByFile(proposals.filter((proposal) => proposal.status === "pending"), defaultRecordFilePath);
   const addFile = (path: string, status?: string) => {
     const normalized = normalizeProjectFilePath(path);

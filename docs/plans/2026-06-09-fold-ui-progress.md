@@ -29,6 +29,7 @@ Primary reference: `DESIGN.md`.
 - Added inline selected-text comment composer and clickable inline comment markers.
 - Added a lightweight selection anchor so selecting text first shows a compact comment action before opening the full composer.
 - Made inline comment markers persistently visible as soft document annotations.
+- Added encrypted comment resolve/reopen events with resolved notes hidden behind a compact review-drawer section.
 - Simplified comments to one comment type.
 - Made file-level comment controls flow above properties so they do not overlap metadata.
 - Added compact file-level review counts in the toolbar for comments and pending suggestions.
@@ -57,7 +58,6 @@ Primary reference: `DESIGN.md`.
 
 - Improve proposal/review drawer density and action clarity.
 - Make suggestion anchors more visible inside the document when a proposal targets selected text.
-- Add resolved comment state and a simple way to reopen or hide resolved notes.
 - Make future multi-user presence and typing/editing states stream from encrypted room/awareness data without revealing document content to the server.
 - Add named versions/checkpoints for accepted changes and manual saves.
 - Improve empty states for project/file creation without adding marketing-style copy.

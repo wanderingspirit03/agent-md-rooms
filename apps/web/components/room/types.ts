@@ -35,6 +35,8 @@ export interface TimelineEvent {
   actorPersonaId: string;
   message: string;
   proposalId?: string;
+  commentId?: string;
+  filePath?: string;
 }
 
 export interface ChatComment {
@@ -44,6 +46,8 @@ export interface ChatComment {
   filePath?: string;
   text: string;
   createdAt: string;
+  resolvedAt?: string;
+  resolvedByPersonaId?: string;
   type: "note";
   anchorType?: ThreadAnchorType;
   selectedQuote?: string;
