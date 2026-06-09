@@ -828,7 +828,7 @@ function SidebarFolder({
       aria-expanded={open}
       aria-label={indicatorLabel ? `${name}, ${indicatorLabel}` : name}
       onClick={onToggle}
-      className="mt-2 flex h-7 w-full items-center gap-1.5 rounded px-2 text-left text-xs text-ink-muted transition-colors hover:bg-porcelain hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+      className="mt-2 flex h-11 w-full items-center gap-1.5 rounded px-2 text-left text-xs text-ink-muted transition-colors hover:bg-porcelain hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-7"
       style={{ paddingLeft: `${0.5 + depth * 0.85}rem` }}
     >
       <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open ? "rotate-0" : "-rotate-90")} />
@@ -854,7 +854,7 @@ function SidebarFile({
       onClick={() => onFileSelect(file.path)}
       style={{ paddingLeft: `${0.5 + depth * 0.85}rem` }}
       className={cn(
-        "group flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm transition-colors",
+        "group flex h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm transition-colors md:h-8",
         file.active
           ? "bg-porcelain text-ink"
           : "text-ink-muted hover:bg-porcelain hover:text-ink",
@@ -953,7 +953,7 @@ function SidebarCreateFile({
       type="button"
       aria-label={`Create ${path}`}
       onClick={onCreateFile}
-      className="group mb-1 flex min-h-10 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-ink-muted transition-colors hover:bg-porcelain hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+      className="group mb-1 flex min-h-11 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-ink-muted transition-colors hover:bg-porcelain hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:min-h-10"
     >
       <Plus className="h-3.5 w-3.5 shrink-0 text-midnight-strong" />
       <span className="min-w-0 flex-1">

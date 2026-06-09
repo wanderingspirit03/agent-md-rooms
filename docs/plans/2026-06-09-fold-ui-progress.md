@@ -24,6 +24,7 @@ Primary reference: `DESIGN.md`.
 - Built a project file sidebar with folder expand/collapse, recent files, search, create, and import.
 - Made the mobile project file drawer focus the file filter on open for faster project navigation.
 - Increased mobile project drawer create/import/search-clear tap targets while keeping desktop sidebar controls dense.
+- Increased mobile project drawer file and folder row tap targets while preserving compact desktop row density.
 - Improved sidebar file search with path-aware and simple fuzzy matching for larger projects.
 - Hid legacy seeded/mock folders and routine `synced` badges so the file tree reads like a real project.
 - Kept raw Markdown canonical while rendering read mode with sanitized `react-markdown`.
