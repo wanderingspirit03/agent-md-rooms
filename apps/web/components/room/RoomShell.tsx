@@ -1180,9 +1180,10 @@ function ProjectCommandPalette({
     },
     {
       id: "show-comments",
-      label: "Show comments",
+      label: "Show unresolved comments",
       detail: `${commentCount} ${commentCount === 1 ? "comment" : "comments"} in current file`,
       group: "actions",
+      searchText: "show comments unresolved review notes",
       icon: <MessageSquare className="h-4 w-4" />,
       action: onOpenReview,
     },
