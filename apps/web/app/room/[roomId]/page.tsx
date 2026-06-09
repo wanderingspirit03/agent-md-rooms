@@ -8,7 +8,7 @@ import { DocumentSurface } from "../../../components/room/DocumentSurface";
 import { RoomAccessGate } from "../../../components/room/RoomAccessGate";
 import { RoomShell } from "../../../components/room/RoomShell";
 import { ThreadReviewDialog } from "../../../components/room/ThreadReviewDialog";
-import type { ChatComment, Proposal, TimelineEvent } from "../../../components/room/types";
+import type { ChatComment, CollaborationPresence, Proposal, TimelineEvent } from "../../../components/room/types";
 import {
   deriveRoomKey,
   decryptUpdate,
@@ -23,8 +23,10 @@ const DOCUMENT_SENDER_ID = "fold-cli:document";
 const PROJECT_SCHEMA = "fold.project.v1";
 const PROJECT_SENDER_ID = "fold-cli:project";
 const COMMENT_EVENT_SENDER_ID = "web-client:comment-event";
+const PRESENCE_SENDER_ID = "web-client:presence";
 const LIVE_FILE_PATH = "reports/launch-review.md";
 const DEFAULT_PROJECT_FILE_PATH = "docs/PLAN.md";
+const PRESENCE_TTL_MS = 75_000;
 
 interface ProjectFileSnapshot {
   type: "project_file_snapshot";
@@ -71,6 +73,8 @@ export default function RoomPage() {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [comments, setComments] = useState<ChatComment[]>([]);
+  const [presenceByClientId, setPresenceByClientId] = useState<Record<string, CollaborationPresence>>({});
+  const [presenceClock, setPresenceClock] = useState(() => Date.now());
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
 
   const [newCommentText, setNewCommentText] = useState("");
@@ -162,6 +166,7 @@ export default function RoomPage() {
         setProposals([]);
         setTimeline([]);
         setComments([]);
+        setPresenceByClientId({});
         setProjectFileUpdatedAt({});
         setHasRemoteProjectState(false);
         setProjectPrimaryPath("");
@@ -326,6 +331,15 @@ export default function RoomPage() {
     if (rec.senderId.startsWith("web-client:comment")) {
       const parsed = await decryptJson<ChatComment>(payload, cryptKey, rec);
       setComments((prev) => upsertComment(prev, parsed));
+      return;
+    }
+
+    if (rec.senderId.startsWith(PRESENCE_SENDER_ID)) {
+      const parsed = await decryptJson<CollaborationPresence>(payload, cryptKey, rec);
+      if (isCollaborationPresence(parsed)) {
+        setPresenceByClientId((prev) => upsertPresence(prev, parsed));
+        setPresenceClock(Date.now());
+      }
       return;
     }
 
@@ -574,6 +588,66 @@ export default function RoomPage() {
     });
   };
 
+  useEffect(() => {
+    if (!roomId || !isKeyConfigured || !isConnected || !localMyPersona || !keyRef.current) return;
+
+    let cancelled = false;
+    const sendPresence = async () => {
+      const key = keyRef.current;
+      if (!key || cancelled) return;
+
+      try {
+        const now = Date.now();
+        const record: CollaborationPresence = {
+          schema: "fold.presence.v1",
+          clientId,
+          authorPersonaId: localMyPersona.id,
+          persona: localMyPersona,
+          filePath: selectedFilePath,
+          mode: editMode,
+          status: editMode === "edit" ? "editing" : "viewing",
+          updatedAt: new Date(now).toISOString(),
+          expiresAt: new Date(now + PRESENCE_TTL_MS).toISOString(),
+        };
+        const senderId = `${PRESENCE_SENDER_ID}:${clientId}`;
+        const encrypted = await encryptUpdate(encoder.encode(JSON.stringify(record)), key, {
+          roomId,
+          senderId,
+        });
+        const socket = socketRef.current;
+        if (socket?.readyState === WebSocket.OPEN) {
+          socket.send(
+            JSON.stringify({
+              type: "encrypted-update",
+              update: {
+                senderId,
+                ...encrypted,
+              },
+            }),
+          );
+        } else {
+          await postEncryptedRecord(senderId, encrypted);
+        }
+        setPresenceByClientId((prev) => upsertPresence(prev, record));
+        setPresenceClock(Date.now());
+      } catch {
+        // Presence is a soft collaboration hint; document sync errors are surfaced separately.
+      }
+    };
+
+    void sendPresence();
+    const timer = window.setInterval(() => void sendPresence(), 25_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [clientId, editMode, isConnected, isKeyConfigured, localMyPersona, roomId, selectedFilePath, serverUrl]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setPresenceClock(Date.now()), 15_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const handleDownloadMarkdown = () => {
     const currentMarkdown = selectedFilePath === LIVE_FILE_PATH
       ? markdown
@@ -652,7 +726,8 @@ export default function RoomPage() {
     return true;
   });
   const selectedFilePendingCount = selectedFileProposals.filter((proposal) => proposal.status === "pending").length;
-  const selectedFileParticipants = uniquePersonas(selectedFileProposals, selectedFileComments, localMyPersona);
+  const selectedFilePresences = activePresencesForFile(presenceByClientId, selectedFilePath, presenceClock);
+  const selectedFileParticipants = uniquePersonas(selectedFileProposals, selectedFileComments, selectedFilePresences, localMyPersona);
   const agentInvite = useMemo(() => {
     if (!roomId || !roomSecret || typeof window === "undefined") return null;
     return createAgentInvite({
@@ -688,6 +763,7 @@ export default function RoomPage() {
         reviewCount={selectedFileActiveComments.length + selectedFilePendingCount}
         selectedQuote={selectedQuote}
         persona={localMyPersona}
+        activePresences={selectedFilePresences}
         mode={editMode}
         error={syncError}
         onBack={() => router.push("/")}
@@ -795,9 +871,11 @@ function applyCommentEvent(comments: ChatComment[], event: TimelineEvent): ChatC
 function uniquePersonas(
   proposals: Proposal[],
   comments: ChatComment[],
+  presences: CollaborationPresence[],
   local: RoomPersona | null,
 ): RoomPersona[] {
   const personas = [
+    ...presences.map((presence) => presence.persona),
     ...proposals.map((proposal) => proposal.persona),
     ...comments.map((comment) => comment.persona),
     ...(local ? [local] : []),
@@ -807,6 +885,41 @@ function uniquePersonas(
     byId.set(persona.id, persona);
   }
   return Array.from(byId.values());
+}
+
+function upsertPresence(
+  presences: Record<string, CollaborationPresence>,
+  next: CollaborationPresence,
+): Record<string, CollaborationPresence> {
+  const existing = presences[next.clientId];
+  if (existing && existing.updatedAt >= next.updatedAt) return presences;
+  return {
+    ...presences,
+    [next.clientId]: next,
+  };
+}
+
+function activePresencesForFile(
+  presences: Record<string, CollaborationPresence>,
+  filePath: string,
+  now: number,
+): CollaborationPresence[] {
+  return Object.values(presences)
+    .filter((presence) => presence.filePath === filePath && new Date(presence.expiresAt).getTime() > now)
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+}
+
+function isCollaborationPresence(value: unknown): value is CollaborationPresence {
+  if (!value || typeof value !== "object") return false;
+  const presence = value as CollaborationPresence;
+  return presence.schema === "fold.presence.v1"
+    && typeof presence.clientId === "string"
+    && typeof presence.filePath === "string"
+    && presence.persona?.schema === "fold.persona.v1"
+    && (presence.mode === "read" || presence.mode === "edit")
+    && (presence.status === "viewing" || presence.status === "editing")
+    && typeof presence.updatedAt === "string"
+    && typeof presence.expiresAt === "string";
 }
 
 function createCommentAnchor(

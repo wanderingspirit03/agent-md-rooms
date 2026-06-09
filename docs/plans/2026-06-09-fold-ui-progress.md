@@ -53,6 +53,7 @@ Primary reference: `DESIGN.md`.
 - Removed duplicate root-file path text from the top file header and command palette while preserving full-path search.
 - Added agent connection handoff in the top chrome and removed the large onboarding block.
 - Added deterministic abstract Fold Glyph avatars for more memorable human/agent identity without literal profile pictures.
+- Added encrypted live presence snapshots with a compact collaborator stack for the selected Markdown file.
 - Fixed random/repeated frontmatter key log noise by using stable React keys.
 - Verified recent UI slices with Playwright screenshots on desktop and mobile because `iab` is unavailable in this session.
 - Continue verifying substantial slices with a separate reviewer/subagent before pushing.
@@ -63,12 +64,13 @@ Primary reference: `DESIGN.md`.
 - Keep checking whether the command palette feels like an Obsidian-style quick switcher under larger project file sets.
 - Continue checking mobile widths for overlap and horizontal scroll.
 - Keep collaboration objects streaming through the encrypted room pipeline; avoid designs that depend on manual refresh or static server-readable fetches.
+- Keep live presence quiet and useful without turning the chrome into a people dashboard.
 
 ## Next
 
 - Keep proposal/review drawer controls compact while testing action clarity on mobile.
 - Keep tuning inline annotation contrast across dark and bright themes without making the document feel marked up.
-- Make future multi-user presence and typing/editing states stream from encrypted room/awareness data without revealing document content to the server.
+- Expand multi-user presence toward richer typing/editing signals without revealing document content to the server.
 - Expand saved/checkpoint affordances into named versions when the product needs explicit restore points.
 - Keep empty states sparse and document-native as more project creation/import states are added.
 - Continue measuring long-document readability against the Obsidian reference screenshots.

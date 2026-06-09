@@ -8,6 +8,7 @@ const OPAQUE_ROOM_RECORD_SENDER_ID_PREFIXES = [
   'fold-cli:event',
   'fold-cli:proposal',
   'fold-cli:suggestion',
+  'web-client:',
 ] as const;
 
 export interface EncryptedYjsClientOptions {

@@ -45,9 +45,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "../ui/tooltip";
-import { PersonaChip } from "./PersonaChip";
+import { PersonaAvatar } from "./PersonaAvatar";
 import { SecurityStrip } from "./SecurityStrip";
-import type { RoomMode } from "./types";
+import type { CollaborationPresence, RoomMode } from "./types";
 
 interface RoomShellProps {
   roomId: string;
@@ -60,6 +60,7 @@ interface RoomShellProps {
   reviewCount: number;
   selectedQuote?: string;
   persona?: RoomPersona | null;
+  activePresences?: CollaborationPresence[];
   mode: RoomMode;
   error?: string | null;
   agentInvite?: AgentInvite | null;
@@ -85,6 +86,7 @@ export function RoomShell({
   reviewCount,
   selectedQuote = "",
   persona,
+  activePresences = [],
   mode,
   error,
   agentInvite,
@@ -292,7 +294,7 @@ export function RoomShell({
                       <Pencil className="h-3.5 w-3.5" />
                     </ModeIconButton>
                   </div>
-                  {persona && <PersonaChip persona={persona} compact className="hidden lg:inline-flex" />}
+                  <PresenceStack presences={activePresences} fallbackPersona={persona} />
                   <ReviewStatusControl
                     commentCount={commentCount}
                     pendingCount={pendingCount}
@@ -1510,6 +1512,63 @@ function ReviewStatusControl({
         </Tooltip>
       )}
     </div>
+  );
+}
+
+function PresenceStack({
+  presences,
+  fallbackPersona,
+}: {
+  presences: CollaborationPresence[];
+  fallbackPersona?: RoomPersona | null;
+}) {
+  const personas = presences.length
+    ? presences.map((presence) => presence.persona)
+    : fallbackPersona
+      ? [fallbackPersona]
+      : [];
+  if (personas.length === 0) return null;
+
+  const visible = personas.slice(0, 3);
+  const hiddenCount = Math.max(0, personas.length - visible.length);
+  const label = presences.length
+    ? presences.map((presence) => `${presence.persona.name} ${presence.status} ${presence.filePath}`).join(", ")
+    : personas.map((persona) => persona.name).join(", ");
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          className="hidden h-9 shrink-0 items-center rounded-md border border-studio-line bg-studio-sunken px-2 md:flex"
+          role="group"
+          aria-label={`Active collaborators: ${label}`}
+          title={label}
+        >
+          <div className="flex items-center">
+            {visible.map((persona, index) => (
+              <PersonaAvatar
+                key={persona.id}
+                persona={persona}
+                compact
+                className={cn("h-5 w-5 border border-studio-sunken", index > 0 && "-ml-1.5")}
+              />
+            ))}
+            {hiddenCount > 0 && (
+              <span
+                className="-ml-1.5 flex h-5 min-w-5 items-center justify-center rounded-full border border-studio-sunken bg-rail px-1 text-[10px] font-medium text-ink-subtle"
+                aria-hidden="true"
+              >
+                +{hiddenCount}
+              </span>
+            )}
+          </div>
+          {presences.some((presence) => presence.status === "editing") && (
+            <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-midnight-strong" aria-hidden="true" />
+          )}
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   );
 }
 

@@ -55,3 +55,15 @@ export interface ChatComment {
   beforeContext?: string;
   afterContext?: string;
 }
+
+export interface CollaborationPresence {
+  schema: "fold.presence.v1";
+  clientId: string;
+  authorPersonaId: string;
+  persona: RoomPersona;
+  filePath: string;
+  mode: RoomMode;
+  status: "viewing" | "editing";
+  updatedAt: string;
+  expiresAt: string;
+}
