@@ -49,6 +49,7 @@ Primary reference: `DESIGN.md`.
 - Added quiet saved/checkpoint timestamps to file chrome, sidebar rows, and quick-switch metadata.
 - Simplified the blank Markdown document state and added a direct edit affordance.
 - Fixed blank project files so an intentionally empty Markdown file does not fall back to missing-file copy.
+- Made sidebar search-created files show their full target path without adding empty-state prose.
 - Removed duplicate root-file path text from the top file header and command palette while preserving full-path search.
 - Added agent connection handoff in the top chrome and removed the large onboarding block.
 - Fixed random/repeated frontmatter key log noise by using stable React keys.

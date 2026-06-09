@@ -883,11 +883,15 @@ function SidebarCreateFile({
   return (
     <button
       type="button"
+      aria-label={`Create ${path}`}
       onClick={onCreateFile}
-      className="mb-1 flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm text-ink-muted transition-colors hover:bg-porcelain hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+      className="group mb-1 flex min-h-10 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-ink-muted transition-colors hover:bg-porcelain hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
     >
       <Plus className="h-3.5 w-3.5 shrink-0 text-midnight-strong" />
-      <span className="min-w-0 flex-1 truncate">Create {name}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate">Create {name}</span>
+        <span className="block truncate text-[11px] text-ink-subtle group-hover:text-ink-muted">{path}</span>
+      </span>
     </button>
   );
 }
