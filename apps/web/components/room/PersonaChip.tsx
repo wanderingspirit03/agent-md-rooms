@@ -2,6 +2,7 @@
 
 import type { RoomPersona } from "../../lib/personas";
 import { cn } from "../../lib/utils";
+import { PersonaAvatar } from "./PersonaAvatar";
 
 interface PersonaChipProps {
   persona?: RoomPersona | null;
@@ -12,15 +13,7 @@ interface PersonaChipProps {
 export function PersonaChip({ persona, compact = false, className }: PersonaChipProps) {
   return (
     <span className={cn("inline-flex min-w-0 items-center gap-2", className)}>
-      <span
-        className={cn(
-          "flex shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white",
-          compact ? "h-4 w-4" : "h-6 w-6",
-        )}
-        style={{ backgroundColor: persona?.color || "#7e8486" }}
-      >
-        {persona?.name?.slice(0, 1) || "?"}
-      </span>
+      <PersonaAvatar persona={persona} compact={compact} />
       <span className="min-w-0">
         <span className={cn("block truncate font-medium text-ink", compact ? "text-xs" : "text-sm")}>
           {persona?.name || "Unknown"}

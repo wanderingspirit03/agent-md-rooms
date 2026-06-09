@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { RoomPersona } from "../../lib/personas";
 import { cn } from "../../lib/utils";
 import { MarginThread } from "./MarginThread";
+import { PersonaAvatar } from "./PersonaAvatar";
 import { ProposalSlip } from "./ProposalSlip";
 import type { ChatComment, Proposal, TimelineEvent } from "./types";
 
@@ -159,17 +160,15 @@ function ParticipantDots({ participants }: { participants: RoomPersona[] }) {
   return (
     <div className="flex shrink-0 items-center" role="group" aria-label={`Participants: ${label}`} title={label}>
       {visible.map((persona, index) => (
-        <span
+        <PersonaAvatar
           key={persona.id}
+          persona={persona}
+          compact
           className={cn(
-            "flex h-5 w-5 items-center justify-center rounded-full border border-rail text-[10px] font-semibold text-white",
+            "h-5 w-5 border border-rail",
             index > 0 && "-ml-1.5",
           )}
-          style={{ backgroundColor: persona.color }}
-          aria-hidden="true"
-        >
-          {persona.name.slice(0, 1)}
-        </span>
+        />
       ))}
       {hiddenCount > 0 && (
         <span
