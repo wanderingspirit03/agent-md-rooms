@@ -409,6 +409,7 @@ export function RoomShell({
         {commandOpen && (
           <ProjectCommandPalette
             files={files}
+            recentFiles={recentFiles}
             selectedFilePath={selectedFilePath}
             mode={mode}
             pendingCount={pendingCount}
@@ -1104,7 +1105,7 @@ type PaletteItem = {
   id: string;
   label: string;
   detail?: string;
-  group: "create" | "files" | "actions";
+  group: "create" | "recent" | "files" | "actions";
   searchText?: string;
   icon: ReactNode;
   meta?: ReactNode;
@@ -1114,6 +1115,7 @@ type PaletteItem = {
 
 function ProjectCommandPalette({
   files,
+  recentFiles,
   selectedFilePath,
   mode,
   pendingCount,
@@ -1131,6 +1133,7 @@ function ProjectCommandPalette({
   onOpenAgentInvite,
 }: {
   files: ProjectFile[];
+  recentFiles: ProjectFile[];
   selectedFilePath: string;
   mode: RoomMode;
   pendingCount: number;
@@ -1254,6 +1257,18 @@ function ProjectCommandPalette({
     meta: <FileReviewIndicators commentCount={file.commentCount || 0} pendingCount={file.pendingCount || 0} />,
     action: () => onFileSelect(file.path),
   }));
+  const recentPaths = new Set(recentFiles.map((file) => file.path));
+  const recentItems: PaletteItem[] = recentFiles.map((file) => ({
+    id: `recent:${file.path}`,
+    label: file.name,
+    detail: [filePathDetail(file), file.updatedAt ? `saved ${formatRelativeTime(file.updatedAt)}` : ""].filter(Boolean).join(" · "),
+    group: "recent",
+    searchText: file.path,
+    icon: file.path === selectedFilePath ? <Check className="h-4 w-4" /> : <File className="h-4 w-4" />,
+    meta: <FileReviewIndicators commentCount={file.commentCount || 0} pendingCount={file.pendingCount || 0} />,
+    action: () => onFileSelect(file.path),
+  }));
+  const remainingFileItems = fileItems.filter((item) => !recentPaths.has(item.searchText || item.label));
   const createItem: PaletteItem[] = requestedPath && !matchingFile
     ? [{
       id: `create:${requestedPath}`,
@@ -1270,7 +1285,7 @@ function ProjectCommandPalette({
       ...rankPaletteItems(fileItems, normalizedQuery),
       ...rankPaletteItems(staticItems, normalizedQuery),
     ].slice(0, 12)
-    : [...fileItems, ...staticItems].slice(0, 12);
+    : [...recentItems, ...remainingFileItems, ...staticItems].slice(0, 12);
   const firstEnabledIndex = Math.max(0, items.findIndex((item) => !item.disabled));
   const listboxId = "project-command-palette-results";
   const activeOptionId = items[activeIndex] ? `${listboxId}-option-${activeIndex}` : undefined;
@@ -1488,6 +1503,7 @@ function formatRelativeTime(value: string) {
 
 function paletteGroupLabel(group: PaletteItem["group"]) {
   if (group === "create") return "Create";
+  if (group === "recent") return "Recent";
   if (group === "files") return "Files";
   return "Actions";
 }

@@ -47,6 +47,7 @@ Primary reference: `DESIGN.md`.
 - Clarified pending suggestion actions with compact labeled pills and larger touch targets for mobile review.
 - Added command palette / quick switcher and made the header filename open it.
 - Grouped command palette results into create/files/actions with active-file and review-count metadata.
+- Added a recent-file section to the empty quick switcher so project navigation starts from recently opened Markdown files.
 - Added the secure agent handoff to the command palette so agent collaboration is reachable from the project workflow.
 - Matched the review command to unresolved comments so the palette finds the intended document-review workflow.
 - Improved quick-switcher search ranking with path-aware and simple fuzzy file matching for larger projects.
