@@ -30,6 +30,7 @@
   --rail: 225 10% 7%;
   --midnight: 222 64% 33%;
   --midnight-soft: 222 64% 33% / 0.22;
+  --midnight-mark: 222 64% 33% / 0.15;
   --midnight-strong: 220 52% 48%;
   --logo-current: url("/brand/fold-logo-bright.svg");
 }
@@ -60,6 +61,7 @@ html[data-theme="light"] {
   --rail: 220 24% 97%;
   --midnight: 222 64% 33%;
   --midnight-soft: 222 64% 33% / 0.14;
+  --midnight-mark: 222 64% 33% / 0.1;
   --midnight-strong: 220 52% 42%;
   --logo-current: url("/brand/fold-logo-dark.svg");
 }

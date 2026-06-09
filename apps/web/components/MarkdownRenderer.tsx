@@ -283,8 +283,9 @@ function inlineMarkerClassName(
   const base = "inline cursor-pointer rounded-[2px] px-px text-left text-document-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong";
   const activeClass = active ? "bg-midnight-soft shadow-[0_0_0_2px_hsl(var(--midnight-soft))] ring-1 ring-midnight-strong/45" : "";
   if (kind === "suggestion") {
-    const opacity = status === "accepted" || status === "rejected" ? "opacity-70" : "";
-    return `${base} ${activeClass} ${opacity} border-b-2 border-dashed border-midnight/50 ${active ? "" : "bg-transparent hover:bg-midnight-soft"}`;
+    const resolved = status === "accepted" || status === "rejected";
+    const resolvedClass = resolved ? "border-dashed bg-transparent opacity-70 hover:bg-midnight-soft" : "bg-midnight-mark hover:bg-midnight-soft";
+    return `${base} ${activeClass} ${resolvedClass} border-b-2 border-midnight/50`;
   }
   return `${base} ${activeClass} border-b-2 border-midnight/45 ${active ? "" : "bg-transparent hover:bg-midnight-soft"}`;
 }

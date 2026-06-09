@@ -32,7 +32,7 @@ export function MarginThread({
     <div
       className={cn(
         "rounded-md border px-2.5 py-2.5",
-        selectedQuote ? "border-midnight/45 bg-midnight-soft/60" : "border-transparent bg-transparent hover:bg-studio-sunken",
+        selectedQuote ? "border-midnight/45 bg-midnight-mark" : "border-transparent bg-transparent hover:bg-studio-sunken",
       )}
     >
       <div className="mb-2 flex items-center justify-between gap-2">
@@ -62,7 +62,7 @@ export function MarginThread({
       )}
       <p className="text-sm leading-6 text-ink-muted">{text}</p>
       {proposal && (
-        <div className="mt-3 rounded-md border border-midnight/30 bg-midnight-soft/70 p-2">
+        <div className="mt-3 rounded-md border border-midnight/30 bg-midnight-mark p-2">
           <div className="mb-2 flex items-center justify-between gap-2">
             <span className="text-xs font-medium text-midnight-strong">Suggested replacement</span>
             <span className="font-mono text-[11px] text-ink-subtle">{proposal.status}</span>

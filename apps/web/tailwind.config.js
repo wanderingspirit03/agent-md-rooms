@@ -32,6 +32,7 @@ module.exports = {
         rail: "hsl(var(--rail))",
         midnight: "hsl(var(--midnight))",
         "midnight-soft": "hsl(var(--midnight-soft))",
+        "midnight-mark": "hsl(var(--midnight-mark))",
         "midnight-strong": "hsl(var(--midnight-strong))",
       },
     },

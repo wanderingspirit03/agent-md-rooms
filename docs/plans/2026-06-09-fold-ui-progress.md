@@ -31,6 +31,8 @@ Primary reference: `DESIGN.md`.
 - Made file-level comment controls flow above properties so they do not overlap metadata.
 - Added compact file-level review counts in the toolbar for comments and pending suggestions.
 - Added a quiet document-surface pending suggestion control so review work is discoverable from the Markdown page itself.
+- Made pending inline suggestion anchors persistently visible with a soft midnight-blue document mark.
+- Added a dedicated `midnight-mark` token for soft annotation fills instead of stacking opacity modifiers on alpha tokens.
 - Moved review/proposals into a lightweight drawer instead of a permanent heavy rail.
 - Added command palette / quick switcher and made the header filename open it.
 - Added agent connection handoff in the top chrome and removed the large onboarding block.
