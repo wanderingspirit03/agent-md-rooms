@@ -44,6 +44,7 @@ Primary reference: `DESIGN.md`.
 - Flattened the review drawer scope header so it reads as editor chrome instead of a nested summary card.
 - Flattened suggestion rows so review items read more like compact document annotations than PR cards.
 - Tightened suggestion rows further and sorted pending suggestions first in the review drawer.
+- Clarified pending suggestion actions with compact labeled pills and larger touch targets for mobile review.
 - Added command palette / quick switcher and made the header filename open it.
 - Grouped command palette results into create/files/actions with active-file and review-count metadata.
 - Added the secure agent handoff to the command palette so agent collaboration is reachable from the project workflow.

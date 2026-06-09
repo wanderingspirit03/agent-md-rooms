@@ -58,17 +58,18 @@ export function ProposalSlip({ proposal, anchorMissing = false, onOpen, onAccept
           </p>
         )}
       </button>
-      <div className="mt-1 flex min-w-0 items-center justify-between gap-2 pl-5">
+      <div className="mt-1.5 flex min-w-0 flex-wrap items-center justify-between gap-2 pl-5">
         <PersonaChip persona={proposal.persona} compact className="min-w-0 opacity-90" />
-        <div className="flex shrink-0 items-center gap-0.5">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
           <button
             type="button"
             onClick={() => onOpen(proposal)}
             aria-label={`Preview ${proposal.title}`}
             title="Preview"
-            className="inline-flex h-9 w-9 items-center justify-center rounded text-ink-subtle transition-colors hover:bg-studio-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded px-2.5 text-xs text-ink-muted transition-colors hover:bg-studio-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
           >
             <Eye className="h-3.5 w-3.5" />
+            <span>Preview</span>
           </button>
           {proposal.status === "pending" && (
             <>
@@ -76,19 +77,21 @@ export function ProposalSlip({ proposal, anchorMissing = false, onOpen, onAccept
                 type="button"
                 aria-label={`Accept ${proposal.title}`}
                 title="Accept"
-                className="inline-flex h-9 w-9 items-center justify-center rounded text-ink-subtle transition-colors hover:bg-midnight-soft hover:text-midnight-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded px-2.5 text-xs font-medium text-midnight-strong transition-colors hover:bg-midnight-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
                 onClick={() => onAccept?.(proposal)}
               >
                 <Check className="h-3.5 w-3.5" />
+                <span>Accept</span>
               </button>
               <button
                 type="button"
                 aria-label={`Reject ${proposal.title}`}
                 title="Reject"
-                className="inline-flex h-9 w-9 items-center justify-center rounded text-ink-subtle transition-colors hover:bg-studio-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded px-2.5 text-xs text-ink-muted transition-colors hover:bg-studio-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
                 onClick={() => onReject?.(proposal)}
               >
                 <X className="h-3.5 w-3.5" />
+                <span>Reject</span>
               </button>
             </>
           )}
