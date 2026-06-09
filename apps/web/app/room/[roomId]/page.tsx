@@ -697,8 +697,17 @@ export default function RoomPage() {
   };
 
   const projectFiles = useMemo(
-    () => createProjectFiles(selectedFilePath, virtualFiles, comments, proposals, projectFileUpdatedAt, !hasRemoteProjectState, projectPrimaryPath || LIVE_FILE_PATH),
-    [selectedFilePath, virtualFiles, comments, proposals, projectFileUpdatedAt, hasRemoteProjectState, projectPrimaryPath],
+    () => createProjectFiles(
+      selectedFilePath,
+      virtualFiles,
+      comments,
+      proposals,
+      projectFileUpdatedAt,
+      activePresencesByFile(presenceByClientId, presenceClock),
+      !hasRemoteProjectState,
+      projectPrimaryPath || LIVE_FILE_PATH,
+    ),
+    [selectedFilePath, virtualFiles, comments, proposals, projectFileUpdatedAt, presenceByClientId, presenceClock, hasRemoteProjectState, projectPrimaryPath],
   );
   useEffect(() => {
     if (!pendingPreferredFilePath) return;
@@ -1015,6 +1024,7 @@ function createProjectFiles(
   comments: ChatComment[],
   proposals: Proposal[],
   updatedAtByPath: Record<string, string> = {},
+  presencesByPath: Map<string, CollaborationPresence[]> = new Map(),
   includeLegacyLiveFile = true,
   defaultRecordFilePath = LIVE_FILE_PATH,
 ) {
@@ -1057,7 +1067,25 @@ function createProjectFiles(
     updatedAt: updatedAtByPath[file.path],
     commentCount: commentCounts.get(file.path) || 0,
     pendingCount: pendingProposalCounts.get(file.path) || 0,
+    activePresences: presencesByPath.get(file.path) || [],
   }));
+}
+
+function activePresencesByFile(
+  presences: Record<string, CollaborationPresence>,
+  now: number,
+): Map<string, CollaborationPresence[]> {
+  const byPath = new Map<string, CollaborationPresence[]>();
+  for (const presence of Object.values(presences)) {
+    if (new Date(presence.expiresAt).getTime() <= now) continue;
+    const list = byPath.get(presence.filePath) || [];
+    list.push(presence);
+    byPath.set(presence.filePath, list);
+  }
+  for (const [path, list] of Array.from(byPath.entries())) {
+    byPath.set(path, list.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)));
+  }
+  return byPath;
 }
 
 function countRecordsByFile(records: Array<{ filePath?: string }>, defaultFilePath = LIVE_FILE_PATH) {

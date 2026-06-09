@@ -55,6 +55,7 @@ Primary reference: `DESIGN.md`.
 - Added agent connection handoff in the top chrome and removed the large onboarding block.
 - Added deterministic abstract Fold Glyph avatars for more memorable human/agent identity without literal profile pictures.
 - Added encrypted live presence snapshots with a compact collaborator stack for the selected Markdown file.
+- Added quiet per-file presence indicators in the project sidebar so collaboration is visible across the file tree.
 - Fixed random/repeated frontmatter key log noise by using stable React keys.
 - Verified recent UI slices with Playwright screenshots on desktop and mobile because `iab` is unavailable in this session.
 - Continue verifying substantial slices with a separate reviewer/subagent before pushing.

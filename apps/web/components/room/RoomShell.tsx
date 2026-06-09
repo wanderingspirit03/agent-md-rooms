@@ -479,6 +479,7 @@ interface ProjectFile {
   updatedAt?: string;
   commentCount?: number;
   pendingCount?: number;
+  activePresences?: CollaborationPresence[];
 }
 
 function ProjectFileSidebar({
@@ -831,6 +832,7 @@ function SidebarFile({
     >
       <File className="h-3.5 w-3.5 shrink-0 text-ink-subtle group-hover:text-ink-muted" />
       <span className="min-w-0 flex-1 truncate">{file.name}</span>
+      <FilePresenceIndicators presences={file.activePresences || []} />
       <FileReviewIndicators commentCount={file.commentCount || 0} pendingCount={file.pendingCount || 0} />
       {file.updatedAt && (
         <span className="hidden shrink-0 font-mono text-[10px] text-ink-subtle group-hover:text-ink-muted lg:inline">
@@ -839,6 +841,40 @@ function SidebarFile({
       )}
       {file.status && <span className="rounded bg-studio-sunken px-1 text-[10px] text-ink-subtle">{file.status}</span>}
     </button>
+  );
+}
+
+function FilePresenceIndicators({ presences }: { presences: CollaborationPresence[] }) {
+  if (presences.length === 0) return null;
+
+  const visible = presences.slice(0, 2);
+  const hiddenCount = Math.max(0, presences.length - visible.length);
+  const label = presences.map((presence) => `${presence.persona.name} ${presence.status}`).join(", ");
+  const hasEditor = presences.some((presence) => presence.status === "editing");
+
+  return (
+    <span
+      className="hidden shrink-0 items-center gap-1 sm:inline-flex"
+      aria-label={`Active in file: ${label}`}
+      title={label}
+    >
+      <span className="flex items-center" aria-hidden="true">
+        {visible.map((presence, index) => (
+          <PersonaAvatar
+            key={presence.clientId}
+            persona={presence.persona}
+            compact
+            className={cn("h-4 w-4 border border-studio-sunken", index > 0 && "-ml-1")}
+          />
+        ))}
+        {hiddenCount > 0 && (
+          <span className="-ml-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-studio-sunken bg-rail px-1 text-[9px] font-medium text-ink-subtle">
+            +{hiddenCount}
+          </span>
+        )}
+      </span>
+      {hasEditor && <span className="h-1.5 w-1.5 rounded-full bg-midnight-strong" aria-hidden="true" />}
+    </span>
   );
 }
 
