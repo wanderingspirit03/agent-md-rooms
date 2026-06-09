@@ -1,18 +1,19 @@
 "use client";
 
-import { Check, Circle, Eye, X } from "lucide-react";
+import { AlertTriangle, Check, Circle, Eye, X } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { PersonaChip } from "./PersonaChip";
 import type { Proposal } from "./types";
 
 interface ProposalSlipProps {
   proposal: Proposal;
+  anchorMissing?: boolean;
   onOpen: (proposal: Proposal) => void;
   onAccept?: (proposal: Proposal) => void;
   onReject?: (proposal: Proposal) => void;
 }
 
-export function ProposalSlip({ proposal, onOpen, onAccept, onReject }: ProposalSlipProps) {
+export function ProposalSlip({ proposal, anchorMissing = false, onOpen, onAccept, onReject }: ProposalSlipProps) {
   const state =
     proposal.status === "accepted"
       ? { label: "Accepted", icon: Check, className: "text-emerald-400", accentClassName: "border-l-emerald-400/55" }
@@ -47,9 +48,15 @@ export function ProposalSlip({ proposal, onOpen, onAccept, onReject }: ProposalS
           <span className="shrink-0 font-mono text-[11px] text-ink-subtle">{formatTime(proposal.createdAt)}</span>
         </div>
         <p className="mt-0.5 line-clamp-2 pl-5 text-xs leading-5 text-ink-subtle">
-          <span className={proposal.selectedQuote ? "text-midnight-strong" : "text-ink-subtle"}>{renderedAnchor}</span>
+          <span className={cn(proposal.selectedQuote ? "text-midnight-strong" : "text-ink-subtle", anchorMissing && "text-ink-subtle line-through decoration-studio-line")}>{renderedAnchor}</span>
           {proposal.comment ? <span className="text-ink-muted"> · {proposal.comment}</span> : null}
         </p>
+        {anchorMissing && (
+          <p className="mt-1 inline-flex items-center gap-1.5 rounded border border-studio-line bg-studio-sunken px-1.5 py-0.5 text-[11px] text-ink-subtle">
+            <AlertTriangle className="h-3 w-3 text-midnight-strong" />
+            Anchor not found
+          </p>
+        )}
       </button>
       <div className="mt-1 flex min-w-0 items-center justify-between gap-2 pl-5">
         <PersonaChip persona={proposal.persona} compact className="min-w-0 opacity-90" />

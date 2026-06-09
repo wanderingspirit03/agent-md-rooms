@@ -11,6 +11,7 @@ import type { ChatComment, Proposal, TimelineEvent } from "./types";
 
 interface AgentBenchProps {
   filePath: string;
+  markdown: string;
   comments: ChatComment[];
   proposals: Proposal[];
   timeline: TimelineEvent[];
@@ -24,6 +25,7 @@ interface AgentBenchProps {
 
 export function AgentBench({
   filePath,
+  markdown,
   comments,
   proposals,
   timeline,
@@ -82,7 +84,12 @@ export function AgentBench({
             <PrimaryEmptyRailState />
           ) : (
             activeComments.map((comment) => (
-              <MarginThread key={comment.id} comment={comment} onResolveComment={onResolveComment} />
+              <MarginThread
+                key={comment.id}
+                comment={comment}
+                anchorState={isMissingTextAnchor(comment, markdown) ? "missing" : "found"}
+                onResolveComment={onResolveComment}
+              />
             ))
           )}
           {resolvedComments.length > 0 && (
@@ -102,7 +109,12 @@ export function AgentBench({
               {resolvedOpen && (
                 <div className="mt-1 space-y-1 opacity-80">
                   {resolvedComments.map((comment) => (
-                    <MarginThread key={comment.id} comment={comment} onResolveComment={onResolveComment} />
+                    <MarginThread
+                      key={comment.id}
+                      comment={comment}
+                      anchorState={isMissingTextAnchor(comment, markdown) ? "missing" : "found"}
+                      onResolveComment={onResolveComment}
+                    />
                   ))}
                 </div>
               )}
@@ -119,6 +131,7 @@ export function AgentBench({
               <ProposalSlip
                 key={proposal.id}
                 proposal={proposal}
+                anchorMissing={isMissingTextAnchor(proposal, markdown)}
                 onOpen={onOpenProposal}
                 onAccept={onAcceptProposal}
                 onReject={onRejectProposal}
@@ -230,6 +243,16 @@ function PrimaryEmptyRailState() {
 
 function SoftRailState({ text }: { text: string }) {
   return <p className="px-1.5 py-2 text-xs leading-5 text-ink-subtle">{text}</p>;
+}
+
+function isMissingTextAnchor(record: Pick<ChatComment | Proposal, "anchorType" | "selectedQuote">, markdown: string) {
+  const quote = record.selectedQuote?.trim();
+  if (record.anchorType !== "text-range" || !quote) return false;
+  return !normalizeWhitespace(markdown).includes(normalizeWhitespace(quote));
+}
+
+function normalizeWhitespace(value: string) {
+  return value.replace(/\s+/g, " ").trim();
 }
 
 function formatTime(value: string) {

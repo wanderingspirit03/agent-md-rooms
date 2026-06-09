@@ -37,6 +37,7 @@ Primary reference: `DESIGN.md`.
 - Added a quiet document-surface pending suggestion control so review work is discoverable from the Markdown page itself.
 - Made pending inline suggestion anchors persistently visible with a soft midnight-blue document mark.
 - Added a compact dot and stronger underline cue to pending inline suggestion anchors.
+- Added a compact review-drawer state for comments and suggestions whose saved text anchor no longer appears in the current Markdown.
 - Tuned bright-theme annotation fills so comments and suggestions stay discoverable without louder chrome.
 - Added a dedicated `midnight-mark` token for soft annotation fills instead of stacking opacity modifiers on alpha tokens.
 - Moved review/proposals into a lightweight drawer instead of a permanent heavy rail.

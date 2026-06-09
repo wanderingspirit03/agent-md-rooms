@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Eye, Quote, RotateCcw, X } from "lucide-react";
+import { AlertTriangle, Check, Eye, Quote, RotateCcw, X } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { PersonaChip } from "./PersonaChip";
@@ -10,6 +10,7 @@ interface MarginThreadProps {
   comment?: ChatComment;
   proposal?: Proposal;
   selectedQuote?: string;
+  anchorState?: "found" | "missing";
   onOpenProposal?: (proposal: Proposal) => void;
   onAcceptProposal?: (proposal: Proposal) => void;
   onRejectProposal?: (proposal: Proposal) => void;
@@ -20,6 +21,7 @@ export function MarginThread({
   comment,
   proposal,
   selectedQuote,
+  anchorState,
   onOpenProposal,
   onAcceptProposal,
   onRejectProposal,
@@ -53,11 +55,17 @@ export function MarginThread({
       )}
       {!selectedQuote && quote && (
         <QuoteBlock
-          tone="saved"
+          tone={anchorState === "missing" ? "missing" : "saved"}
           quote={quote}
           before={comment?.beforeContext || proposal?.beforeContext}
           after={comment?.afterContext || proposal?.afterContext}
         />
+      )}
+      {!selectedQuote && quote && anchorState === "missing" && (
+        <p className="mb-2 inline-flex items-center gap-1.5 rounded border border-studio-line bg-studio-sunken px-2 py-1 text-[11px] text-ink-subtle">
+          <AlertTriangle className="h-3.5 w-3.5 text-midnight-strong" />
+          Anchor not found
+        </p>
       )}
       {!selectedQuote && !quote && anchorLabel && (
         <p className="mb-2 rounded-md bg-studio-paper px-2 py-1.5 text-xs text-ink-subtle">{anchorLabel}</p>
@@ -117,13 +125,17 @@ function QuoteBlock({
   quote: string;
   before?: string;
   after?: string;
-  tone: "active" | "saved";
+  tone: "active" | "saved" | "missing";
 }) {
   return (
     <div
       className={cn(
         "mb-2 flex gap-2 border-l-2 px-2 py-0.5 text-xs leading-5 text-ink-muted",
-        tone === "active" ? "border-midnight-strong bg-transparent" : "border-studio-line bg-transparent",
+        tone === "active"
+          ? "border-midnight-strong bg-transparent"
+          : tone === "missing"
+            ? "border-dashed border-studio-line bg-studio-sunken/45 opacity-80"
+            : "border-studio-line bg-transparent",
       )}
     >
       <Quote

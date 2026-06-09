@@ -816,6 +816,7 @@ export default function RoomPage() {
         bench={
           <AgentBench
             filePath={selectedFilePath}
+            markdown={selectedMarkdown}
             comments={selectedFileComments}
             proposals={selectedFileProposals}
             timeline={selectedFileTimeline}
