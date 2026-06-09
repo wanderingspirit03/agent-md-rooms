@@ -37,6 +37,7 @@ Primary reference: `DESIGN.md`.
 - Added a dedicated `midnight-mark` token for soft annotation fills instead of stacking opacity modifiers on alpha tokens.
 - Moved review/proposals into a lightweight drawer instead of a permanent heavy rail.
 - Flattened the review drawer scope header so it reads as editor chrome instead of a nested summary card.
+- Flattened suggestion rows so review items read more like compact document annotations than PR cards.
 - Added command palette / quick switcher and made the header filename open it.
 - Removed duplicate root-file path text from the top file header and command palette while preserving full-path search.
 - Added agent connection handoff in the top chrome and removed the large onboarding block.
@@ -46,7 +47,6 @@ Primary reference: `DESIGN.md`.
 
 ## In Progress
 
-- Make review/proposal rows feel more like compact document annotations than PR cards.
 - Keep reducing visible text and secondary chrome while preserving accessible labels/tooltips.
 - Continue checking mobile widths for overlap and horizontal scroll.
 - Keep collaboration objects streaming through the encrypted room pipeline; avoid designs that depend on manual refresh or static server-readable fetches.
