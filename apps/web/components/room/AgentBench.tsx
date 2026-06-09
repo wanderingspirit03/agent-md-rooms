@@ -37,7 +37,13 @@ export function AgentBench({
   const activeComments = comments.filter((comment) => !comment.resolvedAt);
   const resolvedComments = comments.filter((comment) => comment.resolvedAt);
   const pendingProposals = proposals.filter((proposal) => proposal.status === "pending");
-  const recentProposals = proposals.slice(0, 5);
+  const recentProposals = [...proposals]
+    .sort((left, right) => {
+      if (left.status === "pending" && right.status !== "pending") return -1;
+      if (left.status !== "pending" && right.status === "pending") return 1;
+      return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+    })
+    .slice(0, 5);
   const recentTimeline = timeline.slice(0, 4);
 
   return (

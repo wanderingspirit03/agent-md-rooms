@@ -39,6 +39,7 @@ Primary reference: `DESIGN.md`.
 - Moved review/proposals into a lightweight drawer instead of a permanent heavy rail.
 - Flattened the review drawer scope header so it reads as editor chrome instead of a nested summary card.
 - Flattened suggestion rows so review items read more like compact document annotations than PR cards.
+- Tightened suggestion rows further and sorted pending suggestions first in the review drawer.
 - Added command palette / quick switcher and made the header filename open it.
 - Grouped command palette results into create/files/actions with active-file and review-count metadata.
 - Added quiet saved/checkpoint timestamps to file chrome, sidebar rows, and quick-switch metadata.
@@ -59,7 +60,7 @@ Primary reference: `DESIGN.md`.
 
 ## Next
 
-- Improve proposal/review drawer density and action clarity.
+- Keep proposal/review drawer controls compact while testing action clarity on mobile.
 - Make suggestion anchors more visible inside the document when a proposal targets selected text.
 - Make future multi-user presence and typing/editing states stream from encrypted room/awareness data without revealing document content to the server.
 - Expand saved/checkpoint affordances into named versions when the product needs explicit restore points.
