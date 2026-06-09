@@ -511,7 +511,7 @@ export function DocumentSurface({
               <div className="mt-2 flex items-center justify-between gap-2">
                 <button
                   type="button"
-                  className="text-xs text-ink-subtle hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+                  className="inline-flex h-11 items-center rounded px-3 text-xs text-ink-subtle hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-8 md:px-0"
                   onClick={() => {
                     setAnchorPoint(null);
                     setInlineComposerOpen(false);
@@ -520,7 +520,7 @@ export function DocumentSurface({
                 >
                   Cancel
                 </button>
-                <Button type="submit" size="sm">
+                <Button type="submit" size="sm" className="h-11 px-3 md:h-8">
                   <Send className="h-3.5 w-3.5" />
                   Add
                 </Button>

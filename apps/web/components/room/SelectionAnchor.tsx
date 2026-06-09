@@ -19,7 +19,7 @@ export function SelectionAnchor({ quote, onAddNote }: SelectionAnchorProps) {
           type="button"
           aria-label="Add inline comment"
           title="Add comment"
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded text-midnight-strong transition-colors hover:bg-midnight-mark hover:text-midnight-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded text-midnight-strong transition-colors hover:bg-midnight-mark hover:text-midnight-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-9 md:w-9"
           onPointerDown={(event) => {
             event.preventDefault();
             event.stopPropagation();

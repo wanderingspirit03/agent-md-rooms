@@ -33,6 +33,7 @@ Primary reference: `DESIGN.md`.
 - Added inline selected-text comment composer and clickable inline comment markers.
 - Added invisible mobile tap halos to inline annotation markers so comments/suggestions are easier to open without louder document styling.
 - Added a lightweight selection anchor so selecting text first shows a compact comment action before opening the full composer.
+- Increased mobile selection-anchor and inline composer action tap targets while preserving compact desktop sizing.
 - Made inline comment markers persistently visible as soft document annotations.
 - Added encrypted comment resolve/reopen events with resolved notes hidden behind a compact review-drawer section.
 - Simplified comments to one comment type.
