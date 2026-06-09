@@ -2,8 +2,8 @@
 
 import { Circle, Clock3, FileText, ListChecks, MessageSquare } from "lucide-react";
 import type { RoomPersona } from "../../lib/personas";
+import { cn } from "../../lib/utils";
 import { MarginThread } from "./MarginThread";
-import { PersonaChip } from "./PersonaChip";
 import { ProposalSlip } from "./ProposalSlip";
 import type { ChatComment, Proposal, TimelineEvent } from "./types";
 
@@ -37,26 +37,32 @@ export function AgentBench({
   return (
     <aside className="h-[calc(82dvh-48px)] overflow-y-auto bg-rail text-ink md:h-[calc(100dvh-48px)]">
       <div className="space-y-3 px-3 py-3">
-        <div className="rounded-md border border-studio-line bg-studio-sunken/50 px-2.5 py-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <FileText className="h-3.5 w-3.5 shrink-0 text-ink-subtle" />
-            <p className="truncate text-xs font-medium text-ink">{filePath}</p>
+        <div className="border-b border-studio-line px-1 pb-3">
+          <div className="flex min-w-0 items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <FileText className="h-3.5 w-3.5 shrink-0 text-ink-subtle" />
+              <p className="truncate text-xs font-medium text-ink">{filePath}</p>
+            </div>
+            <ParticipantDots participants={participants} />
           </div>
-          <div className="mt-2 flex items-center gap-1.5">
-            <ReviewCount icon={<MessageSquare className="h-3.5 w-3.5" />} count={comments.length} label="comments" />
-            <ReviewCount icon={<ListChecks className="h-3.5 w-3.5" />} count={pendingProposals.length} label="pending" />
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <ReviewCount
+              icon={<MessageSquare className="h-3.5 w-3.5" />}
+              count={comments.length}
+              label="comments"
+              singularLabel="comment"
+            />
+            <ReviewCount
+              icon={<ListChecks className="h-3.5 w-3.5" />}
+              count={pendingProposals.length}
+              label="pending"
+              singularLabel="pending suggestion"
+              pluralLabel="pending suggestions"
+            />
           </div>
         </div>
 
-        {participants.length > 0 && (
-          <div className="flex items-center gap-1.5 overflow-hidden px-1">
-            {participants.slice(0, 5).map((persona) => (
-              <PersonaChip key={persona.id} persona={persona} compact />
-            ))}
-          </div>
-        )}
-
-        <section className="space-y-1 border-t border-studio-line pt-3">
+        <section className="space-y-1">
           <RailHeading title="Comments" count={comments.length} />
           {selectedQuote && <MarginThread selectedQuote={selectedQuote} />}
           {comments.length === 0 && !selectedQuote ? (
@@ -108,11 +114,59 @@ export function AgentBench({
   );
 }
 
-function ReviewCount({ icon, count, label }: { icon: React.ReactNode; count: number; label: string }) {
+function ParticipantDots({ participants }: { participants: RoomPersona[] }) {
+  if (participants.length === 0) return null;
+
+  const visible = participants.slice(0, 4);
+  const hiddenCount = Math.max(0, participants.length - visible.length);
+  const label = participants.map((persona) => persona.name).join(", ");
+
+  return (
+    <div className="flex shrink-0 items-center" role="group" aria-label={`Participants: ${label}`} title={label}>
+      {visible.map((persona, index) => (
+        <span
+          key={persona.id}
+          className={cn(
+            "flex h-5 w-5 items-center justify-center rounded-full border border-rail text-[10px] font-semibold text-white",
+            index > 0 && "-ml-1.5",
+          )}
+          style={{ backgroundColor: persona.color }}
+          aria-hidden="true"
+        >
+          {persona.name.slice(0, 1)}
+        </span>
+      ))}
+      {hiddenCount > 0 && (
+        <span
+          className="-ml-1.5 flex h-5 min-w-5 items-center justify-center rounded-full border border-rail bg-studio-sunken px-1 text-[10px] font-medium text-ink-subtle"
+          aria-hidden="true"
+        >
+          +{hiddenCount}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function ReviewCount({
+  icon,
+  count,
+  label,
+  singularLabel,
+  pluralLabel,
+}: {
+  icon: React.ReactNode;
+  count: number;
+  label: string;
+  singularLabel: string;
+  pluralLabel?: string;
+}) {
+  const accessibleLabel = `${count} ${count === 1 ? singularLabel : pluralLabel || label}`;
+
   return (
     <span
-      aria-label={`${count} ${label}`}
-      title={`${count} ${label}`}
+      aria-label={accessibleLabel}
+      title={accessibleLabel}
       className="inline-flex h-6 min-w-0 items-center gap-1.5 rounded border border-studio-line bg-rail px-2 text-[11px] text-ink-subtle"
     >
       <span className="text-ink-subtle">{icon}</span>

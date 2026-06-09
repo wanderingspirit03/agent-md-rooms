@@ -34,6 +34,7 @@ Primary reference: `DESIGN.md`.
 - Made pending inline suggestion anchors persistently visible with a soft midnight-blue document mark.
 - Added a dedicated `midnight-mark` token for soft annotation fills instead of stacking opacity modifiers on alpha tokens.
 - Moved review/proposals into a lightweight drawer instead of a permanent heavy rail.
+- Flattened the review drawer scope header so it reads as editor chrome instead of a nested summary card.
 - Added command palette / quick switcher and made the header filename open it.
 - Removed duplicate root-file path text from the top file header and command palette while preserving full-path search.
 - Added agent connection handoff in the top chrome and removed the large onboarding block.
