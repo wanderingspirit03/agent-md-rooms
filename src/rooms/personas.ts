@@ -18,22 +18,48 @@ export interface AssignPersonaOptions {
   participantFingerprint: string;
 }
 
-const AGENT_NAMES = [
-  'Patch Pilot',
-  'Diff Lantern',
-  'Merge Signal',
-  'Token Loom',
-  'Branch Echo',
-  'Commit Atlas',
+const AGENT_NAME_PREFIXES = [
+  'Patch',
+  'Diff',
+  'Merge',
+  'Token',
+  'Branch',
+  'Commit',
 ] as const;
 
-const HUMAN_NAMES = [
-  'Reader North',
-  'Editor Vale',
-  'Reviewer Stone',
-  'Writer Quinn',
-  'Archivist Reed',
-  'Curator Lane',
+const AGENT_NAME_SUFFIXES = [
+  'Pilot',
+  'Lantern',
+  'Signal',
+  'Loom',
+  'Atlas',
+  'Beacon',
+  'Relay',
+  'Compass',
+  'Anchor',
+  'Marker',
+] as const;
+
+const HUMAN_NAME_PREFIXES = [
+  'Reader',
+  'Editor',
+  'Reviewer',
+  'Writer',
+  'Archivist',
+  'Curator',
+] as const;
+
+const HUMAN_NAME_SUFFIXES = [
+  'North',
+  'Vale',
+  'Stone',
+  'Quinn',
+  'Reed',
+  'Lane',
+  'Hale',
+  'Rowe',
+  'Wynn',
+  'Gray',
 ] as const;
 
 const COLORS = [
@@ -50,8 +76,9 @@ const COLORS = [
 export function assignPersona(options: AssignPersonaOptions): RoomPersona {
   const seed = `${options.roomId}\0${options.participantKind}\0${options.participantFingerprint}`;
   const digest = createHash('sha256').update(seed).digest();
-  const names = options.participantKind === 'agent' ? AGENT_NAMES : HUMAN_NAMES;
-  const name = names[digest[0] % names.length] ?? names[0];
+  const name = options.participantKind === 'agent'
+    ? personaName(AGENT_NAME_PREFIXES, AGENT_NAME_SUFFIXES, digest[0], digest[2])
+    : personaName(HUMAN_NAME_PREFIXES, HUMAN_NAME_SUFFIXES, digest[0], digest[2]);
   const color = COLORS[digest[1] % COLORS.length] ?? COLORS[0];
   const id = createHash('sha256')
     .update(`persona\0${seed}`)
@@ -67,4 +94,15 @@ export function assignPersona(options: AssignPersonaOptions): RoomPersona {
     color,
     participantFingerprint: options.participantFingerprint,
   };
+}
+
+function personaName(
+  prefixes: readonly string[],
+  suffixes: readonly string[],
+  prefixSeed: number,
+  suffixSeed: number,
+) {
+  const prefix = prefixes[prefixSeed % prefixes.length] ?? prefixes[0];
+  const suffix = suffixes[suffixSeed % suffixes.length] ?? suffixes[0];
+  return `${prefix} ${suffix}`;
 }

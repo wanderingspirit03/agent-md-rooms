@@ -65,6 +65,7 @@ Primary reference: `DESIGN.md`.
 - Removed duplicate root-file path text from the top file header and command palette while preserving full-path search.
 - Added agent connection handoff in the top chrome and removed the large onboarding block.
 - Wired collaborator avatars to deterministic shadcn avatar images with initials fallbacks and calmer Fold persona names.
+- Expanded deterministic persona name combinations so room-sized human/agent groups are less likely to show duplicate collaborator names.
 - Added encrypted live presence snapshots with a compact collaborator stack for the selected Markdown file.
 - Added quiet per-file presence indicators in the project sidebar so collaboration is visible across the file tree.
 - Added encrypted typing/commenting activity hints to presence records with quiet toolbar and sidebar indicators.
