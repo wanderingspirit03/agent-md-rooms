@@ -55,6 +55,8 @@ Primary reference: `DESIGN.md`.
 - Added command palette / quick switcher and made the header filename open it.
 - Grouped command palette results into create/files/actions with active-file and review-count metadata.
 - Added a recent-file section to the empty quick switcher so project navigation starts from recently opened Markdown files.
+- Expanded the seeded project with nested architecture, runbook, research, and notes files so navigation is exercised against a realistic project shape.
+- Kept default command palette results focused on recent files and commands before the broader file list.
 - Added the secure agent handoff to the command palette so agent collaboration is reachable from the project workflow.
 - Matched the review command to unresolved comments so the palette finds the intended document-review workflow.
 - Improved quick-switcher search ranking with path-aware and simple fuzzy file matching for larger projects.

@@ -1305,7 +1305,7 @@ function ProjectCommandPalette({
       ...rankPaletteItems(fileItems, normalizedQuery),
       ...rankPaletteItems(staticItems, normalizedQuery),
     ].slice(0, 12)
-    : [...recentItems, ...remainingFileItems, ...staticItems].slice(0, 12);
+    : [...recentItems, ...staticItems, ...remainingFileItems].slice(0, 12);
   const firstEnabledIndex = Math.max(0, items.findIndex((item) => !item.disabled));
   const listboxId = "project-command-palette-results";
   const activeOptionId = items[activeIndex] ? `${listboxId}-option-${activeIndex}` : undefined;
@@ -1771,7 +1771,7 @@ async function copyText(text: string) {
 
 function normalizePaletteFilePath(value: string) {
   const trimmed = value.trim().replace(/\\/g, "/").replace(/^\/+/, "");
-  if (!trimmed || !trimmed.includes(".")) return "";
+  if (!trimmed || (!trimmed.includes(".") && !trimmed.includes("/"))) return "";
   const collapsed = trimmed
     .split("/")
     .map((part) => part.trim())
