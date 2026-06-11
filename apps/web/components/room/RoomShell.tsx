@@ -259,7 +259,11 @@ export function RoomShell({
                           role="status"
                           aria-label={securityLabel}
                           title={securityLabel}
-                          className={cn("inline-flex shrink-0 items-center gap-1", connected && ready && "text-ink-muted")}
+                          className={cn(
+                            "inline-flex shrink-0 items-center gap-1 text-ink-subtle",
+                            connected && ready && "text-ink-muted",
+                            (!connected || !ready) && "text-amber-500",
+                          )}
                         >
                           <LockKeyhole className="h-3 w-3" />
                           E2EE
@@ -887,11 +891,11 @@ function FilePresenceIndicators({ presences }: { presences: CollaborationPresenc
             key={presence.clientId}
             persona={presence.persona}
             compact
-            className={cn("h-[18px] w-[18px] ring-1 ring-studio-paper", index > 0 && "-ml-1")}
+            className={cn("h-5 w-5 ring-1 ring-studio-paper", index > 0 && "-ml-1.5")}
           />
         ))}
         {hiddenCount > 0 && (
-          <span className="-ml-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rail px-1 text-[9px] font-medium text-ink-subtle ring-1 ring-studio-paper">
+          <span className="-ml-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-rail px-1 text-[9px] font-medium text-ink-subtle ring-1 ring-studio-paper">
             +{hiddenCount}
           </span>
         )}
@@ -1638,12 +1642,12 @@ function PresenceStack({
                 key={persona.id}
                 persona={persona}
                 compact
-                className={cn("h-7 w-7 ring-2 ring-studio-paper", index > 0 && "-ml-2")}
+                className={cn("h-8 w-8 ring-1 ring-studio-paper/80", index > 0 && "-ml-2")}
               />
             ))}
             {hiddenCount > 0 && (
               <span
-                className="-ml-2 flex h-7 min-w-7 items-center justify-center rounded-full bg-rail px-1 text-[10px] font-medium text-ink-subtle ring-2 ring-studio-paper"
+                className="-ml-2 flex h-8 min-w-8 items-center justify-center rounded-full bg-rail px-1 text-[10px] font-medium text-ink-subtle ring-1 ring-studio-paper/80"
                 aria-hidden="true"
               >
                 +{hiddenCount}

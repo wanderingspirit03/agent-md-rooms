@@ -19,21 +19,21 @@ const STUDIO_AVATARS = [
 
 export function PersonaAvatar({ persona, compact = false, className }: PersonaAvatarProps) {
   const seed = persona ? hashString(`${persona.id}:${persona.kind}:${persona.name}`) : 0;
-  const sizeClass = compact ? "h-5 w-5" : "h-7 w-7";
+  const sizeClass = compact ? "h-6 w-6" : "h-8 w-8";
   const avatarSrc = STUDIO_AVATARS[seed % STUDIO_AVATARS.length];
   const fallback = personaInitials(persona);
 
   return (
     <Avatar
       className={cn(
-        "bg-transparent shadow-[0_1px_4px_rgba(0,0,0,0.18)] ring-1 ring-studio-paper",
+        "bg-transparent shadow-none",
         sizeClass,
         className,
       )}
       aria-hidden="true"
     >
-      <AvatarImage src={avatarSrc} alt="" className="scale-110 rounded-full object-cover" />
-      <AvatarFallback className="text-[9px] uppercase text-ink-muted">{fallback}</AvatarFallback>
+      <AvatarImage src={avatarSrc} alt="" className="scale-[1.72] rounded-full object-cover" />
+      <AvatarFallback className="text-[10px] uppercase text-ink-muted">{fallback}</AvatarFallback>
     </Avatar>
   );
 }

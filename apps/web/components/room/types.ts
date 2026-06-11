@@ -56,6 +56,17 @@ export interface ChatComment {
   afterContext?: string;
 }
 
+export interface FileVersion {
+  schema: "fold.file_version.v1";
+  id: string;
+  title: string;
+  filePath: string;
+  markdown: string;
+  createdAt: string;
+  authorPersonaId: string;
+  persona: RoomPersona;
+}
+
 export interface CollaborationPresence {
   schema: "fold.presence.v1";
   clientId: string;

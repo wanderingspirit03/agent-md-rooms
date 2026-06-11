@@ -47,9 +47,11 @@ Primary reference: `DESIGN.md`.
 - Tuned bright-theme annotation fills so comments and suggestions stay discoverable without louder chrome.
 - Added a dedicated `midnight-mark` token for soft annotation fills instead of stacking opacity modifiers on alpha tokens.
 - Moved review/proposals into a lightweight drawer instead of a permanent heavy rail.
+- Added encrypted named file versions in the review drawer with compact save and restore controls.
 - Added Escape dismissal for lightweight project and review overlays.
 - Flattened the review drawer scope header so it reads as editor chrome instead of a nested summary card.
 - Flattened suggestion rows so review items read more like compact document annotations than PR cards.
+- Enlarged/cropped collaborator avatars and kept E2EE as quiet inline file metadata instead of boxed toolbar chrome.
 - Tightened suggestion rows further and sorted pending suggestions first in the review drawer.
 - Clarified pending suggestion actions with compact labeled pills and larger touch targets for mobile review.
 - Added command palette / quick switcher and made the header filename open it.
@@ -90,7 +92,7 @@ Primary reference: `DESIGN.md`.
 - Keep proposal/review drawer controls compact while testing action clarity on mobile.
 - Keep tuning inline annotation contrast across dark and bright themes without making the document feel marked up.
 - Keep richer presence hints useful without revealing document content to the server.
-- Expand saved/checkpoint affordances into named versions when the product needs explicit restore points.
+- Keep named versions lightweight and verify restore clarity against long documents.
 - Keep empty states sparse and document-native as more project creation/import states are added.
 - Continue measuring long-document readability against the Obsidian reference screenshots.
 - Eventually replace the textarea editor candidate with the planned Milkdown prototype after Markdown round-trip verification.

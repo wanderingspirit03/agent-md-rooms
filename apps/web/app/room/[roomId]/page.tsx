@@ -8,7 +8,7 @@ import { DocumentSurface } from "../../../components/room/DocumentSurface";
 import { RoomAccessGate } from "../../../components/room/RoomAccessGate";
 import { RoomShell } from "../../../components/room/RoomShell";
 import { ThreadReviewDialog } from "../../../components/room/ThreadReviewDialog";
-import type { ChatComment, CollaborationPresence, Proposal, TimelineEvent } from "../../../components/room/types";
+import type { ChatComment, CollaborationPresence, FileVersion, Proposal, TimelineEvent } from "../../../components/room/types";
 import {
   deriveRoomKey,
   decryptUpdate,
@@ -24,6 +24,7 @@ const PROJECT_SCHEMA = "fold.project.v1";
 const PROJECT_SENDER_ID = "fold-cli:project";
 const COMMENT_EVENT_SENDER_ID = "web-client:comment-event";
 const PRESENCE_SENDER_ID = "web-client:presence";
+const FILE_VERSION_SENDER_ID = "web-client:version";
 const LIVE_FILE_PATH = "reports/launch-review.md";
 const DEFAULT_PROJECT_FILE_PATH = "docs/PLAN.md";
 const PRESENCE_TTL_MS = 75_000;
@@ -75,6 +76,7 @@ export default function RoomPage() {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [comments, setComments] = useState<ChatComment[]>([]);
+  const [fileVersions, setFileVersions] = useState<FileVersion[]>([]);
   const [presenceByClientId, setPresenceByClientId] = useState<Record<string, CollaborationPresence>>({});
   const [presenceClock, setPresenceClock] = useState(() => Date.now());
   const [presenceActivity, setPresenceActivity] = useState<PresenceActivity>("idle");
@@ -338,6 +340,14 @@ export default function RoomPage() {
       return;
     }
 
+    if (rec.senderId.startsWith(FILE_VERSION_SENDER_ID)) {
+      const parsed = await decryptJson<FileVersion>(payload, cryptKey, rec);
+      if (isFileVersion(parsed)) {
+        setFileVersions((prev) => upsertFileVersion(prev, parsed));
+      }
+      return;
+    }
+
     if (rec.senderId.startsWith(PRESENCE_SENDER_ID)) {
       const parsed = await decryptJson<CollaborationPresence>(payload, cryptKey, rec);
       if (isCollaborationPresence(parsed)) {
@@ -536,6 +546,57 @@ export default function RoomPage() {
     } catch (err) {
       setSyncError(`Could not update comment: ${String(err)}`);
     }
+  };
+
+  const handleCreateFileVersion = async (title: string) => {
+    if (!keyRef.current || !localMyPersona) return;
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) return;
+    const currentMarkdown = selectedFilePath === LIVE_FILE_PATH
+      ? markdown
+      : virtualFiles[selectedFilePath] || "";
+
+    try {
+      const createdAt = new Date().toISOString();
+      const id = Math.random().toString(36).slice(2, 11);
+      const record: FileVersion = {
+        schema: "fold.file_version.v1",
+        id,
+        title: trimmedTitle,
+        filePath: selectedFilePath,
+        markdown: currentMarkdown,
+        createdAt,
+        authorPersonaId: localMyPersona.id,
+        persona: localMyPersona,
+      };
+      const senderId = `${FILE_VERSION_SENDER_ID}:${id}`;
+      const encrypted = await encryptUpdate(encoder.encode(JSON.stringify(record)), keyRef.current, {
+        roomId,
+        senderId,
+      });
+      const response = await postEncryptedRecord(senderId, encrypted);
+      if (!response.ok) throw new Error(`Server returned ${response.status}`);
+      setFileVersions((prev) => upsertFileVersion(prev, record));
+    } catch (err) {
+      setSyncError(`Could not save encrypted version: ${String(err)}`);
+    }
+  };
+
+  const handleRestoreFileVersion = (version: FileVersion) => {
+    if (version.filePath !== selectedFilePath) return;
+    setSelectedQuote("");
+    setNewCommentText("");
+    clearPresenceActivity();
+    if (selectedFilePath !== LIVE_FILE_PATH) {
+      setVirtualFiles((current) => ({ ...current, [selectedFilePath]: version.markdown }));
+      void persistProjectFileSnapshot(selectedFilePath, version.markdown);
+      return;
+    }
+    if (!yTextRef.current || version.markdown === yTextRef.current.toString()) return;
+    yDocRef.current?.transact(() => {
+      yTextRef.current!.delete(0, yTextRef.current!.length);
+      yTextRef.current!.insert(0, version.markdown);
+    }, "local");
   };
 
   const persistProjectFileSnapshot = async (path: string, nextMarkdown: string) => {
@@ -766,8 +827,9 @@ export default function RoomPage() {
     return true;
   });
   const selectedFilePendingCount = selectedFileProposals.filter((proposal) => proposal.status === "pending").length;
+  const selectedFileVersions = fileVersions.filter((version) => version.filePath === selectedFilePath);
   const selectedFilePresences = activePresencesForFile(presenceByClientId, selectedFilePath, presenceClock);
-  const selectedFileParticipants = uniquePersonas(selectedFileProposals, selectedFileComments, selectedFilePresences, localMyPersona);
+  const selectedFileParticipants = uniquePersonas(selectedFileProposals, selectedFileComments, selectedFileVersions, selectedFilePresences, localMyPersona);
   const agentInvite = useMemo(() => {
     if (!roomId || !roomSecret || typeof window === "undefined") return null;
     return createAgentInvite({
@@ -865,6 +927,7 @@ export default function RoomPage() {
             markdown={selectedMarkdown}
             comments={selectedFileComments}
             proposals={selectedFileProposals}
+            versions={selectedFileVersions}
             timeline={selectedFileTimeline}
             participants={selectedFileParticipants}
             selectedQuote={selectedQuote}
@@ -872,6 +935,8 @@ export default function RoomPage() {
             onAcceptProposal={handleAcceptProposal}
             onRejectProposal={handleRejectProposal}
             onResolveComment={handleResolveComment}
+            onCreateVersion={handleCreateFileVersion}
+            onRestoreVersion={handleRestoreFileVersion}
           />
         }
       />
@@ -896,6 +961,14 @@ function upsertComment(comments: ChatComment[], next: ChatComment): ChatComment[
   return [next, ...comments].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+function upsertFileVersion(versions: FileVersion[], next: FileVersion): FileVersion[] {
+  const existingIndex = versions.findIndex((version) => version.id === next.id);
+  if (existingIndex === -1) return [next, ...versions].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const clone = [...versions];
+  clone[existingIndex] = { ...clone[existingIndex], ...next };
+  return clone.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
 function applyCommentEvent(comments: ChatComment[], event: TimelineEvent): ChatComment[] {
   if (!event.commentId) return comments;
   return comments.map((comment) => {
@@ -918,6 +991,7 @@ function applyCommentEvent(comments: ChatComment[], event: TimelineEvent): ChatC
 function uniquePersonas(
   proposals: Proposal[],
   comments: ChatComment[],
+  versions: FileVersion[],
   presences: CollaborationPresence[],
   local: RoomPersona | null,
 ): RoomPersona[] {
@@ -925,6 +999,7 @@ function uniquePersonas(
     ...presences.map((presence) => presence.persona),
     ...proposals.map((proposal) => proposal.persona),
     ...comments.map((comment) => comment.persona),
+    ...versions.map((version) => version.persona),
     ...(local ? [local] : []),
   ].filter(Boolean);
   const byId = new Map<string, RoomPersona>();
@@ -968,6 +1043,19 @@ function isCollaborationPresence(value: unknown): value is CollaborationPresence
     && (!presence.activity || presence.activity === "idle" || presence.activity === "typing" || presence.activity === "commenting")
     && typeof presence.updatedAt === "string"
     && typeof presence.expiresAt === "string";
+}
+
+function isFileVersion(value: unknown): value is FileVersion {
+  if (!value || typeof value !== "object") return false;
+  const version = value as FileVersion;
+  return version.schema === "fold.file_version.v1"
+    && typeof version.id === "string"
+    && typeof version.title === "string"
+    && typeof version.filePath === "string"
+    && typeof version.markdown === "string"
+    && typeof version.createdAt === "string"
+    && typeof version.authorPersonaId === "string"
+    && version.persona?.schema === "fold.persona.v1";
 }
 
 function createCommentAnchor(
@@ -1456,7 +1544,7 @@ function createInitialVirtualFiles(): Record<string, string> {
       "- [x] Keep the file tree visible on desktop.",
       "- [x] Make mobile project navigation a drawer.",
       "- [x] Add quiet typing/commenting presence without exposing content to the server.",
-      "- [ ] Add named versions once accepted proposals become common.",
+      "- [x] Add encrypted named versions for restore points.",
       "- [ ] Decide whether production avatars should be vendored rather than remote.",
       "",
       "> Agent notes should be useful without becoming noisy. The best version of this surface feels like a calm project editor that happens to understand encrypted collaboration.",
