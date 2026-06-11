@@ -1195,6 +1195,7 @@ type PaletteItem = {
   detail?: string;
   group: "create" | "recent" | "files" | "actions";
   searchText?: string;
+  showByDefault?: boolean;
   icon: ReactNode;
   meta?: ReactNode;
   action: () => void;
@@ -1275,6 +1276,7 @@ function ProjectCommandPalette({
       detail: `${commentCount} ${commentCount === 1 ? "comment" : "comments"} in current file`,
       group: "actions",
       searchText: "show comments unresolved review notes",
+      showByDefault: commentCount > 0,
       icon: <MessageSquare className="h-4 w-4" />,
       action: onOpenReview,
     },
@@ -1283,6 +1285,8 @@ function ProjectCommandPalette({
       label: "Show pending suggestions",
       detail: `${pendingCount} ${pendingCount === 1 ? "suggestion" : "suggestions"} in current file`,
       group: "actions",
+      searchText: "show pending suggestions review proposals",
+      showByDefault: pendingCount > 0,
       icon: <ListChecks className="h-4 w-4" />,
       action: onOpenReview,
     },
@@ -1358,6 +1362,7 @@ function ProjectCommandPalette({
     action: () => onFileSelect(file.path),
   }));
   const remainingFileItems = fileItems.filter((item) => !recentPaths.has(item.searchText || item.label));
+  const defaultStaticItems = staticItems.filter((item) => item.showByDefault !== false);
   const createItem: PaletteItem[] = requestedPath && !matchingFile
     ? [{
       id: `create:${requestedPath}`,
@@ -1373,7 +1378,7 @@ function ProjectCommandPalette({
       ...createItem,
       ...rankCommandPaletteItems([...fileItems, ...staticItems], normalizedQuery),
     ].slice(0, 12)
-    : [...recentItems, ...staticItems, ...remainingFileItems].slice(0, 12);
+    : [...recentItems, ...defaultStaticItems, ...remainingFileItems].slice(0, 12);
   const firstEnabledIndex = getFirstEnabledIndex(items);
   const listboxId = "project-command-palette-results";
   const activeOptionId = items[activeIndex] ? `${listboxId}-option-${activeIndex}` : undefined;

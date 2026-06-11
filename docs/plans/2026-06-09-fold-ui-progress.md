@@ -89,6 +89,7 @@ Primary reference: `DESIGN.md`.
 - Added an inline confirmation step for named-version restores so checkpoints stay lightweight but are harder to roll back accidentally.
 - Tuned inline annotation markers with wrapped-line-safe decoration, softer comment underlines, and clearer pending suggestion cues.
 - Reworked blank Markdown files into a quiet document-native writing prompt instead of a centered empty-state island.
+- Hid zero-count review commands from the default quick switcher while keeping them searchable on demand.
 - Verified recent UI slices with Playwright screenshots on desktop and mobile because `iab` is unavailable in this session.
 - Continue verifying substantial slices with a separate reviewer/subagent before pushing.
 
