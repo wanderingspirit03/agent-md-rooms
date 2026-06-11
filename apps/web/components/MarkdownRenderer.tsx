@@ -289,7 +289,7 @@ function inlineMarkerClassName(
   active = false,
 ) {
   const base = [
-    "relative inline cursor-pointer rounded-[2px] px-px text-left text-document-ink transition-colors touch-manipulation",
+    "relative inline cursor-pointer box-decoration-clone rounded-[2px] px-px text-left text-document-ink transition-colors touch-manipulation",
     "before:absolute before:-inset-x-1 before:-inset-y-2 before:content-['']",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong",
   ].join(" ");
@@ -297,9 +297,9 @@ function inlineMarkerClassName(
   if (kind === "suggestion") {
     const resolved = status === "accepted" || status === "rejected";
     const resolvedClass = resolved
-      ? "border-b-2 border-dashed border-midnight/45 bg-transparent opacity-70 hover:bg-midnight-soft"
-      : "border-b-2 border-midnight/70 bg-midnight-mark shadow-[inset_0_-1px_0_hsl(var(--midnight-strong))] hover:bg-midnight-soft after:ml-1 after:inline-block after:h-1.5 after:w-1.5 after:rounded-full after:bg-midnight-strong after:align-middle after:content-['']";
+      ? "border-b border-dashed border-midnight/45 bg-transparent opacity-70 hover:bg-midnight-soft"
+      : "border-b-2 border-midnight/65 bg-midnight-mark shadow-[inset_0_-1px_0_hsl(var(--midnight-soft))] hover:bg-midnight-soft after:ml-1 after:inline-block after:h-1.5 after:w-1.5 after:rounded-full after:bg-midnight-strong after:align-middle after:content-['']";
     return `${base} ${resolvedClass} ${activeClass}`;
   }
-  return `${base} bg-midnight-mark hover:bg-midnight-soft border-b-2 border-midnight/45 ${activeClass}`;
+  return `${base} border-b border-midnight/45 bg-midnight-mark shadow-[inset_0_-1px_0_hsl(var(--midnight-soft))] hover:bg-midnight-soft ${activeClass}`;
 }
