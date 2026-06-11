@@ -30,6 +30,7 @@ Primary reference: `DESIGN.md`.
 - Kept raw Markdown canonical while rendering read mode with sanitized `react-markdown`.
 - Embedded frontmatter/properties as metadata inside the document/editor surface instead of rendering them as body text.
 - Kept edit mode as Markdown source only; removed extra rich/source controls.
+- Added Markdown source editor Tab/Shift+Tab indentation so list and code editing feels closer to a real Markdown workspace.
 - Added inline selected-text comment composer and clickable inline comment markers.
 - Added invisible mobile tap halos to inline annotation markers so comments/suggestions are easier to open without louder document styling.
 - Added a lightweight selection anchor so selecting text first shows a compact comment action before opening the full composer.
