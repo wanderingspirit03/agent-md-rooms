@@ -58,7 +58,7 @@ export function AgentBench({
   const recentTimeline = timeline.slice(0, 4);
 
   return (
-    <aside className="h-[calc(82dvh-48px)] overflow-y-auto bg-rail text-ink md:h-[calc(100dvh-48px)]">
+    <aside className="h-[calc(100dvh-145px)] overflow-y-auto bg-rail text-ink md:h-[calc(100dvh-48px)]">
       <div className="space-y-3 px-3 py-3">
         <div className="border-b border-studio-line px-1 pb-3">
           <div className="flex min-w-0 items-center justify-between gap-3">
