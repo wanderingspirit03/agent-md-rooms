@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, FileText, ListChecks, MessageSquare, MessageSquarePlus, Pencil, Send, X } from "lucide-react";
+import { Check, ListChecks, MessageSquare, MessageSquarePlus, Pencil, Send, X } from "lucide-react";
 import MarkdownRenderer from "../MarkdownRenderer";
 import MarkdownSourceEditor from "../MarkdownSourceEditor";
 import { extractMarkdownProperties } from "../../lib/markdown-properties";
@@ -404,20 +404,18 @@ export function DocumentSurface({
             />
           </>
         ) : (
-          <div className="flex min-h-[560px] flex-col items-center justify-center text-center">
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-md border border-document-edge bg-black/[0.025] text-document-subtle">
-              <FileText className="h-5 w-5" />
-            </div>
-            <p className="text-sm font-medium text-document-ink">Blank Markdown file</p>
-            {onStartEditing && (
+          <div className="min-h-[560px] pt-16 sm:pt-24">
+            {onStartEditing ? (
               <button
                 type="button"
-                className="mt-3 inline-flex h-11 items-center gap-1.5 rounded-md border border-document-edge bg-document/90 px-3 text-xs font-medium text-document-muted transition-colors hover:border-midnight/35 hover:text-document-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-9"
+                className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-md border border-transparent px-1 text-sm text-document-subtle transition-colors hover:text-document-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:min-h-9"
                 onClick={onStartEditing}
               >
-                <Pencil className="h-3.5 w-3.5" />
-                Edit file
+                <Pencil className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">Start writing</span>
               </button>
+            ) : (
+              <p className="text-sm text-document-subtle">Start writing</p>
             )}
           </div>
         )}
