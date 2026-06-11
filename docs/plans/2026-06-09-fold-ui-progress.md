@@ -90,6 +90,7 @@ Primary reference: `DESIGN.md`.
 - Tuned inline annotation markers with wrapped-line-safe decoration, softer comment underlines, and clearer pending suggestion cues.
 - Reworked blank Markdown files into a quiet document-native writing prompt instead of a centered empty-state island.
 - Hid zero-count review commands from the default quick switcher while keeping them searchable on demand.
+- Hid the already-active read/edit mode from the default quick switcher while preserving mode search.
 - Verified recent UI slices with Playwright screenshots on desktop and mobile because `iab` is unavailable in this session.
 - Continue verifying substantial slices with a separate reviewer/subagent before pushing.
 
