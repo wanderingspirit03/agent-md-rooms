@@ -74,6 +74,10 @@ export function DocumentSurface({
     () => activeComments.find((comment) => comment.id === activeCommentCard?.commentId) || null,
     [activeComments, activeCommentCard],
   );
+  const cancelFileComposer = () => {
+    setFileComposerOpen(false);
+    onNewCommentTextChange("");
+  };
 
   useEffect(() => {
     if (composerFocusToken === 0) return;
@@ -305,6 +309,7 @@ export function DocumentSurface({
                 }
                 onPostComment(event);
                 setFileComposerOpen(false);
+                onNewCommentTextChange("");
               }}
               className="rounded-md border border-midnight/25 bg-studio-paper p-2 text-ink shadow-[0_10px_28px_rgba(0,0,0,0.16)]"
             >
@@ -325,9 +330,10 @@ export function DocumentSurface({
               <div className="mt-2 flex items-center justify-between gap-2">
                 <button
                   type="button"
-                  className="text-xs text-ink-subtle hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
-                  onClick={() => setFileComposerOpen(false)}
+                  className="inline-flex h-11 items-center gap-1.5 rounded px-2 text-xs text-ink-subtle transition-colors hover:bg-studio-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-8"
+                  onClick={cancelFileComposer}
                 >
+                  <X className="h-3.5 w-3.5" />
                   Cancel
                 </button>
                 <Button type="submit" size="sm">
