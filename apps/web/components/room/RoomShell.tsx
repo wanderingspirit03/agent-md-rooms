@@ -694,12 +694,17 @@ function ProjectFilesBody({
   const createInputRef = useRef<HTMLInputElement | null>(null);
   const normalizedQuery = query.trim().toLowerCase();
   const requestedSearchPath = normalizeSidebarCreatePath(query);
+  const requestedNewFilePath = normalizeSidebarCreatePath(newFilePath);
   const fileTree = useMemo(() => buildProjectFileTree(files, normalizedQuery), [files, normalizedQuery]);
   const hasSearchResults = fileTree.files.length > 0 || fileTree.folders.some((folder) => treeHasFiles(folder));
   const hasExactSearchPath = requestedSearchPath
     ? files.some((file) => file.path.toLowerCase() === requestedSearchPath.toLowerCase())
     : false;
+  const hasExactNewFilePath = requestedNewFilePath
+    ? files.some((file) => file.path.toLowerCase() === requestedNewFilePath.toLowerCase())
+    : false;
   const canCreateFromSearch = Boolean(normalizedQuery && requestedSearchPath && !hasExactSearchPath);
+  const canCreateNewFile = Boolean(requestedNewFilePath && !hasExactNewFilePath);
   const toggleFolder = (name: string) => {
     setOpenFolders((current) => ({ ...current, [name]: !(current[name] ?? true) }));
   };
@@ -709,13 +714,16 @@ function ProjectFilesBody({
   };
   const handleCreateFile = (event: React.FormEvent) => {
     event.preventDefault();
-    const path = newFilePath.trim();
-    if (!path) return;
-    createFile(path);
+    if (!canCreateNewFile) return;
+    createFile(requestedNewFilePath);
   };
   const createFile = (path: string) => {
     onCreateFile(path);
     setQuery("");
+    setNewFilePath("docs/untitled.md");
+    setIsCreatingFile(false);
+  };
+  const cancelCreateFile = () => {
     setNewFilePath("docs/untitled.md");
     setIsCreatingFile(false);
   };
@@ -791,24 +799,44 @@ function ProjectFilesBody({
           }
         >
           {isCreatingFile && (
-            <form onSubmit={handleCreateFile} className="mb-2 flex items-center gap-1 rounded-md border border-studio-line bg-studio-sunken p-1">
+            <form
+              onSubmit={handleCreateFile}
+              className="mb-2 flex min-h-11 items-center gap-1 rounded-md border border-studio-line bg-studio-sunken px-1.5 py-1 md:min-h-8"
+            >
+              <FileText className="h-3.5 w-3.5 shrink-0 text-ink-subtle" aria-hidden />
               <input
                 ref={createInputRef}
                 aria-label="New Markdown file path"
                 value={newFilePath}
                 onChange={(event) => setNewFilePath(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === "Escape") setIsCreatingFile(false);
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    cancelCreateFile();
+                  }
                 }}
-                className="min-w-0 flex-1 bg-transparent px-1.5 py-1 text-xs text-ink outline-none placeholder:text-ink-subtle"
-                placeholder="docs/new.md"
+                className="min-w-0 flex-1 bg-transparent px-1 py-1 text-xs text-ink outline-none placeholder:text-ink-subtle"
+                placeholder="notes.md"
               />
+              {hasExactNewFilePath && (
+                <span className="hidden shrink-0 text-[10px] text-ink-subtle sm:inline">Exists</span>
+              )}
               <button
                 type="submit"
                 aria-label="Create file"
-                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded bg-midnight text-white hover:bg-midnight-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-6 md:w-6"
+                disabled={!canCreateNewFile}
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded text-midnight-strong transition-colors hover:bg-porcelain hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong disabled:cursor-not-allowed disabled:text-ink-subtle disabled:opacity-50 md:h-6 md:w-6"
               >
-                <Plus className="h-3.5 w-3.5" />
+                <Check className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                aria-label="Cancel file creation"
+                onClick={cancelCreateFile}
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded text-ink-subtle transition-colors hover:bg-porcelain hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-6 md:w-6"
+              >
+                <X className="h-3.5 w-3.5" />
               </button>
             </form>
           )}
