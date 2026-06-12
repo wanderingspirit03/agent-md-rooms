@@ -33,8 +33,8 @@ Primary reference: `DESIGN.md`.
 - Added Markdown source editor Tab/Shift+Tab indentation so list and code editing feels closer to a real Markdown workspace.
 - Added inline selected-text comment composer and clickable inline comment markers.
 - Added invisible mobile tap halos to inline annotation markers so comments/suggestions are easier to open without louder document styling.
-- Added a lightweight selection anchor so selecting text first shows a compact comment action before opening the full composer.
-- Increased mobile selection-anchor and inline composer action tap targets while preserving compact desktop sizing.
+- Made mouse text selection open the inline comment composer directly while preserving keyboard selection.
+- Increased mobile inline composer action tap targets while preserving compact desktop sizing.
 - Made inline comment markers persistently visible as soft document annotations.
 - Added encrypted comment resolve/reopen events with resolved notes hidden behind a compact review-drawer section.
 - Simplified comments to one comment type.

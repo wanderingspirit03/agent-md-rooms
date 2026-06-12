@@ -9,7 +9,6 @@ import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { PersonaChip } from "./PersonaChip";
-import { SelectionAnchor } from "./SelectionAnchor";
 import type { ChatComment, Proposal, RoomMode } from "./types";
 
 interface DocumentSurfaceProps {
@@ -118,7 +117,6 @@ export function DocumentSurface({
       if (!(target instanceof HTMLElement)) return;
       if (target.closest("[data-comment-popover]")) return;
       if (target.closest("[data-comment-composer]")) return;
-      if (target.closest("[data-selection-anchor]")) return;
       if (target.closest("[data-file-comment-control]")) return;
       if (target.closest("[data-inline-comment-marker]")) return;
       setActiveCommentCard(null);
@@ -139,7 +137,6 @@ export function DocumentSurface({
   const captureSelection = (event?: React.SyntheticEvent) => {
     const target = event?.target;
     if (target instanceof HTMLElement && target.closest("[data-comment-composer]")) return;
-    if (target instanceof HTMLElement && target.closest("[data-selection-anchor]")) return;
     if (target instanceof HTMLElement && target.closest("[data-inline-comment-marker]")) return;
 
     const selection = window.getSelection();
@@ -154,11 +151,14 @@ export function DocumentSurface({
     const range = selection.getRangeAt(0);
     if (!readSurfaceRef.current.contains(range.commonAncestorContainer)) return;
 
+    const openInlineComposer = event?.type !== "keyup";
     const rangeRect = range.getBoundingClientRect();
     const surfaceRect = readSurfaceRef.current.getBoundingClientRect();
     onSelectedQuoteChange(expandPartialWordSelection(markdown, selectedText).slice(0, 180));
     setActiveCommentCard(null);
-    setInlineComposerOpen(false);
+    setFileCommentsOpen(false);
+    setFileComposerOpen(false);
+    setInlineComposerOpen(openInlineComposer);
     const preferredLeft = rangeRect.right - surfaceRect.left + 16;
     const maxLeft = Math.max(16, surfaceRect.width - 356);
     setAnchorPoint({
@@ -468,20 +468,6 @@ export function DocumentSurface({
                 Resolve
               </button>
             )}
-          </div>
-        )}
-        {selectedQuote && anchorPoint && !inlineComposerOpen && (
-          <div
-            className="absolute z-10 w-[min(340px,calc(100%-2rem))]"
-            style={{ top: anchorPoint.top, left: anchorPoint.left }}
-          >
-            <SelectionAnchor
-              quote={selectedQuote}
-              onAddNote={() => {
-                setInlineComposerOpen(true);
-                window.requestAnimationFrame(() => composerRef.current?.focus());
-              }}
-            />
           </div>
         )}
         {selectedQuote && anchorPoint && inlineComposerOpen && (
