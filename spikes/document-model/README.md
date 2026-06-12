@@ -62,6 +62,9 @@ Current results:
 - No fixture currently round-trips byte-for-byte through Milkdown.
 - When Fold properties are wrapped around the Milkdown body, frontmatter is
   preserved and no required feature is lost in the current sample set.
+- Task lists and tables are preserved as Milkdown/ProseMirror structures in the
+  current sample set: task items keep checked/unchecked attrs, and tables keep
+  table/header/body-row/cell nodes.
 - The properties-wrapped path still does not round-trip byte-for-byte because
   Milkdown normalizes list markers, table spacing, and other Markdown source
   formatting.
@@ -71,8 +74,8 @@ ProseMirror proxy. Fold's existing properties strategy removes the frontmatter
 blocker for the current body-editing flow, but not for native editable
 frontmatter. The candidate still fails the current replacement gate for Fold's
 source editor because source formatting normalization remains unresolved. The
-next editor spike needs deeper task-list semantics checks and a deliberate
-answer for acceptable Markdown normalization before product integration.
+next editor spike needs a deliberate answer for acceptable Markdown
+normalization before product integration.
 
 ## Markdown Canonical Result
 

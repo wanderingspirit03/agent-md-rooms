@@ -102,6 +102,7 @@ This keeps the first prototype focused on the risky question: can Milkdown impor
 - Frontmatter support is still unproven by this audit; the fidelity harness must test it directly.
 - The first hidden harness proved frontmatter is still lost with CommonMark plus GFM, even though task-list Markdown syntax and table Markdown survive.
 - Wrapping Fold properties around the Milkdown editor body preserves frontmatter in the current sample set and matches the web app's current edit-mode strategy.
+- Task lists and tables are structurally represented in Milkdown's ProseMirror document in the current sample set.
 - Milkdown normalizes Markdown formatting, so exact byte-for-byte export still fails on the current fixture set.
 - Collaboration packages must not become the document source of truth or leak plaintext through server-side state.
 

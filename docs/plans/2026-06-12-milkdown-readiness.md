@@ -40,8 +40,9 @@ This does not disqualify Milkdown as an editor. It means a plain ProseMirror Mar
 The first hidden Milkdown CommonMark/GFM harness improved the result: task-list
 Markdown syntax and table Markdown survive, and frontmatter survives if Fold
 keeps properties outside the editor body and reattaches them afterward. The
-candidate still fails exact byte-for-byte round-trip because Milkdown normalizes
-Markdown source formatting.
+candidate also preserves task-list checked/unchecked attrs and table row/cell
+nodes in the current fixtures. It still fails exact byte-for-byte round-trip
+because Milkdown normalizes Markdown source formatting.
 
 ## Candidate Package Scope
 

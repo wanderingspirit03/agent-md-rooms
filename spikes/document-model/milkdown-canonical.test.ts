@@ -30,6 +30,11 @@ describe("milkdown editor candidate", () => {
     expect(report.exactRoundTrip).toBe(false);
     expect(report.lostFeatureNames).toContain("frontmatter");
     expect(report.preservedFeatureNames).toContain("taskLists");
+    expect(report.semantics.taskListItems).toEqual({
+      checked: 1,
+      unchecked: 2,
+      total: 3,
+    });
     expect(report.output).not.toMatch(/^---\ntitle: Agent Plan\nowner: coding-agent\n---/);
     expect(report.output).toContain("* [x] Verify E2EE spike");
     expect(report.output).not.toContain("- [x] Verify E2EE spike");
@@ -41,6 +46,11 @@ describe("milkdown editor candidate", () => {
     expect(report.exactRoundTrip).toBe(false);
     expect(report.preservedFeatureNames).toContain("frontmatter");
     expect(report.preservedFeatureNames).toContain("taskLists");
+    expect(report.semantics.taskListItems).toEqual({
+      checked: 1,
+      unchecked: 2,
+      total: 3,
+    });
     expect(report.lostFeatureNames).not.toContain("frontmatter");
     expect(report.output).toMatch(/^---\ntitle: Agent Plan\nowner: coding-agent\n---/);
     expect(report.output).toContain("* [x] Verify E2EE spike");
@@ -53,6 +63,14 @@ describe("milkdown editor candidate", () => {
     expect(report.preservedFeatureNames).toContain("tables");
     expect(report.preservedFeatureNames).toContain("fencedCode");
     expect(report.preservedFeatureNames).toContain("inlineCode");
+    expect(report.semantics.tables).toEqual([
+      {
+        headerRows: 1,
+        bodyRows: 3,
+        columns: 3,
+        totalCells: 12,
+      },
+    ]);
     expect(report.output).toMatch(/\| Area\s+\| Status\s+\| Notes\s+\|/);
     expect(report.output).toMatch(/\| -{2,}\s+\| -{2,}\s+\| -{2,}\s+\|/);
   });
@@ -87,6 +105,19 @@ describe("milkdown editor candidate", () => {
     expect(report.preservedFeatureNames).toContain("fencedCode");
     expect(report.preservedFeatureNames).toContain("mermaidFence");
     expect(report.preservedFeatureNames).toContain("mathFence");
+    expect(report.semantics.taskListItems).toEqual({
+      checked: 2,
+      unchecked: 2,
+      total: 4,
+    });
+    expect(report.semantics.tables).toEqual([
+      {
+        headerRows: 1,
+        bodyRows: 4,
+        columns: 4,
+        totalCells: 20,
+      },
+    ]);
   });
 
   it("keeps long handoff frontmatter when properties are wrapped around Milkdown output", async () => {
@@ -99,6 +130,19 @@ describe("milkdown editor candidate", () => {
     expect(report.preservedFeatureNames).toContain("taskLists");
     expect(report.preservedFeatureNames).toContain("tables");
     expect(report.preservedFeatureNames).toContain("fencedCode");
+    expect(report.semantics.taskListItems).toEqual({
+      checked: 2,
+      unchecked: 2,
+      total: 4,
+    });
+    expect(report.semantics.tables).toEqual([
+      {
+        headerRows: 1,
+        bodyRows: 4,
+        columns: 4,
+        totalCells: 20,
+      },
+    ]);
     expect(report.lostFeatureNames).toEqual([]);
     expect(report.output).toMatch(/^---\ntitle: Agent Handoff Review\nowner: review-agent\nroom: fold-ui\nstatus: active\n---/);
   });

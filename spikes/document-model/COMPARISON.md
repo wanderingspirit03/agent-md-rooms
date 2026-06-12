@@ -18,6 +18,8 @@ This report shows the same agent-authored Markdown samples through the durable M
 | Milkdown candidate | no | taskLists | frontmatter |
 | Milkdown with Fold properties | no | frontmatter, taskLists | none |
 
+Milkdown semantics: 1 checked / 2 unchecked task items; no tables
+
 ### Original Markdown
 
 ````md
@@ -143,6 +145,8 @@ Agents should preserve Markdown as a portable artifact.
 | Editor canonical | no | fencedCode, inlineCode | tables |
 | Milkdown candidate | no | tables, fencedCode, inlineCode | none |
 | Milkdown with Fold properties | no | tables, fencedCode, inlineCode | none |
+
+Milkdown semantics: no task items; 3 cols x 4 rows (12 total cells)
 
 ### Original Markdown
 
@@ -291,6 +295,8 @@ npm run typecheck
 | Editor canonical | no | fencedCode, mermaidFence, mathFence, inlineMath, links, images | none |
 | Milkdown candidate | no | fencedCode, mermaidFence, mathFence, inlineMath, links, images | none |
 | Milkdown with Fold properties | no | fencedCode, mermaidFence, mathFence, inlineMath, links, images | none |
+
+Milkdown semantics: no task items; no tables
 
 ### Original Markdown
 
@@ -458,6 +464,8 @@ Block math:
 | Editor canonical | no | fencedCode, mermaidFence, mathFence, inlineMath, links, images, inlineCode | frontmatter, taskLists, tables |
 | Milkdown candidate | no | taskLists, tables, fencedCode, mermaidFence, mathFence, inlineMath, links, images, inlineCode | frontmatter |
 | Milkdown with Fold properties | no | frontmatter, taskLists, tables, fencedCode, mermaidFence, mathFence, inlineMath, links, images, inlineCode | none |
+
+Milkdown semantics: 2 checked / 2 unchecked task items; 4 cols x 5 rows (20 total cells)
 
 ### Original Markdown
 

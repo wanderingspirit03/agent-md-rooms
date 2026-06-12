@@ -41,6 +41,8 @@ for (const sample of samples) {
 | Milkdown candidate | ${milkdownReport.exactRoundTrip ? "yes" : "no"} | ${formatList(milkdownReport.preservedFeatureNames)} | ${formatList(milkdownReport.lostFeatureNames)} |
 | Milkdown with Fold properties | ${milkdownPropertiesReport.exactRoundTrip ? "yes" : "no"} | ${formatList(milkdownPropertiesReport.preservedFeatureNames)} | ${formatList(milkdownPropertiesReport.lostFeatureNames)} |
 
+Milkdown semantics: ${formatMilkdownSemantics(milkdownPropertiesReport)}
+
 ### Original Markdown
 
 \`\`\`\`md
@@ -94,6 +96,21 @@ function formatList(values: readonly string[]): string {
   return values.length === 0 ? "none" : values.join(", ");
 }
 
+function formatMilkdownSemantics(
+  report: Awaited<ReturnType<typeof analyzeMilkdownWithPropertiesRoundTrip>>,
+): string {
+  const taskSummary = report.semantics.taskListItems.total > 0
+    ? `${report.semantics.taskListItems.checked} checked / ${report.semantics.taskListItems.unchecked} unchecked task items`
+    : "no task items";
+  const tableSummary = report.semantics.tables.length > 0
+    ? report.semantics.tables
+      .map((table) => `${table.columns} cols x ${table.headerRows + table.bodyRows} rows (${table.totalCells} total cells)`)
+      .join("; ")
+    : "no tables";
+
+  return `${taskSummary}; ${tableSummary}`;
+}
+
 function renderHtmlReport(): string {
   const sampleCards: string[] = [];
 
@@ -117,6 +134,7 @@ function renderHtmlReport(): string {
         <div><strong>Editor canonical:</strong> exact round-trip: ${editorReport.output === sample.markdown ? "yes" : "no"}; lost: ${escapeHtml(formatList(editorReport.lostFeatureNames))}</div>
         <div><strong>Milkdown candidate:</strong> exact round-trip: ${milkdownReport.exactRoundTrip ? "yes" : "no"}; lost: ${escapeHtml(formatList(milkdownReport.lostFeatureNames))}</div>
         <div><strong>Milkdown with Fold properties:</strong> exact round-trip: ${milkdownPropertiesReport.exactRoundTrip ? "yes" : "no"}; lost: ${escapeHtml(formatList(milkdownPropertiesReport.lostFeatureNames))}</div>
+        <div><strong>Milkdown semantics:</strong> ${escapeHtml(formatMilkdownSemantics(milkdownPropertiesReport))}</div>
       </div>
       <div class="grid">
         ${renderPane("Original Markdown", sample.markdown)}

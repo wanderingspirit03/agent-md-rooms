@@ -10,11 +10,26 @@ export type MilkdownCanonicalReport = {
   output: string;
   exactRoundTrip: boolean;
   nodeCounts: Record<string, number>;
+  semantics: MilkdownSemanticSummary;
   features: FeatureResult[];
   detectedFeatureCount: number;
   preservedFeatureCount: number;
   preservedFeatureNames: EditorCanonicalFeature[];
   lostFeatureNames: EditorCanonicalFeature[];
+};
+
+export type MilkdownSemanticSummary = {
+  taskListItems: {
+    checked: number;
+    unchecked: number;
+    total: number;
+  };
+  tables: Array<{
+    headerRows: number;
+    bodyRows: number;
+    columns: number;
+    totalCells: number;
+  }>;
 };
 
 type Fence = {
@@ -87,6 +102,7 @@ export async function analyzeMilkdownWithPropertiesRoundTrip(
     output,
     exactRoundTrip: output === markdown,
     nodeCounts: bodyReport.nodeCounts,
+    semantics: bodyReport.semantics,
     features,
     detectedFeatureCount: detectedFeatures.length,
     preservedFeatureCount: preservedFeatures.length,
@@ -144,6 +160,7 @@ async function analyzeMilkdownMarkdown(
       output,
       exactRoundTrip: output === reportInput,
       nodeCounts: countNodes(doc),
+      semantics: collectSemantics(doc),
       features,
       detectedFeatureCount: detectedFeatures.length,
       preservedFeatureCount: preservedFeatures.length,
@@ -320,6 +337,55 @@ function countNodes(doc: ProseMirrorNode): Record<string, number> {
   });
 
   return counts;
+}
+
+function collectSemantics(doc: ProseMirrorNode): MilkdownSemanticSummary {
+  const taskListItems = {
+    checked: 0,
+    unchecked: 0,
+    total: 0,
+  };
+  const tables: MilkdownSemanticSummary["tables"] = [];
+
+  doc.descendants((node) => {
+    if (node.type.name === "list_item" && node.attrs.checked != null) {
+      taskListItems.total += 1;
+      if (node.attrs.checked) {
+        taskListItems.checked += 1;
+      } else {
+        taskListItems.unchecked += 1;
+      }
+    }
+
+    if (node.type.name === "table") {
+      let headerRows = 0;
+      let bodyRows = 0;
+      let columns = 0;
+      let totalCells = 0;
+
+      node.forEach((row) => {
+        if (row.type.name === "table_header_row") {
+          headerRows += 1;
+        }
+
+        if (row.type.name === "table_row") {
+          bodyRows += 1;
+        }
+
+        columns = Math.max(columns, row.childCount);
+        totalCells += row.childCount;
+      });
+
+      tables.push({
+        headerRows,
+        bodyRows,
+        columns,
+        totalCells,
+      });
+    }
+  });
+
+  return { taskListItems, tables };
 }
 
 function collectFences(markdown: string): Fence[] {
