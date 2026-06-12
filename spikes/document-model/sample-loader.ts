@@ -7,14 +7,17 @@ export interface MarkdownSample {
   markdown: string;
 }
 
-const sampleNames = [
+export const MARKDOWN_SAMPLE_NAMES = [
   'agent-plan.md',
   'code-report.md',
   'rich-agent-output.md',
+  'long-agent-handoff.md',
 ] as const;
 
+export type MarkdownSampleName = typeof MARKDOWN_SAMPLE_NAMES[number];
+
 export async function loadMarkdownSamples(): Promise<MarkdownSample[]> {
-  return Promise.all(sampleNames.map(async (name) => {
+  return Promise.all(MARKDOWN_SAMPLE_NAMES.map(async (name) => {
     const path = join('spikes/document-model/samples', name);
     return {
       name,
@@ -27,4 +30,3 @@ export async function loadMarkdownSamples(): Promise<MarkdownSample[]> {
 export function normalizeLineEndings(value: string): string {
   return value.replace(/\r\n/g, '\n');
 }
-

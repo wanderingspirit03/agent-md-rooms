@@ -7,9 +7,9 @@ import {
   serializeMarkdownCanonical,
   syncMarkdownCanonicalDocuments,
 } from "./markdown-canonical.js";
+import { MARKDOWN_SAMPLE_NAMES } from "./sample-loader.js";
 
 const sampleDir = join(import.meta.dirname, "samples");
-const samples = ["agent-plan.md", "code-report.md", "rich-agent-output.md"];
 
 function readSample(name: string): string {
   return readFileSync(join(sampleDir, name), "utf8");
@@ -29,7 +29,7 @@ describe("markdown-canonical document model", () => {
   });
 
   it("round-trips every sample byte-for-byte", () => {
-    for (const sample of samples) {
+    for (const sample of MARKDOWN_SAMPLE_NAMES) {
       const markdown = readSample(sample);
       const report = analyzeMarkdownCanonicalRoundTrip(markdown);
 
@@ -67,6 +67,27 @@ describe("markdown-canonical document model", () => {
     expect(report.detectedFeatureNames).toContain("inlineMath");
     expect(report.detectedFeatureNames).toContain("links");
     expect(report.detectedFeatureNames).toContain("images");
+    expect(report.preservedFeatureNames).toEqual(report.detectedFeatureNames);
+  });
+
+  it("keeps long agent handoff reports intact", () => {
+    const report = analyzeMarkdownCanonicalRoundTrip(
+      readSample("long-agent-handoff.md"),
+    );
+
+    expect(report.detectedFeatureNames).toEqual([
+      "frontmatter",
+      "taskLists",
+      "tables",
+      "fencedCode",
+      "mermaidFence",
+      "mathFence",
+      "inlineMath",
+      "links",
+      "images",
+      "inlineCode",
+    ]);
+    expect(report.exactRoundTrip).toBe(true);
     expect(report.preservedFeatureNames).toEqual(report.detectedFeatureNames);
   });
 

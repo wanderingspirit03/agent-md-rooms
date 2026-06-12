@@ -99,6 +99,7 @@ Primary reference: `DESIGN.md`.
 - Routed the empty toolbar comment action directly to the document file-comment composer instead of opening a blank review drawer.
 - Made the file-comment composer cancel action touch-sized and cleared stale draft text after cancel/post.
 - Opened the file-comment list immediately after posting so comment feedback stays in the document surface.
+- Expanded the document-model fidelity spike with a long agent handoff sample before swapping in a polished editor surface.
 - Verified recent UI slices with Playwright screenshots on desktop and mobile because `iab` is unavailable in this session.
 - Continue verifying substantial slices with a separate reviewer/subagent before pushing.
 

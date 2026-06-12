@@ -29,6 +29,9 @@ Known losses in the current sample set:
   leading metadata block.
 - GFM task-list markers are escaped as text, not preserved as task items.
 - Pipe tables flatten into paragraph text instead of table structure.
+- The long agent handoff sample repeats those losses in a more realistic report
+  shape, so a polished Milkdown/ProseMirror editor still needs explicit
+  GFM/frontmatter handling or a hybrid Markdown snapshot strategy.
 
 This means editor-canonical remains promising for rich editing, but it needs
 explicit GFM/frontmatter extensions or a hybrid Markdown snapshot strategy
@@ -39,7 +42,8 @@ before it is safe as the v1 canonical model for agent-authored `.md` files.
 `markdown-canonical.ts` treats the raw Markdown string as the source of truth.
 The live document is represented as `Y.Text`, and the sample set round-trips
 byte-for-byte. Frontmatter, task-list markers, pipe tables, Mermaid/math fences,
-inline math, links, images, and code fences remain exactly as agents wrote them.
+inline math, links, images, code fences, and long agent handoff reports remain
+exactly as agents wrote them.
 
 The tradeoff is that rich editor behavior, comments, suggestions, and block
 anchors must be layered on top of text/Yjs semantics instead of coming from a

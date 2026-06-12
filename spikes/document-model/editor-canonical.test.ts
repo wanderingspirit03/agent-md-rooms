@@ -6,6 +6,7 @@ import {
   parseEditorCanonical,
   summarizeEditorCanonicalReports,
 } from "./editor-canonical.js";
+import { MARKDOWN_SAMPLE_NAMES } from "./sample-loader.js";
 
 const sampleDir = join(import.meta.dirname, "samples");
 
@@ -15,11 +16,7 @@ function readSample(name: string): string {
 
 describe("editor-canonical document model", () => {
   it("parses each sample into a ProseMirror document", () => {
-    for (const sample of [
-      "agent-plan.md",
-      "code-report.md",
-      "rich-agent-output.md",
-    ]) {
+    for (const sample of MARKDOWN_SAMPLE_NAMES) {
       const doc = parseEditorCanonical(readSample(sample));
 
       expect(doc.type.name).toBe("doc");
@@ -67,21 +64,33 @@ describe("editor-canonical document model", () => {
     expect(report.output).toContain("![Diagram](./diagram.png)");
   });
 
+  it("shows why long agent handoff reports still need a stronger editor adapter", () => {
+    const report = analyzeEditorCanonicalRoundTrip(
+      readSample("long-agent-handoff.md"),
+    );
+
+    expect(report.output).toContain("# Agent Handoff Review");
+    expect(report.preservedFeatureNames).toContain("fencedCode");
+    expect(report.preservedFeatureNames).toContain("mermaidFence");
+    expect(report.preservedFeatureNames).toContain("mathFence");
+    expect(report.lostFeatureNames).toContain("frontmatter");
+    expect(report.lostFeatureNames).toContain("taskLists");
+    expect(report.lostFeatureNames).toContain("tables");
+  });
+
   it("summarizes fidelity across the sample set", () => {
-    const reports = [
-      "agent-plan.md",
-      "code-report.md",
-      "rich-agent-output.md",
-    ].map((sample) => analyzeEditorCanonicalRoundTrip(readSample(sample)));
+    const reports = MARKDOWN_SAMPLE_NAMES.map((sample) =>
+      analyzeEditorCanonicalRoundTrip(readSample(sample)),
+    );
     const summary = summarizeEditorCanonicalReports(reports);
 
-    expect(summary.frontmatter).toEqual({ detected: 1, preserved: 0 });
-    expect(summary.taskLists).toEqual({ detected: 1, preserved: 0 });
-    expect(summary.tables).toEqual({ detected: 1, preserved: 0 });
-    expect(summary.fencedCode).toEqual({ detected: 2, preserved: 2 });
-    expect(summary.mermaidFence).toEqual({ detected: 1, preserved: 1 });
-    expect(summary.mathFence).toEqual({ detected: 1, preserved: 1 });
-    expect(summary.links).toEqual({ detected: 1, preserved: 1 });
-    expect(summary.images).toEqual({ detected: 1, preserved: 1 });
+    expect(summary.frontmatter).toEqual({ detected: 2, preserved: 0 });
+    expect(summary.taskLists).toEqual({ detected: 2, preserved: 0 });
+    expect(summary.tables).toEqual({ detected: 2, preserved: 0 });
+    expect(summary.fencedCode).toEqual({ detected: 3, preserved: 3 });
+    expect(summary.mermaidFence).toEqual({ detected: 2, preserved: 2 });
+    expect(summary.mathFence).toEqual({ detected: 2, preserved: 2 });
+    expect(summary.links).toEqual({ detected: 2, preserved: 2 });
+    expect(summary.images).toEqual({ detected: 2, preserved: 2 });
   });
 });

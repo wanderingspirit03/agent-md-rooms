@@ -431,6 +431,367 @@ Block math:
 <span class="removed">- </span>
 <span class="removed">- </span></code></pre>
       </div>
+    </section>
+<section class="sample">
+      <h2>long-agent-handoff.md</h2>
+      <div class="summary">
+        <div><strong>Markdown canonical:</strong> exact round-trip: yes; lost: none</div>
+        <div><strong>Editor canonical:</strong> exact round-trip: no; lost: frontmatter, taskLists, tables</div>
+      </div>
+      <div class="grid">
+        <article class="pane"><h3>Original Markdown</h3><pre><code>---
+title: Agent Handoff Review
+owner: review-agent
+room: fold-ui
+status: active
+---
+
+# Agent Handoff Review
+
+Fold should let a human open a project, inspect what agents changed, and respond
+directly inside the Markdown file. The document should remain the center of
+gravity while comments, suggestions, and handoff controls stay close enough to
+use without taking over the page.
+
+## Decisions
+
+- [x] Keep raw Markdown as the durable project artifact.
+- [x] Store review events as encrypted room records.
+- [ ] Replace the textarea only after editor import/export fidelity is proven.
+- [ ] Verify mobile comment flows against long reports.
+
+## Current Room State
+
+| Area | Owner | Status | Notes |
+| --- | --- | --- | --- |
+| Project files | Human | Stable | Folder navigation works across nested Markdown files |
+| Inline comments | Human + agent | Active | Text-range anchors use quote and context metadata |
+| Proposals | Agent | Active | File replacements are reviewable before accept |
+| Versions | Human | Draft | Named checkpoints restore Markdown snapshots |
+
+## Agent Notes
+
+The next agent should preserve exact Markdown whenever it edits generated plans.
+Pay special attention to `frontmatter`, task lists, tables, code fences, and
+links. Small formatting changes can become noisy in review.
+
+&gt; Agent notes should be useful without becoming a noisy dashboard. The best
+&gt; version of this surface feels like a calm project editor that happens to
+&gt; understand encrypted collaboration.
+
+## Diagram
+
+```mermaid
+flowchart LR
+  Human[Human reviewer] --&gt; Comment[Inline comment]
+  Agent[Agent proposal] --&gt; Review[Review drawer]
+  Comment --&gt; Markdown[(Markdown)]
+  Review --&gt; Markdown
+```
+
+## Patch Command
+
+```bash
+fold propose ./reports/agent-handoff-review.md \
+  --room fold-ui \
+  --path reports/agent-handoff-review.md \
+  --title &quot;Tighten handoff language&quot; \
+  --comment &quot;Keep the document calm and reviewable&quot;
+```
+
+## TypeScript Example
+
+```ts
+export function summarizeOpenWork(items: string[]): string {
+  return items.map((item, index) =&gt; `${index + 1}. ${item}`).join(&quot;\n&quot;);
+}
+```
+
+## Math And Links
+
+Inline scoring can stay simple: $score = preserved / detected$.
+
+```math
+\text{fidelity} = \frac{\text{preserved Markdown features}}{\text{detected Markdown features}}
+```
+
+Reference the [Fold repository](https://github.com/wanderingspirit03/agent-md-rooms)
+and keep image syntax portable:
+
+![Review drawer sketch](./assets/review-drawer.png)
+
+## Open Review Items
+
+1. Confirm that file comments open where users expect them.
+2. Confirm that pending suggestions are visible without a permanent rail.
+3. Confirm that bright mode preserves annotation contrast.
+4. Confirm that editor candidate export does not rewrite this file.
+
+</code></pre></article>
+        <article class="pane"><h3>Markdown-Canonical Export</h3><pre><code>---
+title: Agent Handoff Review
+owner: review-agent
+room: fold-ui
+status: active
+---
+
+# Agent Handoff Review
+
+Fold should let a human open a project, inspect what agents changed, and respond
+directly inside the Markdown file. The document should remain the center of
+gravity while comments, suggestions, and handoff controls stay close enough to
+use without taking over the page.
+
+## Decisions
+
+- [x] Keep raw Markdown as the durable project artifact.
+- [x] Store review events as encrypted room records.
+- [ ] Replace the textarea only after editor import/export fidelity is proven.
+- [ ] Verify mobile comment flows against long reports.
+
+## Current Room State
+
+| Area | Owner | Status | Notes |
+| --- | --- | --- | --- |
+| Project files | Human | Stable | Folder navigation works across nested Markdown files |
+| Inline comments | Human + agent | Active | Text-range anchors use quote and context metadata |
+| Proposals | Agent | Active | File replacements are reviewable before accept |
+| Versions | Human | Draft | Named checkpoints restore Markdown snapshots |
+
+## Agent Notes
+
+The next agent should preserve exact Markdown whenever it edits generated plans.
+Pay special attention to `frontmatter`, task lists, tables, code fences, and
+links. Small formatting changes can become noisy in review.
+
+&gt; Agent notes should be useful without becoming a noisy dashboard. The best
+&gt; version of this surface feels like a calm project editor that happens to
+&gt; understand encrypted collaboration.
+
+## Diagram
+
+```mermaid
+flowchart LR
+  Human[Human reviewer] --&gt; Comment[Inline comment]
+  Agent[Agent proposal] --&gt; Review[Review drawer]
+  Comment --&gt; Markdown[(Markdown)]
+  Review --&gt; Markdown
+```
+
+## Patch Command
+
+```bash
+fold propose ./reports/agent-handoff-review.md \
+  --room fold-ui \
+  --path reports/agent-handoff-review.md \
+  --title &quot;Tighten handoff language&quot; \
+  --comment &quot;Keep the document calm and reviewable&quot;
+```
+
+## TypeScript Example
+
+```ts
+export function summarizeOpenWork(items: string[]): string {
+  return items.map((item, index) =&gt; `${index + 1}. ${item}`).join(&quot;\n&quot;);
+}
+```
+
+## Math And Links
+
+Inline scoring can stay simple: $score = preserved / detected$.
+
+```math
+\text{fidelity} = \frac{\text{preserved Markdown features}}{\text{detected Markdown features}}
+```
+
+Reference the [Fold repository](https://github.com/wanderingspirit03/agent-md-rooms)
+and keep image syntax portable:
+
+![Review drawer sketch](./assets/review-drawer.png)
+
+## Open Review Items
+
+1. Confirm that file comments open where users expect them.
+2. Confirm that pending suggestions are visible without a permanent rail.
+3. Confirm that bright mode preserves annotation contrast.
+4. Confirm that editor candidate export does not rewrite this file.
+
+</code></pre></article>
+        <article class="pane"><h3>Editor-Canonical Export</h3><pre><code>---
+
+## title: Agent Handoff Review owner: review-agent room: fold-ui status: active
+
+# Agent Handoff Review
+
+Fold should let a human open a project, inspect what agents changed, and respond directly inside the Markdown file. The document should remain the center of gravity while comments, suggestions, and handoff controls stay close enough to use without taking over the page.
+
+## Decisions
+
+* \[x\] Keep raw Markdown as the durable project artifact.
+* \[x\] Store review events as encrypted room records.
+* \[ \] Replace the textarea only after editor import/export fidelity is proven.
+* \[ \] Verify mobile comment flows against long reports.
+
+## Current Room State
+
+| Area | Owner | Status | Notes | | --- | --- | --- | --- | | Project files | Human | Stable | Folder navigation works across nested Markdown files | | Inline comments | Human + agent | Active | Text-range anchors use quote and context metadata | | Proposals | Agent | Active | File replacements are reviewable before accept | | Versions | Human | Draft | Named checkpoints restore Markdown snapshots |
+
+## Agent Notes
+
+The next agent should preserve exact Markdown whenever it edits generated plans. Pay special attention to `frontmatter`, task lists, tables, code fences, and links. Small formatting changes can become noisy in review.
+
+&gt; Agent notes should be useful without becoming a noisy dashboard. The best version of this surface feels like a calm project editor that happens to understand encrypted collaboration.
+
+## Diagram
+
+```mermaid
+flowchart LR
+  Human[Human reviewer] --&gt; Comment[Inline comment]
+  Agent[Agent proposal] --&gt; Review[Review drawer]
+  Comment --&gt; Markdown[(Markdown)]
+  Review --&gt; Markdown
+```
+
+## Patch Command
+
+```bash
+fold propose ./reports/agent-handoff-review.md \
+  --room fold-ui \
+  --path reports/agent-handoff-review.md \
+  --title &quot;Tighten handoff language&quot; \
+  --comment &quot;Keep the document calm and reviewable&quot;
+```
+
+## TypeScript Example
+
+```ts
+export function summarizeOpenWork(items: string[]): string {
+  return items.map((item, index) =&gt; `${index + 1}. ${item}`).join(&quot;\n&quot;);
+}
+```
+
+## Math And Links
+
+Inline scoring can stay simple: $score = preserved / detected$.
+
+```math
+\text{fidelity} = \frac{\text{preserved Markdown features}}{\text{detected Markdown features}}
+```
+
+Reference the [Fold repository](https://github.com/wanderingspirit03/agent-md-rooms) and keep image syntax portable:
+
+![Review drawer sketch](./assets/review-drawer.png)
+
+## Open Review Items
+
+1. Confirm that file comments open where users expect them.
+2. Confirm that pending suggestions are visible without a permanent rail.
+3. Confirm that bright mode preserves annotation contrast.
+4. Confirm that editor candidate export does not rewrite this file.</code></pre></article>
+      </div>
+      <div class="diff">
+        <h3>Editor-Canonical Changes vs Original</h3>
+        <pre><code><span class="same">  ---</span>
+<span class="removed">- title: Agent Handoff Review</span>
+<span class="removed">- owner: review-agent</span>
+<span class="removed">- room: fold-ui</span>
+<span class="removed">- status: active</span>
+<span class="removed">- ---</span>
+<span class="same">  </span>
+<span class="added">+ ## title: Agent Handoff Review owner: review-agent room: fold-ui status: active</span>
+<span class="added">+ </span>
+<span class="same">  # Agent Handoff Review</span>
+<span class="same">  </span>
+<span class="removed">- Fold should let a human open a project, inspect what agents changed, and respond</span>
+<span class="removed">- directly inside the Markdown file. The document should remain the center of</span>
+<span class="removed">- gravity while comments, suggestions, and handoff controls stay close enough to</span>
+<span class="removed">- use without taking over the page.</span>
+<span class="added">+ Fold should let a human open a project, inspect what agents changed, and respond directly inside the Markdown file. The document should remain the center of gravity while comments, suggestions, and handoff controls stay close enough to use without taking over the page.</span>
+<span class="same">  </span>
+<span class="same">  ## Decisions</span>
+<span class="same">  </span>
+<span class="removed">- - [x] Keep raw Markdown as the durable project artifact.</span>
+<span class="removed">- - [x] Store review events as encrypted room records.</span>
+<span class="removed">- - [ ] Replace the textarea only after editor import/export fidelity is proven.</span>
+<span class="removed">- - [ ] Verify mobile comment flows against long reports.</span>
+<span class="added">+ * \[x\] Keep raw Markdown as the durable project artifact.</span>
+<span class="added">+ * \[x\] Store review events as encrypted room records.</span>
+<span class="added">+ * \[ \] Replace the textarea only after editor import/export fidelity is proven.</span>
+<span class="added">+ * \[ \] Verify mobile comment flows against long reports.</span>
+<span class="same">  </span>
+<span class="same">  ## Current Room State</span>
+<span class="same">  </span>
+<span class="removed">- | Area | Owner | Status | Notes |</span>
+<span class="removed">- | --- | --- | --- | --- |</span>
+<span class="removed">- | Project files | Human | Stable | Folder navigation works across nested Markdown files |</span>
+<span class="removed">- | Inline comments | Human + agent | Active | Text-range anchors use quote and context metadata |</span>
+<span class="removed">- | Proposals | Agent | Active | File replacements are reviewable before accept |</span>
+<span class="removed">- | Versions | Human | Draft | Named checkpoints restore Markdown snapshots |</span>
+<span class="added">+ | Area | Owner | Status | Notes | | --- | --- | --- | --- | | Project files | Human | Stable | Folder navigation works across nested Markdown files | | Inline comments | Human + agent | Active | Text-range anchors use quote and context metadata | | Proposals | Agent | Active | File replacements are reviewable before accept | | Versions | Human | Draft | Named checkpoints restore Markdown snapshots |</span>
+<span class="same">  </span>
+<span class="same">  ## Agent Notes</span>
+<span class="same">  </span>
+<span class="removed">- The next agent should preserve exact Markdown whenever it edits generated plans.</span>
+<span class="removed">- Pay special attention to `frontmatter`, task lists, tables, code fences, and</span>
+<span class="removed">- links. Small formatting changes can become noisy in review.</span>
+<span class="added">+ The next agent should preserve exact Markdown whenever it edits generated plans. Pay special attention to `frontmatter`, task lists, tables, code fences, and links. Small formatting changes can become noisy in review.</span>
+<span class="same">  </span>
+<span class="removed">- &gt; Agent notes should be useful without becoming a noisy dashboard. The best</span>
+<span class="removed">- &gt; version of this surface feels like a calm project editor that happens to</span>
+<span class="removed">- &gt; understand encrypted collaboration.</span>
+<span class="added">+ &gt; Agent notes should be useful without becoming a noisy dashboard. The best version of this surface feels like a calm project editor that happens to understand encrypted collaboration.</span>
+<span class="same">  </span>
+<span class="same">  ## Diagram</span>
+<span class="same">  </span>
+<span class="same">  ```mermaid</span>
+<span class="same">  flowchart LR</span>
+<span class="same">    Human[Human reviewer] --&gt; Comment[Inline comment]</span>
+<span class="same">    Agent[Agent proposal] --&gt; Review[Review drawer]</span>
+<span class="same">    Comment --&gt; Markdown[(Markdown)]</span>
+<span class="same">    Review --&gt; Markdown</span>
+<span class="same">  ```</span>
+<span class="same">  </span>
+<span class="same">  ## Patch Command</span>
+<span class="same">  </span>
+<span class="same">  ```bash</span>
+<span class="same">  fold propose ./reports/agent-handoff-review.md \</span>
+<span class="same">    --room fold-ui \</span>
+<span class="same">    --path reports/agent-handoff-review.md \</span>
+<span class="same">    --title &quot;Tighten handoff language&quot; \</span>
+<span class="same">    --comment &quot;Keep the document calm and reviewable&quot;</span>
+<span class="same">  ```</span>
+<span class="same">  </span>
+<span class="same">  ## TypeScript Example</span>
+<span class="same">  </span>
+<span class="same">  ```ts</span>
+<span class="same">  export function summarizeOpenWork(items: string[]): string {</span>
+<span class="same">    return items.map((item, index) =&gt; `${index + 1}. ${item}`).join(&quot;\n&quot;);</span>
+<span class="same">  }</span>
+<span class="same">  ```</span>
+<span class="same">  </span>
+<span class="same">  ## Math And Links</span>
+<span class="same">  </span>
+<span class="same">  Inline scoring can stay simple: $score = preserved / detected$.</span>
+<span class="same">  </span>
+<span class="same">  ```math</span>
+<span class="same">  \text{fidelity} = \frac{\text{preserved Markdown features}}{\text{detected Markdown features}}</span>
+<span class="same">  ```</span>
+<span class="same">  </span>
+<span class="removed">- Reference the [Fold repository](https://github.com/wanderingspirit03/agent-md-rooms)</span>
+<span class="removed">- and keep image syntax portable:</span>
+<span class="added">+ Reference the [Fold repository](https://github.com/wanderingspirit03/agent-md-rooms) and keep image syntax portable:</span>
+<span class="same">  </span>
+<span class="same">  ![Review drawer sketch](./assets/review-drawer.png)</span>
+<span class="same">  </span>
+<span class="same">  ## Open Review Items</span>
+<span class="same">  </span>
+<span class="same">  1. Confirm that file comments open where users expect them.</span>
+<span class="same">  2. Confirm that pending suggestions are visible without a permanent rail.</span>
+<span class="same">  3. Confirm that bright mode preserves annotation contrast.</span>
+<span class="same">  4. Confirm that editor candidate export does not rewrite this file.</span>
+<span class="removed">- </span>
+<span class="removed">- </span></code></pre>
+      </div>
     </section></main>
 </body>
 </html>
