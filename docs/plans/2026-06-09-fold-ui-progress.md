@@ -94,6 +94,7 @@ Primary reference: `DESIGN.md`.
 - Removed zero-count review drawer chrome from empty project states while keeping versions and activity available.
 - Made web human personas stable per browser profile and deduped same-persona presence avatars across tabs.
 - Removed visible shortcut/tutorial chrome from the source editor footer and command palette while preserving accessible keyboard context.
+- Replaced the agent handoff modal with a direct top-chrome and command-palette copy action so agent onboarding stays lightweight.
 - Polished sidebar file creation into a compact project-tree row with normalized Markdown paths, confirm/cancel controls, and duplicate-path feedback.
 - Hid the routine empty-room creation event from the review drawer so first-open rooms stay focused on document work.
 - Hid the empty-file checkpoint form from the review drawer until a file has content or saved versions.

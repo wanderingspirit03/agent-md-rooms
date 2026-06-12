@@ -1363,12 +1363,16 @@ function createAgentInvite({
     syncUrl: normalizedSyncUrl,
   });
   const skillUrl = `${normalizedAppUrl}/.well-known/fold/agent-skill.md`;
+  const warningLines = warnings.length
+    ? ["", "Reachability warning:", ...warnings.map((warning) => `- ${warning}`)]
+    : [];
   return {
     alias,
     skillUrl,
     warnings,
     text: [
       "Join this Fold project room:",
+      ...warningLines,
       "",
       `1. Read the agent skill: ${skillUrl}`,
       "",
@@ -1495,7 +1499,7 @@ function createInitialVirtualFiles(): Record<string, string> {
     "docs/runbooks/agent-handoff.md": [
       "# Agent Handoff Runbook",
       "",
-      "Use the Connect agent action to copy the secure CLI handoff for this project.",
+      "Use the Copy agent handoff action to copy the secure CLI handoff for this project.",
       "",
       "## Flow",
       "",
