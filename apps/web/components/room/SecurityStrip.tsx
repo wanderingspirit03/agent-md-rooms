@@ -15,14 +15,17 @@ export function SecurityStrip({
 
   return (
     <div
-      className="border-t border-studio-line bg-amber-950/40 px-3 py-1.5 text-[11px] text-amber-200 sm:px-4"
+      role="status"
+      aria-label={`E2EE status: ${error}`}
+      title={error}
+      className="border-t border-studio-line bg-studio-paper px-3 py-1.5 text-[11px] text-ink-subtle sm:px-4"
     >
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-        <span className="inline-flex items-center gap-1.5 font-medium text-ink">
-          <LockKeyhole className="h-3.5 w-3.5" />
+      <div className="flex min-h-5 items-center gap-2">
+        <span className="inline-flex shrink-0 items-center gap-1.5 font-medium text-ink-muted">
+          <LockKeyhole className="h-3.5 w-3.5 text-amber-400" />
           E2EE
         </span>
-        <span className="basis-full text-sm font-medium">{error}</span>
+        <span className="min-w-0 truncate text-ink-subtle">{error}</span>
       </div>
     </div>
   );
