@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Quote, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import MarkdownRenderer from "../MarkdownRenderer";
 import { extractMarkdownProperties } from "../../lib/markdown-properties";
 import { cn } from "../../lib/utils";
@@ -29,8 +30,13 @@ export function ThreadReviewDialog({
   onAccept,
   onReject,
 }: ThreadReviewDialogProps) {
+  const [confirmingAccept, setConfirmingAccept] = useState(false);
   const parsedProposal = proposal ? extractMarkdownProperties(proposal.proposedMarkdown) : null;
   const diff = proposal ? proposal.diff || fallbackDiff(proposal.createdFromMarkdown, proposal.proposedMarkdown) : "";
+
+  useEffect(() => {
+    setConfirmingAccept(false);
+  }, [proposal?.id]);
 
   return (
     <Dialog open={Boolean(proposal)} onOpenChange={(open) => !open && onClose()}>
@@ -89,14 +95,36 @@ export function ThreadReviewDialog({
 
             {proposal.status === "pending" ? (
               <DialogFooter className="border-t border-studio-line bg-studio-paper px-4 py-3 sm:px-5">
-                <Button variant="outline" onClick={() => onReject(proposal)}>
-                  <X className="h-4 w-4" />
-                  Reject
-                </Button>
-                <Button onClick={() => onAccept(proposal)}>
-                  <Check className="h-4 w-4" />
-                  Accept
-                </Button>
+                {confirmingAccept ? (
+                  <div className="flex w-full items-center justify-end gap-2">
+                    <p className="mr-auto text-xs text-midnight-strong">Apply?</p>
+                    <Button variant="outline" onClick={() => setConfirmingAccept(false)} aria-label={`Cancel accepting ${proposal.title}`}>
+                      <X className="h-4 w-4" />
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        onAccept(proposal);
+                        setConfirmingAccept(false);
+                      }}
+                      aria-label={`Confirm accepting ${proposal.title}`}
+                    >
+                      <Check className="h-4 w-4" />
+                      Apply
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <Button variant="outline" onClick={() => onReject(proposal)}>
+                      <X className="h-4 w-4" />
+                      Reject
+                    </Button>
+                    <Button onClick={() => setConfirmingAccept(true)}>
+                      <Check className="h-4 w-4" />
+                      Accept
+                    </Button>
+                  </>
+                )}
               </DialogFooter>
             ) : (
               <div className="border-t border-studio-line bg-studio-paper px-4 py-3 sm:px-5">
