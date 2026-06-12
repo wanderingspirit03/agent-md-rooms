@@ -849,7 +849,7 @@ export default function RoomPage() {
 
   const selectedMarkdown = selectedFilePath === LIVE_FILE_PATH
     ? markdown
-    : virtualFiles[selectedFilePath] ?? `# ${selectedFilePath}\n\nNo local Markdown loaded for this file yet.`;
+    : virtualFiles[selectedFilePath] ?? "";
   const defaultRecordFilePath = projectPrimaryPath || LIVE_FILE_PATH;
   const selectedFileComments = comments.filter((comment) => (comment.filePath || defaultRecordFilePath) === selectedFilePath);
   const selectedFileActiveComments = selectedFileComments.filter((comment) => !comment.resolvedAt);
