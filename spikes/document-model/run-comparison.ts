@@ -5,20 +5,26 @@ import {
   createMarkdownCanonicalDocument,
   serializeMarkdownCanonical,
 } from "./markdown-canonical.js";
+import { analyzeMilkdownCanonicalRoundTrip } from "./milkdown-canonical.js";
 import { loadMarkdownSamples } from "./sample-loader.js";
 
 const reportPath = "spikes/document-model/COMPARISON.md";
 const samples = await loadMarkdownSamples();
+const milkdownReportsByName = new Map<string, Awaited<ReturnType<typeof analyzeMilkdownCanonicalRoundTrip>>>();
 
-const sections = samples.map((sample) => {
+const sections: string[] = [];
+
+for (const sample of samples) {
   const markdownDoc = createMarkdownCanonicalDocument(sample.markdown);
   const markdownOutput = serializeMarkdownCanonical(markdownDoc);
   markdownDoc.destroy();
 
   const markdownReport = analyzeMarkdownCanonicalRoundTrip(sample.markdown);
   const editorReport = analyzeEditorCanonicalRoundTrip(sample.markdown);
+  const milkdownReport = await analyzeMilkdownCanonicalRoundTrip(sample.markdown);
+  milkdownReportsByName.set(sample.name, milkdownReport);
 
-  return `## ${sample.name}
+  sections.push(`## ${sample.name}
 
 ### Summary
 
@@ -26,6 +32,7 @@ const sections = samples.map((sample) => {
 | --- | --- | --- | --- |
 | Markdown canonical | ${markdownReport.exactRoundTrip ? "yes" : "no"} | ${formatList(markdownReport.preservedFeatureNames)} | ${formatList(markdownReport.lostFeatureNames)} |
 | Editor canonical | ${editorReport.output === sample.markdown ? "yes" : "no"} | ${formatList(editorReport.preservedFeatureNames)} | ${formatList(editorReport.lostFeatureNames)} |
+| Milkdown candidate | ${milkdownReport.exactRoundTrip ? "yes" : "no"} | ${formatList(milkdownReport.preservedFeatureNames)} | ${formatList(milkdownReport.lostFeatureNames)} |
 
 ### Original Markdown
 
@@ -44,15 +51,22 @@ ${markdownOutput}
 \`\`\`\`md
 ${editorReport.output}
 \`\`\`\`
-`;
-});
+
+### Milkdown Candidate Export
+
+\`\`\`\`md
+${milkdownReport.output}
+\`\`\`\`
+`);
+}
 
 const report = `# Document Model Comparison Report
 
-This report shows the same agent-authored Markdown samples through both candidate document models.
+This report shows the same agent-authored Markdown samples through the durable Markdown model and two editor candidates.
 
 - Markdown canonical keeps raw Markdown as the live \`Y.Text\` document.
 - Editor canonical parses Markdown into a ProseMirror document and serializes it back with \`prosemirror-markdown\`.
+- Milkdown candidate parses and serializes Markdown with Milkdown CommonMark plus GFM in a hidden jsdom harness.
 
 ${sections.join("\n")}
 `;
@@ -67,30 +81,43 @@ function formatList(values: readonly string[]): string {
 }
 
 function renderHtmlReport(): string {
-  const sampleCards = samples.map((sample) => {
+  const sampleCards: string[] = [];
+
+  for (const sample of samples) {
     const markdownDoc = createMarkdownCanonicalDocument(sample.markdown);
     const markdownOutput = serializeMarkdownCanonical(markdownDoc);
     markdownDoc.destroy();
     const markdownReport = analyzeMarkdownCanonicalRoundTrip(sample.markdown);
     const editorReport = analyzeEditorCanonicalRoundTrip(sample.markdown);
+    const milkdownReport = milkdownReportsByName.get(sample.name);
 
-    return `<section class="sample">
+    if (!milkdownReport) {
+      throw new Error(`Missing Milkdown report for ${sample.name}`);
+    }
+
+    sampleCards.push(`<section class="sample">
       <h2>${escapeHtml(sample.name)}</h2>
       <div class="summary">
         <div><strong>Markdown canonical:</strong> exact round-trip: ${markdownReport.exactRoundTrip ? "yes" : "no"}; lost: ${escapeHtml(formatList(markdownReport.lostFeatureNames))}</div>
         <div><strong>Editor canonical:</strong> exact round-trip: ${editorReport.output === sample.markdown ? "yes" : "no"}; lost: ${escapeHtml(formatList(editorReport.lostFeatureNames))}</div>
+        <div><strong>Milkdown candidate:</strong> exact round-trip: ${milkdownReport.exactRoundTrip ? "yes" : "no"}; lost: ${escapeHtml(formatList(milkdownReport.lostFeatureNames))}</div>
       </div>
       <div class="grid">
         ${renderPane("Original Markdown", sample.markdown)}
         ${renderPane("Markdown-Canonical Export", markdownOutput)}
         ${renderPane("Editor-Canonical Export", editorReport.output)}
+        ${renderPane("Milkdown Candidate Export", milkdownReport.output)}
       </div>
       <div class="diff">
         <h3>Editor-Canonical Changes vs Original</h3>
         <pre><code>${renderLineDiff(sample.markdown, editorReport.output)}</code></pre>
       </div>
-    </section>`;
-  }).join("\n");
+      <div class="diff">
+        <h3>Milkdown Candidate Changes vs Original</h3>
+        <pre><code>${renderLineDiff(sample.markdown, milkdownReport.output)}</code></pre>
+      </div>
+    </section>`);
+  }
 
   return `<!doctype html>
 <html lang="en">
@@ -143,7 +170,7 @@ function renderHtmlReport(): string {
     }
     .grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(280px, 1fr));
+      grid-template-columns: repeat(4, minmax(260px, 1fr));
       gap: 12px;
       align-items: stretch;
     }
@@ -217,9 +244,9 @@ function renderHtmlReport(): string {
 <body>
   <header>
     <h1>Document Model Comparison</h1>
-    <p>Compare the same agent-authored Markdown through raw Markdown/Y.Text versus ProseMirror editor-canonical serialization.</p>
+    <p>Compare the same agent-authored Markdown through raw Markdown/Y.Text, plain ProseMirror serialization, and the hidden Milkdown CommonMark/GFM candidate.</p>
   </header>
-  <main>${sampleCards}</main>
+  <main>${sampleCards.join("\n")}</main>
 </body>
 </html>`;
 }

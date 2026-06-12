@@ -1,11 +1,15 @@
 # Document Model Comparison Spike
 
-This spike compares two possible source-of-truth models before the real app chooses an editor architecture.
+This spike compares source-of-truth and editor-surface models before the real
+app chooses an editor architecture.
 
 ## Candidates
 
 - Markdown canonical: raw Markdown text is the live document, represented as `Y.Text`.
 - Editor canonical: structured editor state is the live document, represented here by ProseMirror Markdown parse/serialize as a non-UI proxy for Milkdown/ProseMirror.
+- Milkdown candidate: Milkdown CommonMark plus GFM parse/serialize in a hidden
+  jsdom harness, used to test the first planned polished editor candidate
+  without replacing the product editor.
 
 ## Decision Criteria
 
@@ -37,6 +41,29 @@ This means editor-canonical remains promising for rich editing, but it needs
 explicit GFM/frontmatter extensions or a hybrid Markdown snapshot strategy
 before it is safe as the v1 canonical model for agent-authored `.md` files.
 
+## Milkdown Candidate Result
+
+`milkdown-canonical.ts` initializes Milkdown with CommonMark and GFM in a
+hidden jsdom harness. This is closer to the planned editor stack than the plain
+`prosemirror-markdown` proxy.
+
+Current results:
+
+- GFM task-list Markdown syntax survives, but list markers are
+  normalized from `-` to `*`.
+- Pipe tables survive as table Markdown, but spacing and separator rows are
+  normalized.
+- Code fences, Mermaid fences, math fences, inline math, links, images, and
+  inline code survive in the current sample set.
+- YAML frontmatter still does not survive as a leading metadata block.
+- No fixture currently round-trips byte-for-byte through Milkdown.
+
+This means Milkdown remains a stronger editing-surface candidate than the plain
+ProseMirror proxy, but it still fails the current replacement gate for Fold's
+source editor. The next editor spike needs frontmatter handling, deeper
+task-list semantics checks, and a deliberate answer for source formatting
+normalization before product integration.
+
 ## Markdown Canonical Result
 
 `markdown-canonical.ts` treats the raw Markdown string as the source of truth.
@@ -60,4 +87,6 @@ For v1, use Markdown-canonical as the durable source of truth.
 Editor-native structures may still help the UI, comments, or block interactions,
 but they should remain derived/helper state unless a richer stack proves
 lossless fidelity for required Markdown features. Plain `prosemirror-markdown`
-is not enough by itself for agent-authored Markdown.
+is not enough by itself for agent-authored Markdown, and Milkdown CommonMark plus
+GFM is not enough yet because frontmatter and byte-level formatting fidelity
+still fail.

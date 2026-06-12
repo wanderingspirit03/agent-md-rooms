@@ -16,6 +16,10 @@ The web app already matches the planned platform baseline:
 
 No setup migration is required before a hidden editor prototype.
 
+The hidden Node/Vitest fidelity harness also uses `jsdom` plus `@types/jsdom`
+as dev-only dependencies because Milkdown initializes browser editor-view and
+timer APIs even when the test only needs parser/serializer contexts.
+
 ## Registry Findings
 
 Current npm metadata shows Milkdown `7.21.2` across the evaluated package family. The evaluated Milkdown packages are MIT licensed.
@@ -35,6 +39,13 @@ Core fidelity-harness candidates:
 | `@milkdown/plugin-prism` | `7.21.2` | MIT | Uses `refractor`; optional because the app read renderer already uses Shiki. |
 | `@milkdown/transformer` | `7.21.2` | MIT | Directly relevant to Markdown import/export checks. |
 | `@milkdown/utils` | `7.21.2` | MIT | Helper package used by plugins/presets. |
+
+Dev-only harness support:
+
+| Package | Current version | License | Notes |
+| --- | ---: | --- | --- |
+| `jsdom` | `^29.1.1` | MIT | Provides browser globals for the hidden Node/Vitest Milkdown harness. |
+| `@types/jsdom` | `^28.0.3` | MIT | Type declarations for the harness. |
 
 React and UI wrapper candidates:
 
@@ -89,6 +100,8 @@ This keeps the first prototype focused on the risky question: can Milkdown impor
 - Crepe is more Notion-like, but its dependency surface is wider and may push the UI toward toolbar/block-editor behavior.
 - GFM handling must be proven with task lists and pipe tables, not assumed from package names.
 - Frontmatter support is still unproven by this audit; the fidelity harness must test it directly.
+- The first hidden harness proved frontmatter is still lost with CommonMark plus GFM, even though task-list Markdown syntax and table Markdown survive.
+- Milkdown normalizes Markdown formatting, so exact byte-for-byte export still fails on the current fixture set.
 - Collaboration packages must not become the document source of truth or leak plaintext through server-side state.
 
 ## Sources Checked
@@ -108,3 +121,5 @@ This keeps the first prototype focused on the risky question: can Milkdown impor
 - `npm view @milkdown/plugin-collab version license peerDependencies dependencies --json`
 - `npm view y-prosemirror version license peerDependencies dependencies --json`
 - `npm view y-protocols version license peerDependencies dependencies --json`
+- `npm view jsdom version license peerDependencies dependencies --json`
+- `npm view @types/jsdom version license --json`
