@@ -35,7 +35,7 @@
 }
 
 html[data-theme="light"] {
-  --background: 220 18% 95%;
+  --background: 240 7% 96%;
   --foreground: 240 6% 10%;
   --border: 240 6% 10% / 0.11;
   --input: 240 6% 10% / 0.12;
@@ -45,13 +45,13 @@ html[data-theme="light"] {
   --ink-muted: 230 7% 38%;
   --ink-subtle: 225 6% 45%;
   --line-soft: 240 6% 10% / 0.12;
-  --bone: 220 14% 92%;
+  --bone: 240 8% 92%;
   --air: 222 35% 20%;
-  --porcelain: 222 42% 92%;
-  --studio: 220 18% 95%;
-  --studio-paper: 220 28% 98%;
+  --porcelain: 225 28% 93%;
+  --studio: 240 7% 96%;
+  --studio-paper: 240 8% 98%;
   --studio-line: 240 6% 10% / 0.1;
-  --studio-sunken: 220 16% 91%;
+  --studio-sunken: 240 7% 93%;
   --document: 42 20% 99%;
   --document-edge: 240 6% 10% / 0.11;
   --document-ink: 240 6% 12%;
