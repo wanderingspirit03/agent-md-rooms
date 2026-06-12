@@ -707,6 +707,21 @@ function ProjectFilesBody({
     : false;
   const canCreateFromSearch = Boolean(normalizedQuery && requestedSearchPath && !hasExactSearchPath);
   const canCreateNewFile = Boolean(requestedNewFilePath && !hasExactNewFilePath);
+  const activeFiles = useMemo(
+    () => files
+      .filter((file) => uniquePresencesByPersona(file.activePresences || []).length > 1)
+      .filter((file) => (file.commentCount || 0) + (file.pendingCount || 0) === 0)
+      .sort(compareProjectActivityFiles)
+      .slice(0, 4),
+    [files],
+  );
+  const reviewFiles = useMemo(
+    () => files
+      .filter((file) => (file.commentCount || 0) + (file.pendingCount || 0) > 0)
+      .sort(compareProjectReviewFiles)
+      .slice(0, 4),
+    [files],
+  );
   const toggleFolder = (name: string) => {
     setOpenFolders((current) => ({ ...current, [name]: !(current[name] ?? true) }));
   };
@@ -770,13 +785,33 @@ function ProjectFilesBody({
         {!normalizedQuery && recentFiles.length > 1 && (
           <SidebarSection title="Recent">
             {recentFiles.map((file) => (
-              <SidebarFile key={`recent:${file.path}`} file={file} depth={0} onFileSelect={handleFileSelect} />
+              <SidebarFile key={`recent:${file.path}`} file={file} depth={0} showUpdatedAt onFileSelect={handleFileSelect} />
+            ))}
+          </SidebarSection>
+        )}
+        {!normalizedQuery && activeFiles.length > 0 && (
+          <SidebarSection
+            title="Active"
+            className={cn(!normalizedQuery && recentFiles.length > 1 && "mt-4")}
+          >
+            {activeFiles.map((file) => (
+              <SidebarFile key={`active:${file.path}`} file={file} depth={0} showUpdatedAt onFileSelect={handleFileSelect} />
+            ))}
+          </SidebarSection>
+        )}
+        {!normalizedQuery && reviewFiles.length > 0 && (
+          <SidebarSection
+            title="Review"
+            className={cn((recentFiles.length > 1 || activeFiles.length > 0) && "mt-4")}
+          >
+            {reviewFiles.map((file) => (
+              <SidebarFile key={`review:${file.path}`} file={file} depth={0} showUpdatedAt onFileSelect={handleFileSelect} />
             ))}
           </SidebarSection>
         )}
         <SidebarSection
           title="Project"
-          className={cn(!normalizedQuery && recentFiles.length > 1 && "mt-4")}
+          className={cn(!normalizedQuery && (recentFiles.length > 1 || activeFiles.length > 0 || reviewFiles.length > 0) && "mt-4")}
           action={
             <div className="flex items-center gap-1 md:gap-0.5">
               <button
@@ -933,10 +968,12 @@ function SidebarFile({
   file,
   onFileSelect,
   depth = 0,
+  showUpdatedAt = false,
 }: {
   file: ProjectFile;
   onFileSelect: (path: string) => void;
   depth?: number;
+  showUpdatedAt?: boolean;
 }) {
   return (
     <button
@@ -954,7 +991,7 @@ function SidebarFile({
       <span className="min-w-0 flex-1 truncate">{file.name}</span>
       <FilePresenceIndicators presences={file.activePresences || []} />
       <FileReviewIndicators commentCount={file.commentCount || 0} pendingCount={file.pendingCount || 0} />
-      {file.updatedAt && (
+      {showUpdatedAt && file.updatedAt && (
         <span className="hidden shrink-0 font-mono text-[10px] text-ink-subtle group-hover:text-ink-muted lg:inline">
           {formatRelativeTime(file.updatedAt)}
         </span>
@@ -1182,6 +1219,25 @@ function compareTreeFolders(a: Pick<ProjectTreeFolder, "name">, b: Pick<ProjectT
 
 function compareProjectFiles(a: ProjectFile, b: ProjectFile) {
   return a.name.localeCompare(b.name);
+}
+
+function compareProjectActivityFiles(a: ProjectFile, b: ProjectFile) {
+  const aPresence = uniquePresencesByPersona(a.activePresences || []).length;
+  const bPresence = uniquePresencesByPersona(b.activePresences || []).length;
+  if (aPresence !== bPresence) return bPresence - aPresence;
+  return compareProjectFiles(a, b);
+}
+
+function compareProjectReviewFiles(a: ProjectFile, b: ProjectFile) {
+  const aPending = a.pendingCount || 0;
+  const bPending = b.pendingCount || 0;
+  if (aPending !== bPending) return bPending - aPending;
+
+  const aTotal = (a.commentCount || 0) + aPending;
+  const bTotal = (b.commentCount || 0) + bPending;
+  if (aTotal !== bTotal) return bTotal - aTotal;
+
+  return compareProjectFiles(a, b);
 }
 
 function projectFileMatchScore(file: ProjectFile, query: string) {

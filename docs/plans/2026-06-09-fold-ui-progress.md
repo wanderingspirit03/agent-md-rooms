@@ -83,6 +83,7 @@ Primary reference: `DESIGN.md`.
 - Added encrypted typing/commenting activity hints to presence records with quiet toolbar and sidebar indicators.
 - Removed boxed collaborator avatar chrome and moved the E2EE signal into quiet file metadata instead of a right-toolbar pill.
 - Calmed sync error presentation into a compact E2EE status strip so offline/local development does not dominate the document.
+- Added conditional Active and Review file sections to the project sidebar, with full-tree timestamps kept quiet so live collaborators and files needing attention are discoverable without a permanent review rail.
 - Added a seeded long agent handoff report for desktop/mobile readability and annotation QA, including readable horizontal table scrolling on mobile.
 - Fixed random/repeated frontmatter key log noise by using stable React keys.
 - Tightened the command palette quick-switcher: tested Arrow/Home/End navigation, ranked files and commands together during search, and removed repeated group headers from filtered results.
