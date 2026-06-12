@@ -105,6 +105,8 @@ Primary reference: `DESIGN.md`.
 - Polished sidebar file creation into a compact project-tree row with normalized Markdown paths, confirm/cancel controls, and duplicate-path feedback.
 - Hid the routine empty-room creation event from the review drawer so first-open rooms stay focused on document work.
 - Hid the empty-file checkpoint form from the review drawer until a file has content or saved versions.
+- Hardened encrypted project-file replay so stale delayed web snapshots do not overwrite newer local or remote Markdown state in the web app or CLI export.
+- Added encrypted leave-presence records so collaborators disappear promptly on pagehide/room teardown while normal file/mode/activity updates do not flicker presence.
 - Routed the empty toolbar comment action directly to the document file-comment composer instead of opening a blank review drawer.
 - Made the file-comment composer cancel action touch-sized and cleared stale draft text after cancel/post.
 - Opened the file-comment list immediately after posting so comment feedback stays in the document surface.
@@ -126,13 +128,14 @@ Primary reference: `DESIGN.md`.
 - Keep checking whether the command palette feels like an Obsidian-style quick switcher under larger project file sets.
 - Continue checking mobile widths for overlap and horizontal scroll.
 - Keep collaboration objects streaming through the encrypted room pipeline; avoid designs that depend on manual refresh or static server-readable fetches.
-- Keep live presence quiet and useful without turning the chrome into a people dashboard.
+- Keep live presence quiet and useful while preserving prompt leave behavior and avoiding people-dashboard chrome.
 
 ## Next
 
 - Keep proposal/review drawer controls compact while testing action clarity on mobile.
 - Keep tuning inline annotation contrast across dark and bright themes without making the document feel marked up.
-- Keep richer presence hints useful without revealing document content to the server.
+- Keep richer presence hints useful without revealing document content to the server or relying on server-readable awareness state.
+- Continue hardening multi-user project-file conflicts beyond stale snapshot rejection; richer merge/rebase semantics are still open.
 - Keep named versions lightweight and verify restore clarity against long documents.
 - Keep empty states sparse and document-native as more project creation/import states are added.
 - Continue measuring long-document readability against the Obsidian reference screenshots.
