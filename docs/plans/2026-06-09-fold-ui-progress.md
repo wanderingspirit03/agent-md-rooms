@@ -101,6 +101,7 @@ Primary reference: `DESIGN.md`.
 - Opened the file-comment list immediately after posting so comment feedback stays in the document surface.
 - Expanded the document-model fidelity spike with a long agent handoff sample before swapping in a polished editor surface.
 - Added a Milkdown readiness gate so a richer editor must prove Markdown fidelity, quiet UX, and collaboration mapping before replacing the source editor.
+- Audited current Milkdown package metadata and narrowed the next editor prototype to core/preset fidelity checks before Crepe or collab packages.
 - Verified recent UI slices with Playwright screenshots on desktop and mobile because `iab` is unavailable in this session.
 - Continue verifying substantial slices with a separate reviewer/subagent before pushing.
 

@@ -11,7 +11,7 @@ Recommended stack:
 - Icons: lucide-react.
 - Motion: Motion for React for subtle panel, menu, and command transitions only.
 - Read mode: `react-markdown` with the remark/rehype stack documented in `PLAN.md`.
-- Edit mode: Milkdown, starting with `@milkdown/crepe` for the closest Notion-like editor feel.
+- Edit mode: source-only Markdown until Milkdown proves lossless import/export. Start the Milkdown work with core/preset fidelity checks; evaluate `@milkdown/crepe` later only if it stays quiet and source-faithful.
 - Collaboration: Yjs plus the custom encrypted append-log provider.
 
 ## Rationale
@@ -20,7 +20,7 @@ The product goal is not just a nice rich editor. The product goal is a private r
 
 That means raw Markdown in `Y.Text("markdown")` remains the durable document model for v1. Editor-native structures may help the UI, but they should not become the canonical room state unless they prove lossless Markdown fidelity.
 
-Block-doc-first tools can feel closer to Notion out of the box, but they create exactly the wrong risk for this product: lossy Markdown import/export. Milkdown and Crepe are the better compromise because they are Markdown-native, ProseMirror-based, and closer to the existing Markdown-canonical plan.
+Block-doc-first tools can feel closer to Notion out of the box, but they create exactly the wrong risk for this product: lossy Markdown import/export. Milkdown is the better first candidate because it is Markdown-native, ProseMirror-based, and closer to the existing Markdown-canonical plan. Crepe may become a UX candidate later, but it should not be the first fidelity proof.
 
 shadcn/ui and Radix should provide the quiet polished application shell: dialogs, menus, command palette, tabs, side panels, tooltips, dropdowns, and accessible primitives. The Notion-like feel should come from composition, spacing, keyboard flow, and review ergonomics rather than from replacing the document model.
 
@@ -42,9 +42,9 @@ Initial web room behavior:
 - Render accepted Markdown in a polished read mode.
 - Show non-sensitive room status.
 - Show participant/persona metadata only after local decryption.
-- Show a right-side review rail for encrypted proposals and timeline events.
+- Show lightweight review surfaces for encrypted proposals, comments, versions, and timeline events.
 - Support Markdown export/download.
-- Dynamically load Milkdown/Crepe only when the user enters edit mode.
+- Keep edit mode source-only until a hidden Milkdown fidelity prototype passes.
 
 ## Design Feel
 
@@ -53,7 +53,7 @@ Aim for a quiet, document-first collaboration surface:
 - Large readable document canvas.
 - Minimal chrome until review or editing tools are needed.
 - Clear read/edit/review modes.
-- Right rail for proposals, timeline, comments, and agent context.
+- Lightweight drawer or inline surfaces for proposals, timeline, comments, and agent context.
 - Command palette for room actions.
 - Small, legible agent badges and personas.
 - Soft focus states and restrained motion.
@@ -69,7 +69,7 @@ Avoid:
 
 ## Required Fidelity Spike
 
-Before deep UI investment, run a small Milkdown/Crepe fidelity spike against realistic agent-authored Markdown.
+Before replacing the source editor, run a small Milkdown fidelity spike against realistic agent-authored Markdown.
 
 Must test:
 
@@ -85,7 +85,7 @@ Must test:
 - Import/export round-trip quality.
 - Behavior when connected to Yjs document state.
 
-If Milkdown/Crepe loses required Markdown fidelity, keep it as an editing candidate only and revisit the editor integration before making it canonical.
+If Milkdown loses required Markdown fidelity, keep it as an editing candidate only and revisit the editor integration before making it canonical. Evaluate Crepe after the core fidelity path is understood, not before.
 
 ## Security Notes
 
