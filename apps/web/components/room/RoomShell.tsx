@@ -1587,7 +1587,7 @@ function ProjectCommandPalette({
         aria-modal="true"
         aria-label="Command palette"
         onKeyDown={handleDialogKeyDown}
-        className="fixed left-1/2 top-16 z-[70] w-[min(640px,calc(100vw-1rem))] -translate-x-1/2 overflow-hidden rounded-md border border-studio-line bg-studio-paper shadow-[0_14px_44px_rgba(0,0,0,0.24)]"
+        className="fixed left-1/2 top-16 z-[70] w-[min(640px,calc(100vw-1rem))] -translate-x-1/2 overflow-hidden rounded-md border border-studio-line bg-studio-paper shadow-[0_10px_30px_rgba(0,0,0,0.18)]"
       >
         <form onSubmit={runFirstItem} className="border-b border-studio-line">
           <label className="flex h-12 items-center gap-2 px-3 text-ink-muted">
@@ -1632,12 +1632,12 @@ function ProjectCommandPalette({
                       if (!item.disabled) setActiveIndex(index);
                     }}
                     className={cn(
-                      "flex h-11 w-full items-center gap-3 rounded px-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong",
+                      "flex h-11 w-full items-center gap-2.5 rounded px-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-10",
                       item.disabled && "cursor-not-allowed opacity-45",
                       !item.disabled && (index === activeIndex ? "bg-midnight-soft text-ink" : "hover:bg-studio-sunken"),
                     )}
                   >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-studio-line bg-studio-sunken text-ink-subtle">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center text-ink-subtle">
                       {item.icon}
                     </span>
                     <span className="min-w-0 flex-1">
@@ -1863,7 +1863,7 @@ function PresenceStack({
     <Tooltip>
       <TooltipTrigger asChild>
         <div
-          className="hidden h-9 shrink-0 items-center px-1 md:flex"
+          className="hidden h-8 shrink-0 items-center px-0.5 md:flex"
           role="group"
           aria-label={`Active collaborators: ${label}`}
           title={label}
@@ -1874,12 +1874,12 @@ function PresenceStack({
                 key={persona.id}
                 persona={persona}
                 compact
-                className={cn("h-7 w-7 ring-1 ring-studio-paper/80", index > 0 && "-ml-2")}
+                className={cn("h-6 w-6 ring-1 ring-studio-paper/80", index > 0 && "-ml-1.5")}
               />
             ))}
             {hiddenCount > 0 && (
               <span
-                className="-ml-2 flex h-7 min-w-7 items-center justify-center rounded-full bg-rail px-1 text-[10px] font-medium text-ink-subtle ring-1 ring-studio-paper/80"
+                className="-ml-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-rail px-1 text-[10px] font-medium text-ink-subtle ring-1 ring-studio-paper/80"
                 aria-hidden="true"
               >
                 +{hiddenCount}
