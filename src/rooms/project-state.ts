@@ -166,6 +166,7 @@ export async function decryptProjectSnapshotsFromRecords(
   records: EncryptedUpdateRecord[],
 ): Promise<ProjectSnapshot[]> {
   const snapshots: ProjectSnapshot[] = [];
+  const fileUpdatedAt = new Map<string, string>();
   let current: ProjectSnapshot | undefined;
   for (const record of records) {
     if (record.senderId.startsWith(PROJECT_UPDATE_SENDER_ID_PREFIX)) {
@@ -174,6 +175,10 @@ export async function decryptProjectSnapshotsFromRecords(
         throw new Error('Invalid encrypted project snapshot payload');
       }
       current = normalizeProjectSnapshot(value);
+      fileUpdatedAt.clear();
+      for (const file of current.files) {
+        fileUpdatedAt.set(file.path, current.updatedAt);
+      }
       snapshots.push(current);
       continue;
     }
@@ -183,11 +188,16 @@ export async function decryptProjectSnapshotsFromRecords(
       if (!isWebProjectFileSnapshot(value)) {
         throw new Error('Invalid encrypted web project file snapshot payload');
       }
+      const path = normalizeProjectPath(value.path);
+      if (isStaleProjectFileSnapshot(fileUpdatedAt.get(path), value.updatedAt)) {
+        continue;
+      }
       current = replaceProjectFile(
         current ?? singleFileProject(value.path, value.markdown),
-        value.path,
+        path,
         value.markdown,
       );
+      fileUpdatedAt.set(path, value.updatedAt);
       current = normalizeProjectSnapshot({
         ...current,
         updatedAt: value.updatedAt,
@@ -257,6 +267,16 @@ function isWebProjectFileSnapshot(value: unknown): value is WebProjectFileSnapsh
     typeof candidate.markdown === 'string' &&
     typeof candidate.updatedAt === 'string'
   );
+}
+
+export function isStaleProjectFileSnapshot(currentUpdatedAt: string | undefined, nextUpdatedAt: string): boolean {
+  if (!currentUpdatedAt) return false;
+  const currentTime = Date.parse(currentUpdatedAt);
+  const nextTime = Date.parse(nextUpdatedAt);
+  if (!Number.isNaN(currentTime) && !Number.isNaN(nextTime)) {
+    return nextTime < currentTime;
+  }
+  return nextUpdatedAt < currentUpdatedAt;
 }
 
 function defaultRoomPathForFile(sourcePath: string): string {

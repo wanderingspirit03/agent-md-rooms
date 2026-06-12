@@ -94,6 +94,7 @@ export default function RoomPage() {
   const fileSaveTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const presenceActivityTimerRef = useRef<number | null>(null);
   const virtualFilesRef = useRef(virtualFiles);
+  const projectFileUpdatedAtRef = useRef(projectFileUpdatedAt);
   const hasRemoteProjectStateRef = useRef(false);
   const projectPrimaryPathRef = useRef("");
   const bootstrappedInitialProjectRef = useRef(false);
@@ -120,6 +121,10 @@ export default function RoomPage() {
   useEffect(() => {
     virtualFilesRef.current = virtualFiles;
   }, [virtualFiles]);
+
+  useEffect(() => {
+    projectFileUpdatedAtRef.current = projectFileUpdatedAt;
+  }, [projectFileUpdatedAt]);
 
   useEffect(() => {
     if (!roomId || hasLoadedPreferredFile) return;
@@ -176,6 +181,7 @@ export default function RoomPage() {
         setComments([]);
         setPresenceByClientId({});
         setProjectFileUpdatedAt({});
+        projectFileUpdatedAtRef.current = {};
         setHasRemoteProjectState(false);
         setProjectPrimaryPath("");
         hasRemoteProjectStateRef.current = false;
@@ -372,18 +378,20 @@ export default function RoomPage() {
     if (rec.senderId.startsWith("web-client:file")) {
       const parsed = await decryptJson<ProjectFileSnapshot>(payload, cryptKey, rec);
       if (parsed.type !== "project_file_snapshot" || !parsed.path) return;
+      const path = normalizeProjectFilePath(parsed.path);
+      if (!path || isStaleProjectFileSnapshot(projectFileUpdatedAtRef.current[path], parsed.updatedAt)) return;
       const isFirstRemoteProjectFile = !hasRemoteProjectStateRef.current;
       hasRemoteProjectStateRef.current = true;
-      if (!projectPrimaryPathRef.current) projectPrimaryPathRef.current = parsed.path;
+      if (!projectPrimaryPathRef.current) projectPrimaryPathRef.current = path;
       setHasRemoteProjectState(true);
-      setProjectPrimaryPath((current) => current || parsed.path);
+      setProjectPrimaryPath((current) => current || path);
       if (isFirstRemoteProjectFile) {
-        setSelectedFilePath(parsed.path);
+        setSelectedFilePath(path);
       }
       setVirtualFiles((prev) => (
-        isFirstRemoteProjectFile ? { [parsed.path]: parsed.markdown } : { ...prev, [parsed.path]: parsed.markdown }
+        isFirstRemoteProjectFile ? { [path]: parsed.markdown } : { ...prev, [path]: parsed.markdown }
       ));
-      setProjectFileUpdatedAt((prev) => ({ ...prev, [parsed.path]: parsed.updatedAt }));
+      markProjectFileUpdatedAt(path, parsed.updatedAt);
       return;
     }
 
@@ -460,6 +468,7 @@ export default function RoomPage() {
     const updatedAt = Object.fromEntries(normalized.files.map((file) => [file.path, normalized.updatedAt]));
     hasRemoteProjectStateRef.current = true;
     projectPrimaryPathRef.current = normalized.primaryPath;
+    projectFileUpdatedAtRef.current = updatedAt;
     setHasRemoteProjectState(true);
     setProjectPrimaryPath(normalized.primaryPath);
     setVirtualFiles(files);
@@ -635,11 +644,10 @@ export default function RoomPage() {
     }, "local");
   };
 
-  const persistProjectFileSnapshot = async (path: string, nextMarkdown: string) => {
+  const persistProjectFileSnapshot = async (path: string, nextMarkdown: string, updatedAt = new Date().toISOString()) => {
     if (path === LIVE_FILE_PATH || !keyRef.current || !localMyPersona) return;
 
     try {
-      const updatedAt = new Date().toISOString();
       const record: ProjectFileSnapshot = {
         type: "project_file_snapshot",
         path,
@@ -648,6 +656,7 @@ export default function RoomPage() {
         authorPersonaId: localMyPersona.id,
         persona: localMyPersona,
       };
+      markProjectFileUpdatedAt(path, updatedAt);
       const senderId = `web-client:file:${Math.random().toString(36).slice(2, 11)}`;
       const encrypted = await encryptUpdate(encoder.encode(JSON.stringify(record)), keyRef.current, {
         roomId,
@@ -655,7 +664,6 @@ export default function RoomPage() {
       });
       const res = await postEncryptedRecord(senderId, encrypted);
       if (!res.ok) throw new Error(`Server returned ${res.status}`);
-      setProjectFileUpdatedAt((prev) => ({ ...prev, [path]: updatedAt }));
     } catch (err) {
       setSyncError(`Could not save encrypted project file: ${String(err)}`);
     }
@@ -663,10 +671,12 @@ export default function RoomPage() {
 
   const scheduleProjectFileSnapshot = (path: string, nextMarkdown: string) => {
     if (path === LIVE_FILE_PATH) return;
+    const updatedAt = new Date().toISOString();
+    markProjectFileUpdatedAt(path, updatedAt);
     clearTimeout(fileSaveTimersRef.current[path]);
     fileSaveTimersRef.current[path] = setTimeout(() => {
       delete fileSaveTimersRef.current[path];
-      void persistProjectFileSnapshot(path, nextMarkdown);
+      void persistProjectFileSnapshot(path, nextMarkdown, updatedAt);
     }, 700);
   };
 
@@ -675,6 +685,14 @@ export default function RoomPage() {
     clearTimeout(fileSaveTimersRef.current[path]);
     delete fileSaveTimersRef.current[path];
     void persistProjectFileSnapshot(path, nextMarkdown ?? virtualFilesRef.current[path] ?? "");
+  };
+
+  const markProjectFileUpdatedAt = (path: string, updatedAt: string) => {
+    projectFileUpdatedAtRef.current = {
+      ...projectFileUpdatedAtRef.current,
+      [path]: updatedAt,
+    };
+    setProjectFileUpdatedAt((prev) => ({ ...prev, [path]: updatedAt }));
   };
 
   const postEncryptedRecord = (senderId: string, encrypted: EncryptedPayload) => {
@@ -1069,6 +1087,16 @@ function upsertPresence(
     ...presences,
     [next.clientId]: next,
   };
+}
+
+function isStaleProjectFileSnapshot(currentUpdatedAt: string | undefined, nextUpdatedAt: string) {
+  if (!currentUpdatedAt) return false;
+  const currentTime = Date.parse(currentUpdatedAt);
+  const nextTime = Date.parse(nextUpdatedAt);
+  if (!Number.isNaN(currentTime) && !Number.isNaN(nextTime)) {
+    return nextTime < currentTime;
+  }
+  return nextUpdatedAt < currentUpdatedAt;
 }
 
 function activePresencesForFile(
