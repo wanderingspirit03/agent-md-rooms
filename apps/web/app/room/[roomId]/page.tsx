@@ -8,7 +8,7 @@ import { DocumentSurface } from "../../../components/room/DocumentSurface";
 import { RoomAccessGate } from "../../../components/room/RoomAccessGate";
 import { RoomShell } from "../../../components/room/RoomShell";
 import { ThreadReviewDialog } from "../../../components/room/ThreadReviewDialog";
-import type { ChatComment, CollaborationPresence, FileVersion, Proposal, TimelineEvent } from "../../../components/room/types";
+import type { ChatComment, CollaborationPresence, FileConflict, FileVersion, Proposal, TimelineEvent } from "../../../components/room/types";
 import {
   deriveRoomKey,
   decryptUpdate,
@@ -77,6 +77,7 @@ export default function RoomPage() {
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [comments, setComments] = useState<ChatComment[]>([]);
   const [fileVersions, setFileVersions] = useState<FileVersion[]>([]);
+  const [fileConflicts, setFileConflicts] = useState<Record<string, FileConflict>>({});
   const [presenceByClientId, setPresenceByClientId] = useState<Record<string, CollaborationPresence>>({});
   const [presenceClock, setPresenceClock] = useState(() => Date.now());
   const [presenceActivity, setPresenceActivity] = useState<PresenceActivity>("idle");
@@ -95,6 +96,7 @@ export default function RoomPage() {
   const presenceActivityTimerRef = useRef<number | null>(null);
   const virtualFilesRef = useRef(virtualFiles);
   const projectFileUpdatedAtRef = useRef(projectFileUpdatedAt);
+  const fileConflictsRef = useRef(fileConflicts);
   const localMyPersonaRef = useRef<RoomPersona | null>(localMyPersona);
   const selectedFilePathRef = useRef(selectedFilePath);
   const editModeRef = useRef(editMode);
@@ -140,6 +142,10 @@ export default function RoomPage() {
   useEffect(() => {
     projectFileUpdatedAtRef.current = projectFileUpdatedAt;
   }, [projectFileUpdatedAt]);
+
+  useEffect(() => {
+    fileConflictsRef.current = fileConflicts;
+  }, [fileConflicts]);
 
   useEffect(() => {
     if (!roomId || hasLoadedPreferredFile) return;
@@ -194,6 +200,8 @@ export default function RoomPage() {
         setProposals([]);
         setTimeline([]);
         setComments([]);
+        setFileConflicts({});
+        fileConflictsRef.current = {};
         setPresenceByClientId({});
         setProjectFileUpdatedAt({});
         projectFileUpdatedAtRef.current = {};
@@ -395,6 +403,10 @@ export default function RoomPage() {
       if (parsed.type !== "project_file_snapshot" || !parsed.path) return;
       const path = normalizeProjectFilePath(parsed.path);
       if (!path || isStaleProjectFileSnapshot(projectFileUpdatedAtRef.current[path], parsed.updatedAt)) return;
+      if (shouldDeferRemoteProjectFile(path, parsed.markdown, parsed.updatedAt)) {
+        deferRemoteProjectFile(path, parsed);
+        return;
+      }
       const isFirstRemoteProjectFile = !hasRemoteProjectStateRef.current;
       hasRemoteProjectStateRef.current = true;
       if (!projectPrimaryPathRef.current) projectPrimaryPathRef.current = path;
@@ -407,6 +419,7 @@ export default function RoomPage() {
         isFirstRemoteProjectFile ? { [path]: parsed.markdown } : { ...prev, [path]: parsed.markdown }
       ));
       markProjectFileUpdatedAt(path, parsed.updatedAt);
+      clearFileConflict(path);
       return;
     }
 
@@ -484,10 +497,12 @@ export default function RoomPage() {
     hasRemoteProjectStateRef.current = true;
     projectPrimaryPathRef.current = normalized.primaryPath;
     projectFileUpdatedAtRef.current = updatedAt;
+    fileConflictsRef.current = {};
     setHasRemoteProjectState(true);
     setProjectPrimaryPath(normalized.primaryPath);
     setVirtualFiles(files);
     setProjectFileUpdatedAt(updatedAt);
+    setFileConflicts({});
     if (!hasLoadedPreferredFile || !files[selectedFilePath]) {
       setSelectedFilePath(normalized.primaryPath);
     }
@@ -697,9 +712,65 @@ export default function RoomPage() {
 
   const flushProjectFileSnapshot = (path: string, nextMarkdown?: string) => {
     if (path === LIVE_FILE_PATH || !fileSaveTimersRef.current[path]) return;
+    clearPendingProjectFileTimer(path);
+    void persistProjectFileSnapshot(path, nextMarkdown ?? virtualFilesRef.current[path] ?? "");
+  };
+
+  const shouldDeferRemoteProjectFile = (path: string, remoteMarkdown: string, remoteUpdatedAt: string) => {
+    if (!fileSaveTimersRef.current[path] && !fileConflictsRef.current[path]) return false;
+    const localMarkdown = virtualFilesRef.current[path] ?? "";
+    if (localMarkdown === remoteMarkdown) return false;
+    return !isStaleProjectFileSnapshot(projectFileUpdatedAtRef.current[path], remoteUpdatedAt);
+  };
+
+  const deferRemoteProjectFile = (path: string, snapshot: ProjectFileSnapshot) => {
+    const existingConflict = fileConflictsRef.current[path];
+    if (existingConflict && isStaleProjectFileSnapshot(existingConflict.remoteUpdatedAt, snapshot.updatedAt)) return;
+
+    clearPendingProjectFileTimer(path);
+    const conflict: FileConflict = {
+      path,
+      localMarkdown: virtualFilesRef.current[path] ?? "",
+      localUpdatedAt: projectFileUpdatedAtRef.current[path],
+      remoteMarkdown: snapshot.markdown,
+      remoteUpdatedAt: snapshot.updatedAt,
+      persona: snapshot.persona,
+      createdAt: new Date().toISOString(),
+    };
+    fileConflictsRef.current = { ...fileConflictsRef.current, [path]: conflict };
+    setFileConflicts((current) => ({ ...current, [path]: conflict }));
+  };
+
+  const clearFileConflict = (path: string) => {
+    if (!fileConflictsRef.current[path]) return;
+    const { [path]: _cleared, ...rest } = fileConflictsRef.current;
+    fileConflictsRef.current = rest;
+    setFileConflicts(rest);
+  };
+
+  const clearPendingProjectFileTimer = (path: string) => {
+    if (!fileSaveTimersRef.current[path]) return;
     clearTimeout(fileSaveTimersRef.current[path]);
     delete fileSaveTimersRef.current[path];
-    void persistProjectFileSnapshot(path, nextMarkdown ?? virtualFilesRef.current[path] ?? "");
+  };
+
+  const handleUseIncomingFileConflict = (conflict: FileConflict) => {
+    clearPendingProjectFileTimer(conflict.path);
+    setVirtualFiles((current) => ({ ...current, [conflict.path]: conflict.remoteMarkdown }));
+    markProjectFileUpdatedAt(conflict.path, conflict.remoteUpdatedAt);
+    clearFileConflict(conflict.path);
+    setSelectedFilePath(conflict.path);
+    setSelectedQuote("");
+    setNewCommentText("");
+    clearPresenceActivity();
+  };
+
+  const handleKeepLocalFileConflict = (conflict: FileConflict) => {
+    clearPendingProjectFileTimer(conflict.path);
+    const localMarkdown = virtualFilesRef.current[conflict.path] ?? conflict.localMarkdown;
+    clearFileConflict(conflict.path);
+    setSelectedFilePath(conflict.path);
+    void persistProjectFileSnapshot(conflict.path, localMarkdown);
   };
 
   const markProjectFileUpdatedAt = (path: string, updatedAt: string) => {
@@ -919,10 +990,11 @@ export default function RoomPage() {
       proposals,
       projectFileUpdatedAt,
       activePresencesByFile(presenceByClientId, presenceClock),
+      fileConflicts,
       !hasRemoteProjectState,
       projectPrimaryPath || LIVE_FILE_PATH,
     ),
-    [selectedFilePath, virtualFiles, comments, proposals, projectFileUpdatedAt, presenceByClientId, presenceClock, hasRemoteProjectState, projectPrimaryPath],
+    [selectedFilePath, virtualFiles, comments, proposals, projectFileUpdatedAt, presenceByClientId, presenceClock, fileConflicts, hasRemoteProjectState, projectPrimaryPath],
   );
   useEffect(() => {
     if (!pendingPreferredFilePath) return;
@@ -951,6 +1023,7 @@ export default function RoomPage() {
   });
   const selectedFilePendingCount = selectedFileProposals.filter((proposal) => proposal.status === "pending").length;
   const selectedFileVersions = fileVersions.filter((version) => version.filePath === selectedFilePath);
+  const selectedFileConflict = fileConflicts[selectedFilePath] || null;
   const selectedFilePresences = activePresencesForFile(presenceByClientId, selectedFilePath, presenceClock);
   const selectedFileParticipants = uniquePersonas(selectedFileProposals, selectedFileComments, selectedFileVersions, selectedFilePresences, localMyPersona);
   const agentInvite = useMemo(() => {
@@ -985,7 +1058,8 @@ export default function RoomPage() {
         ready={syncProgress}
         recordCount={logRecords.length}
         pendingCount={selectedFilePendingCount}
-        reviewCount={selectedFileActiveComments.length + selectedFilePendingCount}
+        conflictCount={selectedFileConflict ? 1 : 0}
+        reviewCount={selectedFileActiveComments.length + selectedFilePendingCount + (selectedFileConflict ? 1 : 0)}
         selectedQuote={selectedQuote}
         persona={localMyPersona}
         activePresences={selectedFilePresences}
@@ -1051,6 +1125,7 @@ export default function RoomPage() {
             comments={selectedFileComments}
             proposals={selectedFileProposals}
             versions={selectedFileVersions}
+            conflict={selectedFileConflict}
             timeline={selectedFileTimeline}
             participants={selectedFileParticipants}
             selectedQuote={selectedQuote}
@@ -1060,6 +1135,8 @@ export default function RoomPage() {
             onResolveComment={handleResolveComment}
             onCreateVersion={handleCreateFileVersion}
             onRestoreVersion={handleRestoreFileVersion}
+            onUseIncomingConflict={handleUseIncomingFileConflict}
+            onKeepLocalConflict={handleKeepLocalFileConflict}
           />
         }
       />
@@ -1298,6 +1375,7 @@ function createProjectFiles(
   proposals: Proposal[],
   updatedAtByPath: Record<string, string> = {},
   presencesByPath: Map<string, CollaborationPresence[]> = new Map(),
+  conflictsByPath: Record<string, FileConflict> = {},
   includeLegacyLiveFile = true,
   defaultRecordFilePath = LIVE_FILE_PATH,
 ) {
@@ -1340,6 +1418,7 @@ function createProjectFiles(
     updatedAt: updatedAtByPath[file.path],
     commentCount: commentCounts.get(file.path) || 0,
     pendingCount: pendingProposalCounts.get(file.path) || 0,
+    conflictCount: conflictsByPath[file.path] ? 1 : 0,
     activePresences: presencesByPath.get(file.path) || [],
   }));
 }

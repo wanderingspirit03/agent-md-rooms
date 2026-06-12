@@ -7,7 +7,7 @@ import { cn } from "../../lib/utils";
 import { MarginThread } from "./MarginThread";
 import { PersonaAvatar } from "./PersonaAvatar";
 import { ProposalSlip } from "./ProposalSlip";
-import type { ChatComment, FileVersion, Proposal, TimelineEvent } from "./types";
+import type { ChatComment, FileConflict, FileVersion, Proposal, TimelineEvent } from "./types";
 
 interface AgentBenchProps {
   filePath: string;
@@ -15,6 +15,7 @@ interface AgentBenchProps {
   comments: ChatComment[];
   proposals: Proposal[];
   versions: FileVersion[];
+  conflict?: FileConflict | null;
   timeline: TimelineEvent[];
   participants: RoomPersona[];
   selectedQuote: string;
@@ -24,6 +25,8 @@ interface AgentBenchProps {
   onResolveComment: (comment: ChatComment, resolved: boolean) => void;
   onCreateVersion: (title: string) => void;
   onRestoreVersion: (version: FileVersion) => void;
+  onUseIncomingConflict: (conflict: FileConflict) => void;
+  onKeepLocalConflict: (conflict: FileConflict) => void;
 }
 
 export function AgentBench({
@@ -32,6 +35,7 @@ export function AgentBench({
   comments,
   proposals,
   versions,
+  conflict,
   timeline,
   participants,
   selectedQuote,
@@ -41,6 +45,8 @@ export function AgentBench({
   onResolveComment,
   onCreateVersion,
   onRestoreVersion,
+  onUseIncomingConflict,
+  onKeepLocalConflict,
 }: AgentBenchProps) {
   const [resolvedOpen, setResolvedOpen] = useState(false);
   const [versionTitle, setVersionTitle] = useState("");
@@ -62,7 +68,7 @@ export function AgentBench({
   const visibleTimeline = timeline.filter((event) => !isRoutineEmptyProjectEvent(event));
   const recentTimeline = visibleTimeline.slice(0, 4);
   const showCommentsSection = Boolean(selectedQuote || activeComments.length > 0 || resolvedComments.length > 0);
-  const showReviewCounts = activeComments.length > 0 || pendingProposals.length > 0 || detachedCount > 0;
+  const showReviewCounts = activeComments.length > 0 || pendingProposals.length > 0 || detachedCount > 0 || Boolean(conflict);
   const showSuggestionsSection = recentProposals.length > 0;
   const showVersionsSection = markdown.trim().length > 0 || versions.length > 0;
 
@@ -106,9 +112,52 @@ export function AgentBench({
                   tone="warning"
                 />
               )}
+              {conflict && (
+                <ReviewCount
+                  icon={<AlertTriangle className="h-3.5 w-3.5" />}
+                  count={1}
+                  label="incoming"
+                  singularLabel="incoming edit"
+                  pluralLabel="incoming edits"
+                  tone="warning"
+                />
+              )}
             </div>
           )}
         </div>
+
+        {conflict && (
+          <section className="space-y-2">
+            <RailHeading title="Incoming edit" count={1} />
+            <div className="rounded-md border border-midnight/25 bg-midnight-mark px-2.5 py-2">
+              <div className="flex gap-2">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-midnight-strong" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs leading-5 text-ink-muted">
+                    {conflict.persona?.name || "Someone"} changed this file while your edit was unsaved.
+                  </p>
+                  <p className="font-mono text-[11px] text-ink-subtle">{formatTime(conflict.remoteUpdatedAt)}</p>
+                </div>
+              </div>
+              <div className="mt-2 flex items-center justify-end gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => onKeepLocalConflict(conflict)}
+                  className="inline-flex h-11 items-center rounded border border-studio-line bg-rail px-3 text-xs text-ink-muted transition-colors hover:bg-studio-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-8 md:px-2"
+                >
+                  Keep mine
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onUseIncomingConflict(conflict)}
+                  className="inline-flex h-11 items-center rounded bg-midnight px-3 text-xs font-medium text-white transition-colors hover:bg-midnight-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-8 md:px-2"
+                >
+                  Use incoming
+                </button>
+              </div>
+            </div>
+          </section>
+        )}
 
         {showCommentsSection && (
           <section className="space-y-1">

@@ -107,6 +107,7 @@ Primary reference: `DESIGN.md`.
 - Hid the empty-file checkpoint form from the review drawer until a file has content or saved versions.
 - Hardened encrypted project-file replay so stale delayed web snapshots do not overwrite newer local or remote Markdown state in the web app or CLI export.
 - Added encrypted leave-presence records so collaborators disappear promptly on pagehide/room teardown while normal file/mode/activity updates do not flicker presence.
+- Added a local incoming-edit safeguard for encrypted web file snapshots: if a remote file update arrives while the browser has an unsaved debounced edit, Fold pauses the incoming snapshot, keeps the local draft visible, and surfaces compact `Incoming edit` review actions.
 - Routed the empty toolbar comment action directly to the document file-comment composer instead of opening a blank review drawer.
 - Made the file-comment composer cancel action touch-sized and cleared stale draft text after cancel/post.
 - Opened the file-comment list immediately after posting so comment feedback stays in the document surface.
@@ -129,13 +130,14 @@ Primary reference: `DESIGN.md`.
 - Continue checking mobile widths for overlap and horizontal scroll.
 - Keep collaboration objects streaming through the encrypted room pipeline; avoid designs that depend on manual refresh or static server-readable fetches.
 - Keep live presence quiet and useful while preserving prompt leave behavior and avoiding people-dashboard chrome.
+- Keep conflict handling honest and compact: current web snapshots can pause and resolve incoming edits, while true Markdown merge/rebase remains future work.
 
 ## Next
 
 - Keep proposal/review drawer controls compact while testing action clarity on mobile.
 - Keep tuning inline annotation contrast across dark and bright themes without making the document feel marked up.
 - Keep richer presence hints useful without revealing document content to the server or relying on server-readable awareness state.
-- Continue hardening multi-user project-file conflicts beyond stale snapshot rejection; richer merge/rebase semantics are still open.
+- Continue hardening multi-user project-file conflicts beyond stale snapshot rejection and incoming-edit pause; richer Markdown merge/rebase semantics are still open.
 - Keep named versions lightweight and verify restore clarity against long documents.
 - Keep empty states sparse and document-native as more project creation/import states are added.
 - Continue measuring long-document readability against the Obsidian reference screenshots.

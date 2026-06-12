@@ -67,6 +67,16 @@ export interface FileVersion {
   persona: RoomPersona;
 }
 
+export interface FileConflict {
+  path: string;
+  localMarkdown: string;
+  localUpdatedAt?: string;
+  remoteMarkdown: string;
+  remoteUpdatedAt: string;
+  persona?: RoomPersona;
+  createdAt: string;
+}
+
 export interface CollaborationPresence {
   schema: "fold.presence.v1";
   clientId: string;
