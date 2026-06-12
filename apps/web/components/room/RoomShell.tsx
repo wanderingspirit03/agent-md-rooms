@@ -1028,8 +1028,7 @@ function FilePresenceIndicators({ presences }: { presences: CollaborationPresenc
   const visible = displayPresences.slice(0, 2);
   const hiddenCount = Math.max(0, displayPresences.length - visible.length);
   const label = displayPresences.map(presenceLabel).join(", ");
-  const hasEditor = displayPresences.some((presence) => presence.status === "editing");
-  const hasLiveActivity = displayPresences.some((presence) => presence.activity && presence.activity !== "idle");
+  const activity = presenceActivityLabel(displayPresences);
 
   return (
     <span
@@ -1043,17 +1042,19 @@ function FilePresenceIndicators({ presences }: { presences: CollaborationPresenc
             key={presence.clientId}
             persona={presence.persona}
             compact
-            className={cn("h-5 w-5 ring-1 ring-studio-paper", index > 0 && "-ml-1.5")}
+            className={cn("h-[18px] w-[18px] ring-1 ring-studio-paper", index > 0 && "-ml-1.5")}
           />
         ))}
         {hiddenCount > 0 && (
-          <span className="-ml-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-rail px-1 text-[9px] font-medium text-ink-subtle ring-1 ring-studio-paper">
+          <span className="-ml-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rail px-1 text-[9px] font-medium text-ink-subtle ring-1 ring-studio-paper">
             +{hiddenCount}
           </span>
         )}
       </span>
-      {(hasEditor || hasLiveActivity) && (
-        <span className={cn("h-1.5 w-1.5 rounded-full", hasLiveActivity ? "bg-midnight-strong" : "bg-ink-subtle")} aria-hidden="true" />
+      {activity && (
+        <span className="hidden max-w-16 truncate text-[10px] font-medium text-midnight-strong xl:inline" aria-hidden="true">
+          {activity}
+        </span>
       )}
     </span>
   );
@@ -1873,12 +1874,12 @@ function PresenceStack({
                 key={persona.id}
                 persona={persona}
                 compact
-                className={cn("h-8 w-8 ring-1 ring-studio-paper/80", index > 0 && "-ml-2")}
+                className={cn("h-7 w-7 ring-1 ring-studio-paper/80", index > 0 && "-ml-2")}
               />
             ))}
             {hiddenCount > 0 && (
               <span
-                className="-ml-2 flex h-8 min-w-8 items-center justify-center rounded-full bg-rail px-1 text-[10px] font-medium text-ink-subtle ring-1 ring-studio-paper/80"
+                className="-ml-2 flex h-7 min-w-7 items-center justify-center rounded-full bg-rail px-1 text-[10px] font-medium text-ink-subtle ring-1 ring-studio-paper/80"
                 aria-hidden="true"
               >
                 +{hiddenCount}
@@ -1899,6 +1900,13 @@ function presenceLabel(presence: CollaborationPresence) {
   if (presence.activity === "typing") return `${presence.persona.name} typing`;
   if (presence.activity === "commenting") return `${presence.persona.name} commenting`;
   return `${presence.persona.name} ${presence.status}`;
+}
+
+function presenceActivityLabel(presences: CollaborationPresence[]) {
+  if (presences.some((presence) => presence.activity === "commenting")) return "commenting";
+  if (presences.some((presence) => presence.activity === "typing")) return "typing";
+  if (presences.some((presence) => presence.status === "editing")) return "editing";
+  return "";
 }
 
 function uniquePresencesByPersona(presences: CollaborationPresence[]) {
