@@ -127,6 +127,7 @@ Primary reference: `DESIGN.md`.
 - Added a compact two-step accept confirmation in the suggestion preview dialog so agent proposals are harder to apply accidentally.
 - Added the same compact two-step accept confirmation to review-drawer proposal rows so quick actions cannot apply agent changes in one click.
 - Hardened the reusable margin-thread proposal branch with the same two-step accept confirmation so stale or future proposal surfaces cannot reintroduce one-click acceptance.
+- Added a compact two-step confirmation before applying incoming edits so remote replacements or deletions cannot overwrite local drafts in one click.
 - Cleaned up the file-header quick switcher semantics so its accessible label names the file, location, saved state, and E2EE status without reading decorative metadata twice.
 - Verified recent UI slices with Playwright screenshots on desktop and mobile because `iab` is unavailable in this session.
 - Continue verifying substantial slices with a separate reviewer/subagent before pushing.

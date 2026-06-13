@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertTriangle, Check, Clock3, FileText, ListChecks, MessageSquare, RotateCcw, Save, Undo2, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { RoomPersona } from "../../lib/personas";
 import { cn } from "../../lib/utils";
 import { MarginThread } from "./MarginThread";
@@ -51,6 +51,7 @@ export function AgentBench({
   const [resolvedOpen, setResolvedOpen] = useState(false);
   const [versionTitle, setVersionTitle] = useState("");
   const [restoreCandidateId, setRestoreCandidateId] = useState<string | null>(null);
+  const [incomingCandidateId, setIncomingCandidateId] = useState<string | null>(null);
   const activeComments = comments.filter((comment) => !comment.resolvedAt);
   const resolvedComments = comments.filter((comment) => comment.resolvedAt);
   const pendingProposals = proposals.filter((proposal) => proposal.status === "pending");
@@ -71,6 +72,10 @@ export function AgentBench({
   const showReviewCounts = activeComments.length > 0 || pendingProposals.length > 0 || detachedCount > 0 || Boolean(conflict);
   const showSuggestionsSection = recentProposals.length > 0;
   const showVersionsSection = markdown.trim().length > 0 || versions.length > 0;
+
+  useEffect(() => {
+    setIncomingCandidateId(null);
+  }, [conflict?.path, conflict?.remoteUpdatedAt, conflict?.remoteDeleted]);
 
   return (
     <aside className="h-[calc(100dvh-145px)] overflow-y-auto bg-rail text-ink md:h-[calc(100dvh-48px)]">
@@ -140,20 +145,54 @@ export function AgentBench({
                 </div>
               </div>
               <div className="mt-2 flex items-center justify-end gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => onKeepLocalConflict(conflict)}
-                  className="inline-flex h-11 items-center rounded border border-studio-line bg-rail px-3 text-xs text-ink-muted transition-colors hover:bg-studio-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-8 md:px-2"
-                >
-                  Keep mine
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onUseIncomingConflict(conflict)}
-                  className="inline-flex h-11 items-center rounded bg-midnight px-3 text-xs font-medium text-white transition-colors hover:bg-midnight-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-8 md:px-2"
-                >
-                  Use incoming
-                </button>
+                {incomingCandidateId === conflictKey(conflict) ? (
+                  <>
+                    <span className="mr-auto text-[11px] font-medium text-ink-muted">
+                      {conflict.remoteDeleted ? "Delete local file?" : "Apply incoming?"}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={`Cancel incoming edit for ${conflict.path}`}
+                      title="Cancel"
+                      onClick={() => setIncomingCandidateId(null)}
+                      className="inline-flex h-11 items-center rounded border border-studio-line bg-rail px-3 text-xs text-ink-muted transition-colors hover:bg-studio-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-8 md:px-2"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Confirm incoming edit for ${conflict.path}`}
+                      title={conflict.remoteDeleted ? "Delete local file" : "Apply incoming edit"}
+                      onClick={() => {
+                        onUseIncomingConflict(conflict);
+                        setIncomingCandidateId(null);
+                      }}
+                      className="inline-flex h-11 items-center rounded bg-midnight px-3 text-xs font-medium text-white transition-colors hover:bg-midnight-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-8 md:px-2"
+                    >
+                      {conflict.remoteDeleted ? "Delete" : "Apply"}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onKeepLocalConflict(conflict);
+                        setIncomingCandidateId(null);
+                      }}
+                      className="inline-flex h-11 items-center rounded border border-studio-line bg-rail px-3 text-xs text-ink-muted transition-colors hover:bg-studio-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-8 md:px-2"
+                    >
+                      Keep mine
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIncomingCandidateId(conflictKey(conflict))}
+                      className="inline-flex h-11 items-center rounded bg-midnight px-3 text-xs font-medium text-white transition-colors hover:bg-midnight-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-8 md:px-2"
+                    >
+                      Use incoming
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </section>
@@ -456,4 +495,8 @@ function signedCount(value: number, label: string) {
   if (value === 0) return `0 ${label}s`;
   const suffix = Math.abs(value) === 1 ? label : `${label}s`;
   return `${value > 0 ? "+" : ""}${value} ${suffix}`;
+}
+
+function conflictKey(conflict: FileConflict) {
+  return `${conflict.path}:${conflict.remoteUpdatedAt}:${conflict.remoteDeleted ? "deleted" : "changed"}`;
 }
