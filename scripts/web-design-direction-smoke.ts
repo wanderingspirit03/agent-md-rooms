@@ -48,6 +48,7 @@ async function main() {
     await mobile.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Search project files", null, { timeout: 8_000 });
     await mobileFileSearch.fill("docs/runbooks/review-flow.md");
     await mobile.getByRole("button", { name: /^review-flow\.md/i }).waitFor({ state: "visible", timeout: 8_000 });
+    await assertProjectDrawerTitle(mobile, "mobile project drawer");
     const mobileDrawerScreenshotPath = join(screenshotDir, "mobile-project-drawer.png");
     await mobile.screenshot({ path: mobileDrawerScreenshotPath, caret: "initial" });
     await assertNoHorizontalOverflow(mobile, "mobile project drawer");
@@ -83,11 +84,13 @@ async function assertDesktopDesign(page: Page) {
     const surface = document.querySelector('[data-document-surface="true"]');
     const header = document.querySelector("header");
     const reviewDrawer = Array.from(document.querySelectorAll("div")).find((node) => node.textContent?.trim() === "Review");
+    const projectTitle = document.querySelector("[data-project-title]")?.textContent?.trim() || "";
     const sidebarRect = sidebar?.getBoundingClientRect();
     const surfaceRect = surface?.getBoundingClientRect();
     const headerRect = header?.getBoundingClientRect();
     return {
       bodyText: document.body.innerText,
+      projectTitle,
       sidebarWidth: sidebarRect?.width || 0,
       sidebarDisplay: sidebar ? window.getComputedStyle(sidebar).display : "",
       surfaceWidth: surfaceRect?.width || 0,
@@ -100,6 +103,9 @@ async function assertDesktopDesign(page: Page) {
   });
 
   if (!metrics.bodyText.includes("Fold project")) throw new Error("Desktop workspace does not expose project identity.");
+  if (!metrics.projectTitle || metrics.projectTitle === "Fold project") {
+    throw new Error(`Desktop project title is not derived from encrypted project content: ${metrics.projectTitle || "(empty)"}.`);
+  }
   if (/vault/i.test(metrics.bodyText)) throw new Error("Desktop workspace still exposes vault wording.");
   if (metrics.sidebarDisplay === "none" || metrics.sidebarWidth < 240) throw new Error(`Desktop file sidebar is not visible enough: ${metrics.sidebarWidth}px.`);
   if (metrics.surfaceWidth < 620 || metrics.surfaceWidth > 960) throw new Error(`Desktop document surface width is outside the expected reading range: ${metrics.surfaceWidth}px.`);
@@ -149,6 +155,21 @@ async function assertMermaidRendered(page: Page, label: string) {
   if (metrics.label.includes("Source")) throw new Error(`${label} Mermaid block is still shown as source instead of a diagram.`);
   if (metrics.width < 180 || metrics.height < 32) {
     throw new Error(`${label} Mermaid diagram rendered too small: ${metrics.width}x${metrics.height}.`);
+  }
+}
+
+async function assertProjectDrawerTitle(page: Page, label: string) {
+  const title = await page.evaluate(() => {
+    const candidates = Array.from(document.querySelectorAll<HTMLElement>("[data-project-title]"));
+    const visible = candidates.find((element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && window.getComputedStyle(element).visibility !== "hidden";
+    });
+    return visible?.textContent?.trim() || "";
+  });
+
+  if (!title || title === "Fold project") {
+    throw new Error(`${label} project title is not derived from encrypted project content: ${title || "(empty)"}.`);
   }
 }
 

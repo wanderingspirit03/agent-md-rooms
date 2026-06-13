@@ -97,6 +97,7 @@ Primary reference: `DESIGN.md`.
 - Extended navigation smoke to verify broad quick-switcher searches clip to a calm result set with an explicit hidden-match hint and still open files by keyboard.
 - Added `npm run web:smoke:annotations` to verify multiple bright-theme inline comment markers on desktop and mobile without overflow.
 - Added `npm run web:smoke:design` to verify DESIGN.md layout invariants and capture desktop/mobile workspace comparison screenshots.
+- Extended design smoke to verify the desktop project title is derived from encrypted project content instead of staying generic.
 - Added `npm run web:smoke:proposal` to verify encrypted CLI proposals, compact preview/diff dialogs, guarded accept, and CLI replay after web acceptance.
 - Added a mobile-only collaborator hint that appears only when more than one active persona is on the current file.
 - Added `npm run web:smoke:collab` to verify two browser clients stream encrypted Markdown edits in the same project room without refresh.
@@ -149,6 +150,7 @@ Primary reference: `DESIGN.md`.
 - Cleaned up the file-header quick switcher semantics so its accessible label names the file, location, saved state, and E2EE status without reading decorative metadata twice.
 - Made inline comment composer and comment read cards become compact mobile bottom sheets while preserving anchored desktop popovers.
 - Shifted the project sidebar header from product/raw-room identity to `Fold project` with quiet private-workspace metadata.
+- Made the project sidebar title derive from decrypted project Markdown headings while keeping `Fold project` as quiet metadata, so the chrome names the actual project without adding plaintext server metadata.
 - Reworked the missing-key access gate with Fold branding, project-first copy, and softer elevation.
 - Calmed launcher recent-project rows so old room-id-style entries display as project/workspace metadata instead of visible raw ids.
 - Calmed the launcher open-project block by removing badge-like local-key chrome, shortening setup copy, and unboxing the primary create icon.

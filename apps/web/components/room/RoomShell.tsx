@@ -49,6 +49,7 @@ import {
 
 interface RoomShellProps {
   roomId: string;
+  projectName: string;
   files: ProjectFile[];
   selectedFilePath: string;
   connected: boolean;
@@ -77,6 +78,7 @@ interface RoomShellProps {
 
 export function RoomShell({
   roomId,
+  projectName,
   files,
   selectedFilePath,
   connected,
@@ -234,6 +236,7 @@ export function RoomShell({
         <div className="grid min-h-dvh md:grid-cols-[286px_minmax(0,1fr)]">
           <ProjectFileSidebar
             roomId={roomId}
+            projectName={projectName}
             files={files}
             recentFiles={recentFiles}
             onBack={onBack}
@@ -417,6 +420,7 @@ export function RoomShell({
             <div className="fixed inset-y-0 left-0 z-50 w-[330px] max-w-[calc(100vw-2rem)] border-r border-studio-line bg-studio-paper shadow-[24px_0_80px_rgba(0,0,0,0.45)] md:hidden">
               <ProjectFilesHeader
                 roomId={roomId}
+                projectName={projectName}
                 onBack={onBack}
                 onCopyProjectLink={copyProjectLink}
                 projectLinkCopied={projectLinkCopied}
@@ -559,6 +563,7 @@ interface ProjectFile {
 
 function ProjectFileSidebar({
   roomId,
+  projectName,
   files,
   recentFiles,
   onBack,
@@ -570,6 +575,7 @@ function ProjectFileSidebar({
   onOpenReview,
 }: {
   roomId: string;
+  projectName: string;
   files: ProjectFile[];
   recentFiles: ProjectFile[];
   onBack: () => void;
@@ -584,6 +590,7 @@ function ProjectFileSidebar({
     <aside className="hidden min-h-dvh flex-col bg-studio-paper text-ink md:flex">
       <ProjectFilesHeader
         roomId={roomId}
+        projectName={projectName}
         onBack={onBack}
         onCopyProjectLink={onCopyProjectLink}
         projectLinkCopied={projectLinkCopied}
@@ -604,12 +611,14 @@ function ProjectFileSidebar({
 
 function ProjectFilesHeader({
   roomId,
+  projectName,
   onBack,
   onCopyProjectLink,
   projectLinkCopied = false,
   onClose,
 }: {
   roomId: string;
+  projectName: string;
   onBack: () => void;
   onCopyProjectLink: () => void;
   projectLinkCopied?: boolean;
@@ -623,10 +632,10 @@ function ProjectFilesHeader({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <span aria-hidden className="fold-logo-mark h-5 w-5 shrink-0" />
-          <h2 className="truncate text-sm font-semibold">Fold project</h2>
+          <h2 data-project-title className="truncate text-sm font-semibold" title={projectName}>{projectName}</h2>
         </div>
         <p className="truncate text-[11px] font-medium text-ink-subtle" title={roomId ? `Project id ${roomId}` : undefined}>
-          Private workspace
+          Fold project · Private workspace
         </p>
       </div>
       <Tooltip>

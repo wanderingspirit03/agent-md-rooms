@@ -1125,6 +1125,10 @@ export default function RoomPage() {
     ),
     [selectedFilePath, virtualFiles, comments, proposals, projectFileUpdatedAt, presenceByClientId, presenceClock, fileConflicts, hasRemoteProjectState, projectPrimaryPath],
   );
+  const projectName = useMemo(
+    () => deriveProjectName(virtualFiles, projectPrimaryPath || DEFAULT_PROJECT_FILE_PATH),
+    [projectPrimaryPath, virtualFiles],
+  );
   useEffect(() => {
     if (!pendingPreferredFilePath) return;
     if (projectFiles.some((file) => file.path === pendingPreferredFilePath)) {
@@ -1181,6 +1185,7 @@ export default function RoomPage() {
     <>
       <RoomShell
         roomId={roomId}
+        projectName={projectName}
         files={projectFiles}
         selectedFilePath={selectedFilePath}
         connected={isConnected}
@@ -1570,6 +1575,41 @@ function createProjectFiles(
     conflictCount: conflictsByPath[file.path] ? 1 : 0,
     activePresences: presencesByPath.get(file.path) || [],
   }));
+}
+
+function deriveProjectName(
+  virtualFiles: Record<string, string>,
+  primaryPath: string,
+) {
+  const candidatePaths = [
+    normalizeProjectFilePath(primaryPath),
+    DEFAULT_PROJECT_FILE_PATH,
+    "README.md",
+    "docs/README.md",
+    "docs/PLAN.md",
+    ...Object.keys(virtualFiles).sort(),
+  ].filter(Boolean);
+
+  for (const path of candidatePaths) {
+    const markdown = virtualFiles[path];
+    const title = firstMarkdownHeading(markdown);
+    if (title) return title;
+  }
+
+  return "Fold project";
+}
+
+function firstMarkdownHeading(markdown = "") {
+  for (const line of markdown.split(/\r?\n/)) {
+    const match = /^(#{1,2})\s+(.+?)\s*#*\s*$/.exec(line.trim());
+    if (!match) continue;
+    const title = match[2]
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      .replace(/[`*_~]/g, "")
+      .trim();
+    if (title) return title.slice(0, 80);
+  }
+  return "";
 }
 
 function activePresencesByFile(
