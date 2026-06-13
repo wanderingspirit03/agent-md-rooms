@@ -1,0 +1,40 @@
+# Design Audit Evidence
+
+`npm run web:smoke:design` is the current verification gate for the
+Obsidian-inspired Fold UI direction in `DESIGN.md`.
+
+The smoke now captures current Fold screenshots and writes two audit artifacts
+into the same temporary screenshot directory:
+
+- `design-audit.json`
+- `design-audit.md`
+
+The audit records:
+
+- the `DESIGN.md` source being verified
+- the Obsidian reference pack directory
+- required Obsidian reference screenshot presence and byte sizes
+- current Fold screenshot paths for launcher, desktop room, mobile document, and mobile drawer
+- the layout and interaction gates asserted by the smoke
+
+The checked assertions intentionally stay structural rather than pixel-identical:
+Fold should borrow Obsidian's file-first calm workspace feel without copying its
+brand or exact UI. The strongest evidence is the combination of:
+
+- current screenshots from the smoke run
+- the required Obsidian reference screenshots in `/tmp/agent-md-obsidian-reference`
+- automated checks for file-first navigation, compact editor chrome,
+  document-first mobile layout, inline rendered Mermaid, encrypted-content-derived
+  project title, and no horizontal overflow
+
+Refresh the public reference pack when it is missing or stale:
+
+```bash
+npm run web:reference:capture
+```
+
+Run the audit after UI changes:
+
+```bash
+FOLD_WEB_URL=http://localhost:3001 npm run web:smoke:design
+```

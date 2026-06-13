@@ -1,10 +1,19 @@
-import { mkdir } from "node:fs/promises";
+import { mkdir, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, type Page } from "playwright";
 
 const DEFAULT_URLS = ["http://localhost:3001", "http://localhost:3000"];
 const DEFAULT_SYNC_URL = "http://127.0.0.1:8787";
+const REFERENCE_DIR = "/tmp/agent-md-obsidian-reference";
+const REQUIRED_REFERENCE_FILES = [
+  "obsidian-home-viewport-1600x1100@2x.png",
+  "obsidian-home-mobile-390x844@2x.png",
+  "obsidian-help-file-explorer-1600x1100@2x.png",
+  "obsidian-help-views-editing-mode-1600x1100@2x.png",
+  "obsidian-help-properties-1600x1100@2x.png",
+  "obsidian-help-links-1600x1100@2x.png",
+] as const;
 
 async function main() {
   const baseUrl = await resolveBaseUrl();
@@ -55,6 +64,34 @@ async function main() {
     const mobileDrawerScreenshotPath = join(screenshotDir, "mobile-project-drawer.png");
     await mobile.screenshot({ path: mobileDrawerScreenshotPath, caret: "initial" });
     await assertNoHorizontalOverflow(mobile, "mobile project drawer");
+    const referenceFiles = await assertReferencePack();
+    const audit = {
+      schema: "fold.design-audit.v1",
+      generatedAt: new Date().toISOString(),
+      designDocument: "DESIGN.md",
+      referenceDir: REFERENCE_DIR,
+      referenceFiles,
+      currentScreenshots: {
+        launcher: launcherScreenshotPath,
+        desktopProjectWorkspace: desktopScreenshotPath,
+        mobileDocumentFirst: mobileScreenshotPath,
+        mobileProjectDrawer: mobileDrawerScreenshotPath,
+      },
+      checks: [
+        "Launcher workspace exposes local project views without vault wording.",
+        "Desktop workspace has a visible file sidebar, compact header, and document-width reading surface.",
+        "Desktop review drawer is closed by default.",
+        "Mobile starts document-first with the file tree in a drawer.",
+        "Mobile project drawer search is focused and opens nested Markdown files.",
+        "Mermaid renders as a diagram on desktop and mobile.",
+        "Project title is derived from encrypted project content.",
+        "No horizontal page overflow in captured desktop or mobile surfaces.",
+      ],
+    };
+    const auditJsonPath = join(screenshotDir, "design-audit.json");
+    const auditMarkdownPath = join(screenshotDir, "design-audit.md");
+    await writeFile(auditJsonPath, `${JSON.stringify(audit, null, 2)}\n`, "utf8");
+    await writeFile(auditMarkdownPath, renderAuditMarkdown(audit), "utf8");
 
     const errors = logs.filter((entry) => entry.includes("pageerror:") || entry.includes(" console:error:"));
     if (errors.length > 0) {
@@ -72,6 +109,8 @@ async function main() {
           desktopScreenshotPath,
           mobileScreenshotPath,
           mobileDrawerScreenshotPath,
+          auditJsonPath,
+          auditMarkdownPath,
         },
         null,
         2,
@@ -80,6 +119,61 @@ async function main() {
   } finally {
     await browser.close();
   }
+}
+
+async function assertReferencePack() {
+  const files = await Promise.all(REQUIRED_REFERENCE_FILES.map(async (file) => {
+    const path = join(REFERENCE_DIR, file);
+    try {
+      const info = await stat(path);
+      return { file, path, bytes: info.size, present: info.isFile() && info.size > 0 };
+    } catch {
+      return { file, path, bytes: 0, present: false };
+    }
+  }));
+
+  const missing = files.filter((file) => !file.present);
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing Obsidian reference screenshots in ${REFERENCE_DIR}:\n`
+      + missing.map((file) => `- ${file.file}`).join("\n")
+      + `\nRefresh them with: npm run web:reference:capture`,
+    );
+  }
+
+  return files;
+}
+
+function renderAuditMarkdown(audit: {
+  schema: string;
+  generatedAt: string;
+  designDocument: string;
+  referenceDir: string;
+  referenceFiles: Array<{ file: string; path: string; bytes: number; present: boolean }>;
+  currentScreenshots: Record<string, string>;
+  checks: string[];
+}) {
+  return [
+    "# Fold Design Audit",
+    "",
+    `Generated: ${audit.generatedAt}`,
+    "",
+    `Design document: \`${audit.designDocument}\``,
+    `Reference pack: \`${audit.referenceDir}\``,
+    "",
+    "## Current Screenshots",
+    "",
+    ...Object.entries(audit.currentScreenshots).map(([label, path]) => `- ${label}: \`${path}\``),
+    "",
+    "## Obsidian References",
+    "",
+    ...audit.referenceFiles.map((file) => `- ${file.present ? "present" : "missing"} \`${file.file}\` (${file.bytes} bytes)`),
+    "",
+    "## Verified Gates",
+    "",
+    ...audit.checks.map((check) => `- ${check}`),
+    "",
+  ].join("\n");
 }
 
 async function assertLauncherWorkspace(page: Page) {

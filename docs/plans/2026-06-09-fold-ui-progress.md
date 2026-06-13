@@ -106,6 +106,7 @@ Primary reference: `DESIGN.md`.
 - Added `npm run web:smoke:design` to verify DESIGN.md layout invariants and capture desktop/mobile workspace comparison screenshots.
 - Extended design smoke to verify the desktop project title is derived from encrypted project content instead of staying generic.
 - Added `npm run web:reference:capture` to refresh the Obsidian public reference screenshot pack named in `DESIGN.md` for visual comparison work.
+- Extended design smoke with a durable audit JSON/Markdown artifact that records current screenshots, required Obsidian reference screenshots, and the `DESIGN.md` gates checked.
 - Added `npm run web:smoke:proposal` to verify encrypted CLI proposals, compact preview/diff dialogs, guarded accept, and CLI replay after web acceptance.
 - Updated the proposal smoke to capture viewport screenshots for the fixed preview dialog on desktop and mobile.
 - Extended the proposal smoke to reject a second encrypted proposal in the web UI and verify CLI replay/export keep rejected Markdown out of accepted content.
