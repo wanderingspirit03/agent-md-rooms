@@ -426,20 +426,21 @@ function ReviewCount({
   pluralLabel?: string;
   tone?: "default" | "warning";
 }) {
-  const accessibleLabel = `${count} ${count === 1 ? singularLabel : pluralLabel || label}`;
+  const visibleLabel = count === 1 ? singularLabel : pluralLabel || label;
+  const accessibleLabel = `${count} ${visibleLabel}`;
 
   return (
     <span
       aria-label={accessibleLabel}
       title={accessibleLabel}
       className={cn(
-        "inline-flex h-6 min-w-0 items-center gap-1.5 rounded border bg-rail px-2 text-[11px]",
-        tone === "warning" ? "border-midnight/30 text-midnight-strong" : "border-studio-line text-ink-subtle",
+        "inline-flex h-6 min-w-0 items-center gap-1.5 px-1 text-[11px]",
+        tone === "warning" ? "text-midnight-strong" : "text-ink-subtle",
       )}
     >
       <span className={cn(tone === "warning" ? "text-midnight-strong" : "text-ink-subtle")}>{icon}</span>
       <span className={cn("font-mono", tone === "warning" ? "text-midnight-strong" : "text-ink-muted")}>{count}</span>
-      <span className="truncate">{label}</span>
+      <span className="truncate">{visibleLabel}</span>
     </span>
   );
 }
