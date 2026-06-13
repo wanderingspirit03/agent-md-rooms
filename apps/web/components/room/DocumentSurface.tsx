@@ -192,7 +192,7 @@ export function DocumentSurface({
         onKeyUp={captureSelection}
         className={cn(
           "relative min-h-[520px] rounded-md border border-document-edge bg-document px-6 py-8 text-document-ink sm:min-h-[680px]",
-          "shadow-[0_2px_10px_rgba(0,0,0,0.08),0_1px_0_rgba(255,255,255,0.48)_inset]",
+          "shadow-[0_1px_5px_rgba(0,0,0,0.06),0_1px_0_rgba(255,255,255,0.42)_inset]",
           "selection:bg-midnight-soft selection:text-document-ink sm:px-12 md:pr-28 lg:px-16 lg:pr-28",
         )}
       >
@@ -206,7 +206,7 @@ export function DocumentSurface({
                   : `Open first of ${pendingProposals.length} pending suggestions`
               }
               title="Pending suggestions"
-              className="inline-flex h-11 items-center gap-1 rounded-md border border-document-edge bg-document/90 px-3 text-[11px] font-medium text-document-subtle transition-colors hover:border-midnight/35 hover:bg-document hover:text-document-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-8 md:border-transparent md:bg-transparent md:px-2 md:hover:bg-black/[0.035]"
+              className="inline-flex h-11 items-center gap-1 rounded px-2.5 text-[11px] font-medium text-document-subtle transition-colors hover:bg-black/[0.035] hover:text-document-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-8 md:px-2"
               onClick={() => {
                 setFileCommentsOpen(false);
                 setFileComposerOpen(false);
@@ -226,7 +226,7 @@ export function DocumentSurface({
               type="button"
               aria-label={`Open ${fileComments.length} file ${fileComments.length === 1 ? "comment" : "comments"}`}
               title="File comments"
-              className="inline-flex h-11 items-center gap-1 rounded-md border border-document-edge bg-document/90 px-3 text-[11px] font-medium text-document-subtle transition-colors hover:border-midnight/35 hover:bg-document hover:text-document-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-8 md:border-transparent md:bg-transparent md:px-2 md:hover:bg-black/[0.035]"
+              className="inline-flex h-11 items-center gap-1 rounded px-2.5 text-[11px] font-medium text-document-subtle transition-colors hover:bg-black/[0.035] hover:text-document-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-8 md:px-2"
               onClick={() => {
                 setFileCommentsOpen((open) => !open);
                 setFileComposerOpen(false);
@@ -241,7 +241,7 @@ export function DocumentSurface({
             type="button"
             aria-label="Add file comment"
             title="Add file comment"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-document-edge bg-document/90 text-document-subtle transition-colors hover:border-midnight/35 hover:bg-document hover:text-document-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-8 md:w-8 md:border-transparent md:bg-transparent md:hover:bg-black/[0.035]"
+            className="inline-flex h-11 w-11 items-center justify-center rounded text-document-subtle transition-colors hover:bg-black/[0.035] hover:text-document-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-8 md:w-8"
             onClick={() => {
               setFileComposerOpen((open) => !open);
               setFileCommentsOpen(false);

@@ -134,6 +134,7 @@ Primary reference: `DESIGN.md`.
 - Reworked the missing-key access gate with Fold branding, project-first copy, and softer elevation.
 - Calmed launcher recent-project rows so old room-id-style entries display as project/workspace metadata instead of visible raw ids.
 - Calmed the launcher open-project block by removing badge-like local-key chrome, shortening setup copy, and unboxing the primary create icon.
+- Softened the document paper elevation and unboxed the file-level comment controls so mobile comments stay reachable without square-button chrome on the page.
 - Renamed Mermaid placeholder chrome from implementation-style `Preview disabled` to quiet `Source` while keeping sanitized source rendering.
 - Verified recent UI slices with Playwright screenshots on desktop and mobile because `iab` is unavailable in this session.
 - Continue verifying substantial slices with a separate reviewer/subagent before pushing.
