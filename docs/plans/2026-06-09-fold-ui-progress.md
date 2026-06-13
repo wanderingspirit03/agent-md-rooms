@@ -131,6 +131,7 @@ Primary reference: `DESIGN.md`.
 - Cleaned up the file-header quick switcher semantics so its accessible label names the file, location, saved state, and E2EE status without reading decorative metadata twice.
 - Made inline comment composer and comment read cards become compact mobile bottom sheets while preserving anchored desktop popovers.
 - Shifted the project sidebar header from product/raw-room identity to `Fold project` with quiet private-workspace metadata.
+- Reworked the missing-key access gate with Fold branding, project-first copy, and softer elevation.
 - Verified recent UI slices with Playwright screenshots on desktop and mobile because `iab` is unavailable in this session.
 - Continue verifying substantial slices with a separate reviewer/subagent before pushing.
 

@@ -21,14 +21,12 @@ export function RoomAccessGate({
 }: RoomAccessGateProps) {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-studio p-4 text-ink">
-      <div className="w-full max-w-md rounded-md border border-studio-line bg-studio-paper p-6 shadow-[0_24px_80px_rgba(0,0,0,0.42)]">
+      <div className="w-full max-w-md rounded-md border border-studio-line bg-studio-paper p-6 shadow-[0_14px_48px_rgba(0,0,0,0.28)]">
         <div className="mb-6 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-md border border-studio-line bg-midnight font-mono text-xs font-semibold text-white">
-            MD
-          </div>
+          <span aria-hidden className="fold-logo-mark h-9 w-9 shrink-0" />
           <div>
-            <h1 className="text-base font-semibold text-ink">Unlock project</h1>
-            <p className="text-sm text-ink-muted">The key stays in the browser fragment.</p>
+            <h1 className="text-base font-semibold text-ink">Open private project</h1>
+            <p className="text-sm text-ink-muted">Fragment key required.</p>
           </div>
         </div>
 
