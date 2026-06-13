@@ -23,6 +23,15 @@ async function main() {
     await page.getByRole("button", { name: /create project/i }).click();
     await page.waitForSelector('[data-document-surface="true"]', { timeout: 10_000 });
 
+    await page.getByRole("button", { name: /open command palette/i }).click();
+    const firstPaletteInput = page.getByRole("combobox", { name: /search commands and files/i });
+    await firstPaletteInput.fill("comment");
+    await page.getByRole("option", { name: /add file comment/i }).first().click();
+    await page.waitForSelector('[data-comment-composer]', { timeout: 8_000 });
+    await page.getByRole("textbox", { name: /^file comment$/i }).waitFor({ state: "visible", timeout: 8_000 });
+    await page.getByRole("button", { name: /cancel/i }).click();
+    await page.waitForSelector('[data-comment-composer]', { state: "hidden", timeout: 8_000 });
+
     const architectureFolder = page.getByRole("button", { name: /^architecture/i });
     await architectureFolder.waitFor({ timeout: 10_000 });
     if ((await architectureFolder.getAttribute("aria-expanded")) !== "true") {

@@ -93,6 +93,7 @@ Primary reference: `DESIGN.md`.
 - Extended the web collaboration smoke to verify live Markdown edits, comment creation, and comment replies across two browser clients without refresh.
 - Added `npm run web:smoke:agent-comment` to verify a CLI-authored encrypted inline comment streams into the open web document and a browser reply replays back through the CLI.
 - Added `npm run web:smoke:navigation` to verify folder collapse persistence and quick-switch reopening of nested file ancestors.
+- Extended navigation smoke to verify command-palette `Add file comment` opens the document-native file comment composer and can dismiss cleanly.
 - Extended navigation smoke to verify broad quick-switcher searches clip to a calm result set with an explicit hidden-match hint and still open files by keyboard.
 - Added `npm run web:smoke:annotations` to verify multiple bright-theme inline comment markers on desktop and mobile without overflow.
 - Added `npm run web:smoke:design` to verify DESIGN.md layout invariants and capture desktop/mobile workspace comparison screenshots.
