@@ -136,6 +136,7 @@ Primary reference: `DESIGN.md`.
 - Calmed the launcher open-project block by removing badge-like local-key chrome, shortening setup copy, and unboxing the primary create icon.
 - Softened the document paper elevation and unboxed the file-level comment controls so mobile comments stay reachable without square-button chrome on the page.
 - Rebalanced read/edit active mode controls from filled primary buttons to soft midnight selected states so bright mobile chrome stays calmer.
+- Lightened the command-palette dismissal layer and elevation so quick switching keeps document context visible instead of greying out the workspace.
 - Renamed Mermaid placeholder chrome from implementation-style `Preview disabled` to quiet `Source` while keeping sanitized source rendering.
 - Verified recent UI slices with Playwright screenshots on desktop and mobile because `iab` is unavailable in this session.
 - Continue verifying substantial slices with a separate reviewer/subagent before pushing.

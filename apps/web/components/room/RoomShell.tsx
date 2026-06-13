@@ -1599,7 +1599,7 @@ function ProjectCommandPalette({
         type="button"
         aria-label="Close command palette"
         tabIndex={-1}
-        className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-[1px]"
+        className="fixed inset-0 z-[60] bg-black/25"
         onClick={onClose}
       />
       <div
@@ -1608,7 +1608,7 @@ function ProjectCommandPalette({
         aria-modal="true"
         aria-label="Command palette"
         onKeyDown={handleDialogKeyDown}
-        className="fixed left-1/2 top-16 z-[70] w-[min(640px,calc(100vw-1rem))] -translate-x-1/2 overflow-hidden rounded-md border border-studio-line bg-studio-paper shadow-[0_10px_30px_rgba(0,0,0,0.18)]"
+        className="fixed left-1/2 top-16 z-[70] w-[min(640px,calc(100vw-1rem))] -translate-x-1/2 overflow-hidden rounded-md border border-studio-line bg-studio-paper shadow-[0_8px_24px_rgba(0,0,0,0.16)]"
       >
         <form onSubmit={runFirstItem} className="border-b border-studio-line">
           <label className="flex h-12 items-center gap-2 px-3 text-ink-muted">
