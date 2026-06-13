@@ -81,7 +81,7 @@ export default function MarkdownRenderer({
             return <input type={type} checked={checked} {...inputProps} />;
           },
           blockquote: ({ children }) => (
-            <blockquote className="my-5 border-l-2 border-midnight-strong bg-midnight-soft py-1 pl-4 text-document-muted">{children}</blockquote>
+            <blockquote className="my-5 border-l-2 border-midnight-strong/70 bg-black/[0.025] py-1.5 pl-4 pr-3 text-document-muted">{children}</blockquote>
           ),
           code: ({ className, children, ...props }) => {
             const { node: _node, ref: _ref, ...codeProps } = props as React.HTMLAttributes<HTMLElement> & {

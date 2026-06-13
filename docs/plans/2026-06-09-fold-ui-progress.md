@@ -29,6 +29,7 @@ Primary reference: `DESIGN.md`.
 - Hid legacy seeded/mock folders and routine `synced` badges so the file tree reads like a real project.
 - Kept raw Markdown canonical while rendering read mode with sanitized `react-markdown`.
 - Embedded frontmatter/properties as metadata inside the document/editor surface instead of rendering them as body text.
+- Flattened document properties into a quiet metadata band and softened blockquotes for long agent reports.
 - Kept edit mode as Markdown source only; removed extra rich/source controls.
 - Added Markdown source editor Tab/Shift+Tab indentation so list and code editing feels closer to a real Markdown workspace.
 - Softened the Markdown source editor stats into a quiet in-surface overlay instead of a bordered footer bar.

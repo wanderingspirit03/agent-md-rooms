@@ -349,7 +349,7 @@ export function DocumentSurface({
         {markdown.trim() ? (
           <>
             {parsedMarkdown.properties.length > 0 && (
-              <div className="mb-8 rounded-md border border-document-edge bg-black/[0.025] px-3 py-2">
+              <div className="mb-8 border-y border-document-edge bg-transparent py-2">
                 <div className="flex flex-wrap gap-x-4 gap-y-1">
                   {parsedMarkdown.properties.map((property, index) => (
                     <span key={`${property.key}:${index}`} className="text-xs leading-5 text-document-subtle">
