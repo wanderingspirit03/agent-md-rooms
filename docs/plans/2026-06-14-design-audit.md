@@ -43,3 +43,4 @@ Recent collaboration coverage:
 
 - Edit-mode source selections can create inline comment threads that re-open in read mode.
 - Edit-mode cursor-only comments store encrypted insertion-point anchors with nearby Markdown context and appear as minimal file threads.
+- Proposal previews now include encrypted discussion replies, keeping suggestions conversational without changing exported Markdown.

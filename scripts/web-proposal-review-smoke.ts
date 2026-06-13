@@ -13,6 +13,7 @@ const PROPOSED_TEXT = "Accepted proposal smoke sentence.";
 const REJECTED_TEXT = "Rejected proposal smoke sentence.";
 const PROPOSAL_TITLE = `Proposal review smoke ${Date.now()}`;
 const REJECT_PROPOSAL_TITLE = `Rejected proposal smoke ${Date.now()}`;
+const PROPOSAL_REPLY_MARKER = `Proposal discussion reply ${Date.now()}.`;
 const execFileAsync = promisify(execFile);
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 const tsxCli = join(repoRoot, "node_modules/tsx/dist/cli.mjs");
@@ -72,6 +73,14 @@ async function main() {
 
     await desktop.getByRole("button", { name: /open pending suggestion/i }).click({ timeout: 8_000 });
     await assertProposalDialog(desktop, PROPOSAL_TITLE, PROPOSED_TEXT);
+    const proposalDialog = desktop.getByRole("dialog", { name: PROPOSAL_TITLE });
+    await proposalDialog.getByLabel("Reply to comment").fill(PROPOSAL_REPLY_MARKER);
+    await proposalDialog.getByRole("button", { name: "Reply", exact: true }).click();
+    await desktop.waitForFunction(
+      (marker) => document.body.innerText.includes(marker) && document.body.innerText.includes("1 reply"),
+      PROPOSAL_REPLY_MARKER,
+      { timeout: 8_000 },
+    );
     await desktop.getByRole("button", { name: "Accept", exact: true }).click();
     await desktop.getByRole("button", { name: /cancel accepting/i }).click();
     await desktop.getByRole("button", { name: "Accept", exact: true }).waitFor({ state: "visible", timeout: 8_000 });
@@ -186,6 +195,7 @@ async function main() {
           roomUrl: published.room.url,
           proposalId: proposed.proposal.id,
           rejectedProposalId: rejectedCandidate.proposal.id,
+          proposalReplyMarker: PROPOSAL_REPLY_MARKER,
           desktopDialogScreenshotPath,
           mobileDialogScreenshotPath,
         },

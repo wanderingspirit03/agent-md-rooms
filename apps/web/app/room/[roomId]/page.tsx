@@ -7,6 +7,7 @@ import { AgentBench } from "../../../components/room/AgentBench";
 import { DocumentSurface } from "../../../components/room/DocumentSurface";
 import { RoomAccessGate } from "../../../components/room/RoomAccessGate";
 import { RoomShell } from "../../../components/room/RoomShell";
+import type { CommentReplyTarget } from "../../../components/room/CommentConversation";
 import { ThreadReviewDialog } from "../../../components/room/ThreadReviewDialog";
 import type { ChatComment, CollaborationPresence, FileConflict, FileVersion, Proposal, TimelineEvent } from "../../../components/room/types";
 import {
@@ -352,6 +353,7 @@ export default function RoomPage() {
       const parsed = await decryptJson<TimelineEvent>(payload, cryptKey, rec);
       setTimeline((prev) => [parsed, ...prev].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
       setComments((prev) => applyCommentEvent(prev, parsed));
+      setProposals((prev) => applyProposalEvent(prev, parsed));
       return;
     }
 
@@ -371,6 +373,9 @@ export default function RoomPage() {
       }
       if (parsed.type === "comment_replied") {
         setComments((prev) => applyCommentEvent(prev, parsed));
+      }
+      if (parsed.type === "proposal_replied") {
+        setProposals((prev) => applyProposalEvent(prev, parsed));
       }
       return;
     }
@@ -687,7 +692,7 @@ export default function RoomPage() {
   const handleReplyToComment = async (
     comment: ChatComment,
     text: string,
-    target?: { id: string; authorPersonaId: string; authorName: string; text: string },
+    target?: CommentReplyTarget,
   ) => {
     const trimmed = text.trim();
     if (!trimmed || !keyRef.current || !localMyPersona) return;
@@ -729,6 +734,55 @@ export default function RoomPage() {
       clearPresenceActivity();
     } catch (err) {
       setSyncError(`Could not reply to comment: ${String(err)}`);
+    }
+  };
+
+  const handleReplyToProposal = async (
+    proposal: Proposal,
+    text: string,
+    target?: CommentReplyTarget,
+  ) => {
+    const trimmed = text.trim();
+    if (!trimmed || !keyRef.current || !localMyPersona) return;
+
+    try {
+      const createdAt = new Date().toISOString();
+      const replyId = Math.random().toString(36).slice(2, 11);
+      const senderId = `${COMMENT_EVENT_SENDER_ID}:${replyId}`;
+      const eventRecord: TimelineEvent = {
+        id: `ev-proposal-reply-${replyId}`,
+        type: "proposal_replied",
+        createdAt,
+        actorPersonaId: localMyPersona.id,
+        proposalId: proposal.id,
+        filePath: proposal.filePath || selectedFilePath,
+        message: `Replied to suggestion ${proposal.title}`,
+        reply: {
+          id: replyId,
+          authorPersonaId: localMyPersona.id,
+          persona: localMyPersona,
+          text: trimmed,
+          createdAt,
+          ...(target
+            ? {
+                parentId: target.id,
+                parentAuthorPersonaId: target.authorPersonaId,
+                parentAuthorName: target.authorName,
+                parentText: target.text.slice(0, 220),
+              }
+            : {}),
+        },
+      };
+      const encryptedEvent = await encryptUpdate(encoder.encode(JSON.stringify(eventRecord)), keyRef.current, {
+        roomId,
+        senderId,
+      });
+      const response = await postEncryptedRecord(senderId, encryptedEvent);
+      if (!response.ok) throw new Error(`Server returned ${response.status}`);
+      setProposals((prev) => applyProposalEvent(prev, eventRecord));
+      clearPresenceActivity();
+    } catch (err) {
+      setSyncError(`Could not reply to suggestion: ${String(err)}`);
     }
   };
 
@@ -1167,6 +1221,9 @@ export default function RoomPage() {
   const selectedFileConflict = fileConflicts[selectedFilePath] || null;
   const selectedFilePresences = activePresencesForFile(presenceByClientId, selectedFilePath, presenceClock);
   const selectedFileParticipants = uniquePersonas(selectedFileProposals, selectedFileComments, selectedFileVersions, selectedFilePresences, localMyPersona);
+  const activeSelectedProposal = selectedProposal
+    ? proposals.find((proposal) => proposal.id === selectedProposal.id) || selectedProposal
+    : null;
   const handleSelectProjectFile = (path: string) => {
     flushProjectFileSnapshot(selectedFilePath);
     setSelectedFilePath(path);
@@ -1241,7 +1298,7 @@ export default function RoomPage() {
             onSelectedInsertionOffsetChange={setSelectedInsertionOffset}
             comments={selectedFileComments}
             proposals={selectedFileProposals}
-            activeProposalId={selectedProposal?.id ?? null}
+            activeProposalId={activeSelectedProposal?.id ?? null}
             onOpenProposal={setSelectedProposal}
             onResolveComment={handleResolveComment}
             onReplyToComment={handleReplyToComment}
@@ -1294,10 +1351,11 @@ export default function RoomPage() {
         }
       />
       <ThreadReviewDialog
-        proposal={selectedProposal}
+        proposal={activeSelectedProposal}
         onClose={() => setSelectedProposal(null)}
         onAccept={handleAcceptProposal}
         onReject={handleRejectProposal}
+        onReply={handleReplyToProposal}
       />
     </>
   );
@@ -1349,6 +1407,22 @@ function applyCommentEvent(comments: ChatComment[], event: TimelineEvent): ChatC
   });
 }
 
+function applyProposalEvent(proposals: Proposal[], event: TimelineEvent): Proposal[] {
+  if (!event.proposalId) return proposals;
+  return proposals.map((proposal) => {
+    if (proposal.id !== event.proposalId) return proposal;
+    if (event.type === "proposal_replied" && event.reply) {
+      const replies = proposal.replies || [];
+      if (replies.some((reply) => reply.id === event.reply?.id)) return proposal;
+      return {
+        ...proposal,
+        replies: sortCommentReplies([...replies, event.reply]),
+      };
+    }
+    return proposal;
+  });
+}
+
 function sortCommentReplies(replies: NonNullable<ChatComment["replies"]>) {
   return [...replies].sort((left, right) => left.createdAt.localeCompare(right.createdAt));
 }
@@ -1363,6 +1437,7 @@ function uniquePersonas(
   const personas = [
     ...presences.map((presence) => presence.persona),
     ...proposals.map((proposal) => proposal.persona),
+    ...proposals.flatMap((proposal) => (proposal.replies || []).map((reply) => reply.persona)),
     ...comments.map((comment) => comment.persona),
     ...comments.flatMap((comment) => (comment.replies || []).map((reply) => reply.persona)),
     ...versions.map((version) => version.persona),

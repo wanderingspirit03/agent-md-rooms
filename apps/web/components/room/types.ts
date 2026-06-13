@@ -22,6 +22,7 @@ export interface Proposal {
   diff?: string;
   beforeContext?: string;
   afterContext?: string;
+  replies?: ChatCommentReply[];
   proposedProject?: {
     schema: "fold.project.v1";
     primaryPath: string;

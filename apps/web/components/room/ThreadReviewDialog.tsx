@@ -14,14 +14,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
+import { CommentConversation, type CommentReplyTarget } from "./CommentConversation";
 import { PersonaChip } from "./PersonaChip";
-import type { Proposal } from "./types";
+import type { ChatComment, Proposal } from "./types";
 
 interface ThreadReviewDialogProps {
   proposal: Proposal | null;
   onClose: () => void;
   onAccept: (proposal: Proposal) => void;
   onReject: (proposal: Proposal) => void;
+  onReply?: (proposal: Proposal, text: string, target?: CommentReplyTarget) => void;
 }
 
 export function ThreadReviewDialog({
@@ -29,6 +31,7 @@ export function ThreadReviewDialog({
   onClose,
   onAccept,
   onReject,
+  onReply,
 }: ThreadReviewDialogProps) {
   const [confirmingAccept, setConfirmingAccept] = useState(false);
   const parsedProposal = proposal ? extractMarkdownProperties(proposal.proposedMarkdown) : null;
@@ -91,6 +94,20 @@ export function ThreadReviewDialog({
                   <MarkdownRenderer content={parsedProposal?.content ?? proposal.proposedMarkdown} />
                 </div>
               </div>
+
+              <section className="mt-3 rounded-md border border-studio-line bg-studio-sunken/55 p-2.5" aria-label="Suggestion discussion">
+                <div className="mb-2 flex items-center justify-between gap-3 px-0.5">
+                  <p className="text-[11px] font-medium text-ink-subtle">Discussion</p>
+                  <span className="font-mono text-[11px] text-ink-subtle">
+                    {proposal.replies?.length || 0} {proposal.replies?.length === 1 ? "reply" : "replies"}
+                  </span>
+                </div>
+                <CommentConversation
+                  comment={proposalDiscussionComment(proposal)}
+                  onReply={onReply ? (_comment, text, target) => onReply(proposal, text, target) : undefined}
+                  compact
+                />
+              </section>
             </div>
 
             {proposal.status === "pending" ? (
@@ -138,6 +155,24 @@ export function ThreadReviewDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function proposalDiscussionComment(proposal: Proposal): ChatComment {
+  return {
+    id: proposal.id,
+    authorPersonaId: proposal.authorPersonaId,
+    persona: proposal.persona,
+    filePath: proposal.filePath,
+    text: proposal.comment || proposal.title,
+    replies: proposal.replies || [],
+    createdAt: proposal.createdAt,
+    type: "note",
+    anchorType: proposal.anchorType,
+    selectedQuote: proposal.selectedQuote,
+    createdFromMarkdown: proposal.createdFromMarkdown,
+    beforeContext: proposal.beforeContext,
+    afterContext: proposal.afterContext,
+  };
 }
 
 function DiffPreview({ diff }: { diff: string }) {
