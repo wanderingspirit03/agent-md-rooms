@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Clock, FileText, Github, Link2, Plus, Trash2 } from "lucide-react";
+import { Archive, ArrowRight, Bot, Clock, FileText, Github, Inbox, Link2, Plus, RotateCcw, Trash2, Users } from "lucide-react";
 import { toBase64Url } from "../lib/crypto";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -19,12 +19,19 @@ interface RecentRoom {
   key: string;
   name: string;
   visitedAt: string;
+  source?: "created" | "joined" | "agent";
+  archivedAt?: string;
+  pendingCount?: number;
+  unresolvedCount?: number;
 }
+
+type WorkspaceView = "recent" | "shared" | "agents" | "review" | "archive";
 
 export default function HomePage() {
   const router = useRouter();
   const [pasteUrl, setPasteUrl] = useState("");
   const [recentRooms, setRecentRooms] = useState<RecentRoom[]>([]);
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("recent");
   const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
@@ -32,19 +39,31 @@ export default function HomePage() {
     if (!stored) return;
 
     try {
-      setRecentRooms(JSON.parse(stored));
+      setRecentRooms(normalizeRecentRooms(JSON.parse(stored)));
     } catch {
       localStorage.removeItem("fold:recent-rooms");
     }
   }, []);
 
-  const saveRoomToRecent = (roomId: string, key: string, name: string) => {
+  const persistRecentRooms = (rooms: RecentRoom[]) => {
+    setRecentRooms(rooms);
+    localStorage.setItem("fold:recent-rooms", JSON.stringify(rooms));
+  };
+
+  const saveRoomToRecent = (roomId: string, key: string, name: string, source: NonNullable<RecentRoom["source"]>) => {
     const list: RecentRoom[] = [
-      { roomId, key, name, visitedAt: new Date().toISOString() },
+      {
+        ...recentRooms.find((room) => room.roomId === roomId),
+        roomId,
+        key,
+        name,
+        source,
+        visitedAt: new Date().toISOString(),
+        archivedAt: undefined,
+      },
       ...recentRooms.filter((room) => room.roomId !== roomId),
     ].slice(0, 10);
-    setRecentRooms(list);
-    localStorage.setItem("fold:recent-rooms", JSON.stringify(list));
+    persistRecentRooms(list);
   };
 
   const handleJoinUrl = (e: React.FormEvent) => {
@@ -62,7 +81,7 @@ export default function HomePage() {
         return;
       }
 
-      saveRoomToRecent(roomId, matchKey[1], "Joined project");
+      saveRoomToRecent(roomId, matchKey[1], "Joined project", "joined");
       router.push(`/room/${roomId}#key=${matchKey[1]}`);
     } catch {
       window.alert("Paste a full project link.");
@@ -77,7 +96,7 @@ export default function HomePage() {
       const roomBytes = window.crypto.getRandomValues(new Uint8Array(16));
       const roomId = toBase64Url(roomBytes);
 
-      saveRoomToRecent(roomId, roomSecret, "Untitled project");
+      saveRoomToRecent(roomId, roomSecret, "Untitled project", "created");
       router.push(`/room/${roomId}#key=${roomSecret}`);
     } catch (err) {
       window.alert(`Could not create project: ${String(err)}`);
@@ -90,6 +109,36 @@ export default function HomePage() {
     setRecentRooms([]);
     localStorage.removeItem("fold:recent-rooms");
   };
+
+  const handleOpenRoom = (room: RecentRoom) => {
+    persistRecentRooms([
+      {
+        ...room,
+        source: room.source || inferRoomSource(room),
+        visitedAt: new Date().toISOString(),
+      },
+      ...recentRooms.filter((item) => item.roomId !== room.roomId),
+    ].slice(0, 10));
+    router.push(`/room/${room.roomId}#key=${room.key}`);
+  };
+
+  const handleSetArchived = (room: RecentRoom, archived: boolean) => {
+    const next = recentRooms.map((item) => (
+      item.roomId === room.roomId
+        ? { ...item, archivedAt: archived ? new Date().toISOString() : undefined }
+        : item
+    ));
+    persistRecentRooms(next);
+    if (archived && workspaceView !== "archive") {
+      const remainingInView = visibleRoomsForView(next, workspaceView).length;
+      if (remainingInView === 0) setWorkspaceView("recent");
+    }
+  };
+
+  const activeRooms = recentRooms.filter((room) => !room.archivedAt);
+  const visibleRooms = visibleRoomsForView(recentRooms, workspaceView);
+  const workspaceViews = workspaceViewItems(recentRooms);
+  const currentView = workspaceViews.find((view) => view.id === workspaceView) || workspaceViews[0];
 
   return (
     <TooltipProvider>
@@ -124,8 +173,8 @@ export default function HomePage() {
           <aside className="border-b border-studio-line bg-studio-paper md:border-b-0 md:border-r">
             <div className="flex h-11 items-center justify-between border-b border-studio-line px-4">
               <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-ink-muted" />
-                <h2 className="text-xs font-medium uppercase text-ink-subtle">Projects</h2>
+                <Inbox className="h-4 w-4 text-ink-muted" />
+                <h2 className="text-xs font-medium uppercase text-ink-subtle">Workspace</h2>
               </div>
               {recentRooms.length > 0 && (
                 <Tooltip>
@@ -139,30 +188,71 @@ export default function HomePage() {
               )}
             </div>
 
-            <div className="max-h-[220px] overflow-y-auto p-2 md:max-h-none">
-              {recentRooms.length === 0 ? (
+            <nav aria-label="Project workspace views" className="grid grid-cols-2 gap-1 border-b border-studio-line p-2 md:grid-cols-1">
+              {workspaceViews.map((view) => {
+                const Icon = view.icon;
+                const selected = workspaceView === view.id;
+                return (
+                  <button
+                    key={view.id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setWorkspaceView(view.id)}
+                    className={`flex h-9 items-center gap-2 rounded-md px-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong ${
+                      selected
+                        ? "bg-midnight-soft text-ink"
+                        : "text-ink-muted hover:bg-studio-sunken hover:text-ink"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5 shrink-0" />
+                    <span className="min-w-0 flex-1 truncate">{view.label}</span>
+                    <span className="font-mono text-[11px] text-ink-subtle">{view.count}</span>
+                  </button>
+                );
+              })}
+            </nav>
+
+            <div className="max-h-[260px] overflow-y-auto p-2 md:max-h-none">
+              {visibleRooms.length === 0 ? (
                 <div className="flex min-h-28 items-center gap-3 rounded-md px-2 text-ink-subtle">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-studio-line bg-studio-sunken">
-                    <FileText className="h-3.5 w-3.5" />
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-studio-sunken">
+                    <currentView.icon className="h-3.5 w-3.5" />
                   </span>
-                  <span className="text-sm text-ink-muted">No recent projects</span>
+                  <span className="text-sm text-ink-muted">{emptyViewLabel(workspaceView, activeRooms.length)}</span>
                 </div>
               ) : (
                 <div className="space-y-0.5">
-                  {recentRooms.map((room) => (
-                    <button
+                  {visibleRooms.map((room) => (
+                    <div
                       key={room.roomId}
-                      type="button"
-                      title={`Project id ${room.roomId}`}
-                      onClick={() => router.push(`/room/${room.roomId}#key=${room.key}`)}
-                      className="flex min-h-10 w-full items-center gap-2 rounded-md px-2 text-left transition-colors hover:bg-studio-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+                      className="group flex min-h-11 items-center gap-1 rounded-md px-1 transition-colors hover:bg-studio-sunken"
                     >
-                      <FileText className="h-3.5 w-3.5 shrink-0 text-ink-subtle" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-ink">{projectDisplayName(room)}</span>
-                        <span className="block truncate text-[11px] text-ink-subtle">{recentProjectDetail(room)}</span>
-                      </span>
-                    </button>
+                      <button
+                        type="button"
+                        title={`Project id ${room.roomId}`}
+                        onClick={() => handleOpenRoom(room)}
+                        className="flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded px-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+                      >
+                        <FileText className="h-3.5 w-3.5 shrink-0 text-ink-subtle" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium text-ink">{projectDisplayName(room)}</span>
+                          <span className="block truncate text-[11px] text-ink-subtle">{recentProjectDetail(room)}</span>
+                        </span>
+                      </button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label={room.archivedAt ? `Restore ${projectDisplayName(room)}` : `Archive ${projectDisplayName(room)}`}
+                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded text-ink-subtle opacity-100 transition-colors hover:bg-porcelain hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+                            onClick={() => handleSetArchived(room, !room.archivedAt)}
+                          >
+                            {room.archivedAt ? <RotateCcw className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>{room.archivedAt ? "Restore" : "Archive"}</TooltipContent>
+                      </Tooltip>
+                    </div>
                   ))}
                 </div>
               )}
@@ -217,11 +307,31 @@ export default function HomePage() {
                   </div>
                 </form>
               </div>
+
+              {activeRooms.length > 0 && (
+                <div className="mt-5 border-t border-studio-line pt-4">
+                  <h3 className="text-xs font-medium uppercase text-ink-subtle">Local index</h3>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                    <WorkspaceStat label="active" value={activeRooms.length} />
+                    <WorkspaceStat label="shared" value={recentRooms.filter((room) => !room.archivedAt && inferRoomSource(room) === "joined").length} />
+                    <WorkspaceStat label="review" value={recentRooms.filter((room) => !room.archivedAt && roomNeedsReview(room)).length} />
+                  </div>
+                </div>
+              )}
             </div>
           </section>
         </main>
       </div>
     </TooltipProvider>
+  );
+}
+
+function WorkspaceStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex h-10 items-center justify-between border-b border-studio-line text-sm">
+      <span className="text-ink-subtle">{label}</span>
+      <span className="font-mono text-xs text-ink-muted">{value}</span>
+    </div>
   );
 }
 
@@ -231,6 +341,109 @@ function projectDisplayName(room: RecentRoom) {
 
 function recentProjectDetail(room: RecentRoom) {
   const date = new Date(room.visitedAt);
-  if (Number.isNaN(date.getTime())) return "Private workspace";
-  return `Private workspace · ${date.toLocaleDateString([], { month: "short", day: "numeric" })}`;
+  const source = roomSourceLabel(inferRoomSource(room));
+  const reviewCount = (room.pendingCount || 0) + (room.unresolvedCount || 0);
+  const reviewText = reviewCount > 0 ? ` · ${reviewCount} review` : "";
+  if (Number.isNaN(date.getTime())) return `${source}${reviewText}`;
+  return `${source} · ${date.toLocaleDateString([], { month: "short", day: "numeric" })}${reviewText}`;
+}
+
+function workspaceViewItems(rooms: RecentRoom[]) {
+  return [
+    {
+      id: "recent" as const,
+      label: "Recent",
+      icon: Clock,
+      count: rooms.filter((room) => !room.archivedAt).length,
+    },
+    {
+      id: "shared" as const,
+      label: "Shared",
+      icon: Users,
+      count: rooms.filter((room) => !room.archivedAt && inferRoomSource(room) === "joined").length,
+    },
+    {
+      id: "agents" as const,
+      label: "Agents",
+      icon: Bot,
+      count: rooms.filter((room) => !room.archivedAt && inferRoomSource(room) === "agent").length,
+    },
+    {
+      id: "review" as const,
+      label: "Review",
+      icon: Inbox,
+      count: rooms.filter((room) => !room.archivedAt && roomNeedsReview(room)).length,
+    },
+    {
+      id: "archive" as const,
+      label: "Archive",
+      icon: Archive,
+      count: rooms.filter((room) => room.archivedAt).length,
+    },
+  ];
+}
+
+function visibleRoomsForView(rooms: RecentRoom[], view: WorkspaceView) {
+  const sorted = [...rooms].sort((left, right) => dateValue(right.visitedAt) - dateValue(left.visitedAt));
+  if (view === "archive") return sorted.filter((room) => room.archivedAt);
+  const active = sorted.filter((room) => !room.archivedAt);
+  if (view === "shared") return active.filter((room) => inferRoomSource(room) === "joined");
+  if (view === "agents") return active.filter((room) => inferRoomSource(room) === "agent");
+  if (view === "review") return active.filter(roomNeedsReview);
+  return active;
+}
+
+function normalizeRecentRooms(value: unknown): RecentRoom[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((room): room is RecentRoom => (
+      Boolean(room) &&
+      typeof room === "object" &&
+      typeof (room as RecentRoom).roomId === "string" &&
+      typeof (room as RecentRoom).key === "string"
+    ))
+    .map((room) => ({
+      roomId: room.roomId,
+      key: room.key,
+      name: typeof room.name === "string" ? room.name : "Joined project",
+      visitedAt: typeof room.visitedAt === "string" ? room.visitedAt : new Date(0).toISOString(),
+      source: normalizeRoomSource(room.source) || inferRoomSource(room),
+      archivedAt: typeof room.archivedAt === "string" ? room.archivedAt : undefined,
+      pendingCount: typeof room.pendingCount === "number" ? room.pendingCount : undefined,
+      unresolvedCount: typeof room.unresolvedCount === "number" ? room.unresolvedCount : undefined,
+    }));
+}
+
+function normalizeRoomSource(value: unknown): RecentRoom["source"] | undefined {
+  return value === "created" || value === "joined" || value === "agent" ? value : undefined;
+}
+
+function inferRoomSource(room: RecentRoom): NonNullable<RecentRoom["source"]> {
+  if (room.source) return room.source;
+  if (/agent/i.test(room.name)) return "agent";
+  if (/untitled|created/i.test(room.name)) return "created";
+  return "joined";
+}
+
+function roomSourceLabel(source: NonNullable<RecentRoom["source"]>) {
+  if (source === "created") return "Created here";
+  if (source === "agent") return "Created by agent";
+  return "Shared link";
+}
+
+function roomNeedsReview(room: RecentRoom) {
+  return (room.pendingCount || 0) + (room.unresolvedCount || 0) > 0;
+}
+
+function emptyViewLabel(view: WorkspaceView, activeCount: number) {
+  if (view === "recent") return activeCount > 0 ? "No active projects" : "No recent projects";
+  if (view === "shared") return "No shared projects";
+  if (view === "agents") return "No agent-created projects";
+  if (view === "review") return "No projects need review";
+  return "Archive is empty";
+}
+
+function dateValue(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
 }

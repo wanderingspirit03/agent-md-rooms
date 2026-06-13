@@ -20,6 +20,9 @@ async function main() {
     const desktop = await browser.newPage({ viewport: { width: 1440, height: 960 } });
     await preparePage(desktop, "desktop", logs);
     await desktop.goto(baseUrl, { waitUntil: "networkidle", timeout: 20_000 });
+    await assertLauncherWorkspace(desktop);
+    const launcherScreenshotPath = join(screenshotDir, "desktop-local-workspace.png");
+    await desktop.screenshot({ path: launcherScreenshotPath, fullPage: true, caret: "initial" });
     await desktop.getByRole("button", { name: /create project/i }).click();
     await desktop.waitForSelector('[data-document-surface="true"]', { timeout: 10_000 });
     await desktop.getByRole("button", { name: /^agent-handoff-review\.md/i }).click();
@@ -65,6 +68,7 @@ async function main() {
           baseUrl,
           syncUrl: DEFAULT_SYNC_URL,
           roomUrl: desktop.url(),
+          launcherScreenshotPath,
           desktopScreenshotPath,
           mobileScreenshotPath,
           mobileDrawerScreenshotPath,
@@ -76,6 +80,39 @@ async function main() {
   } finally {
     await browser.close();
   }
+}
+
+async function assertLauncherWorkspace(page: Page) {
+  await page.getByRole("navigation", { name: /project workspace views/i }).waitFor({ state: "visible", timeout: 8_000 });
+  await page.getByRole("button", { name: /^Recent\s+4$/i }).waitFor({ state: "visible", timeout: 8_000 });
+  await page.getByRole("button", { name: /^Shared\s+2$/i }).waitFor({ state: "visible", timeout: 8_000 });
+  await page.getByRole("button", { name: /^Agents\s+1$/i }).waitFor({ state: "visible", timeout: 8_000 });
+  await page.getByRole("button", { name: /^Review\s+1$/i }).waitFor({ state: "visible", timeout: 8_000 });
+  await page.getByRole("button", { name: /^Archive\s+1$/i }).waitFor({ state: "visible", timeout: 8_000 });
+
+  await page.getByRole("button", { name: /^Shared\s+2$/i }).click();
+  await page.waitForFunction(() => document.body.innerText.includes("Shared planning room"), null, { timeout: 8_000 });
+  await page.getByRole("button", { name: /^Agents\s+1$/i }).click();
+  await page.waitForFunction(() => document.body.innerText.includes("Agent-created handoff"), null, { timeout: 8_000 });
+  await page.getByRole("button", { name: /^Review\s+1$/i }).click();
+  await page.waitForFunction(() => document.body.innerText.includes("Needs review sample"), null, { timeout: 8_000 });
+  await page.getByRole("button", { name: /^Archive\s+1$/i }).click();
+  await page.waitForFunction(() => document.body.innerText.includes("Archived launch notes"), null, { timeout: 8_000 });
+  await page.getByRole("button", { name: /restore archived launch notes/i }).click();
+  await page.getByRole("button", { name: /^Recent\s+5$/i }).click();
+  await page.getByRole("button", { name: /archive archived launch notes/i }).click();
+  await page.getByRole("button", { name: /^Archive\s+1$/i }).waitFor({ state: "visible", timeout: 8_000 });
+  await page.getByRole("button", { name: /^Recent\s+4$/i }).click();
+  await page.waitForFunction(() => document.body.innerText.includes("Created here"), null, { timeout: 8_000 });
+
+  const metrics = await page.evaluate(() => ({
+    bodyText: document.body.innerText,
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }));
+  if (/vault/i.test(metrics.bodyText)) throw new Error("Launcher still exposes vault wording.");
+  if (!/local index/i.test(metrics.bodyText)) throw new Error("Launcher does not expose the local project index.");
+  if (metrics.scrollWidth > metrics.clientWidth) throw new Error("Launcher workspace created horizontal overflow.");
 }
 
 async function assertDesktopDesign(page: Page) {
@@ -185,7 +222,53 @@ async function preparePage(page: Page, label: string, logs: string[]) {
     logs.push(`${label} console:${message.type()}: ${message.text()}`);
   });
   page.on("pageerror", (error) => logs.push(`${label} pageerror: ${error.message}`));
-  await page.addInitScript(() => localStorage.setItem("fold:theme", "dark"));
+  await page.addInitScript((rooms) => {
+    localStorage.setItem("fold:theme", "dark");
+    localStorage.setItem("fold:recent-rooms", JSON.stringify(rooms));
+  }, seededRecentRooms());
+}
+
+function seededRecentRooms() {
+  return [
+    {
+      roomId: "created-local-room",
+      key: "created-local-key",
+      name: "Local project draft",
+      source: "created",
+      visitedAt: "2026-06-12T11:00:00.000Z",
+    },
+    {
+      roomId: "shared-planning-room",
+      key: "shared-planning-key",
+      name: "Shared planning room",
+      source: "joined",
+      visitedAt: "2026-06-12T10:00:00.000Z",
+    },
+    {
+      roomId: "agent-handoff-room",
+      key: "agent-handoff-key",
+      name: "Agent-created handoff",
+      source: "agent",
+      visitedAt: "2026-06-12T09:00:00.000Z",
+    },
+    {
+      roomId: "needs-review-room",
+      key: "needs-review-key",
+      name: "Needs review sample",
+      source: "joined",
+      pendingCount: 1,
+      unresolvedCount: 1,
+      visitedAt: "2026-06-12T08:00:00.000Z",
+    },
+    {
+      roomId: "archived-launch-room",
+      key: "archived-launch-key",
+      name: "Archived launch notes",
+      source: "created",
+      archivedAt: "2026-06-11T09:00:00.000Z",
+      visitedAt: "2026-06-11T09:00:00.000Z",
+    },
+  ];
 }
 
 async function resolveBaseUrl() {

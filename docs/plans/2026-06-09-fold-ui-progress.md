@@ -163,6 +163,7 @@ Primary reference: `DESIGN.md`.
 - Reworked the missing-key access gate with Fold branding, project-first copy, and softer elevation.
 - Calmed launcher recent-project rows so old room-id-style entries display as project/workspace metadata instead of visible raw ids.
 - Calmed the launcher open-project block by removing badge-like local-key chrome, shortening setup copy, and unboxing the primary create icon.
+- Extended the launcher into a local-only personal workspace with Recent, Shared, Agents, Review, and Archive views over browser-held room references.
 - Softened the document paper elevation and unboxed the file-level comment controls so mobile comments stay reachable without square-button chrome on the page.
 - Rebalanced read/edit active mode controls from filled primary buttons to soft midnight selected states so bright mobile chrome stays calmer.
 - Lightened the command-palette dismissal layer and elevation so quick switching keeps document context visible instead of greying out the workspace.
