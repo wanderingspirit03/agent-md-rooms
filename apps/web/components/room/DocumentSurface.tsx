@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { Check, ListChecks, MessageSquare, MessageSquarePlus, Pencil, Send, X } from "lucide-react";
 import MarkdownRenderer from "../MarkdownRenderer";
 import MarkdownSourceEditor from "../MarkdownSourceEditor";
@@ -429,8 +430,8 @@ export function DocumentSurface({
         {activeComment && activeCommentCard && (
           <div
             data-comment-popover
-            className="absolute z-20 w-[min(310px,calc(100%-2rem))] rounded-md border border-midnight/25 bg-studio-paper p-2.5 text-ink shadow-[0_10px_28px_rgba(0,0,0,0.18)]"
-            style={{ top: activeCommentCard.top, left: activeCommentCard.left }}
+            className="fixed inset-x-3 bottom-3 z-50 max-h-[min(72dvh,420px)] overflow-y-auto rounded-md border border-midnight/25 bg-studio-paper p-2.5 pb-[calc(env(safe-area-inset-bottom)+0.625rem)] text-ink shadow-[0_-12px_36px_rgba(0,0,0,0.28)] md:absolute md:inset-x-auto md:bottom-auto md:top-[var(--comment-popover-top)] md:left-[var(--comment-popover-left)] md:z-20 md:w-[min(310px,calc(100%-2rem))] md:max-h-none md:overflow-visible md:pb-2.5 md:shadow-[0_10px_28px_rgba(0,0,0,0.18)]"
+            style={overlayPositionStyle("--comment-popover-top", activeCommentCard.top, "--comment-popover-left", activeCommentCard.left)}
           >
             <div className="mb-2 flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-center gap-2">
@@ -472,8 +473,8 @@ export function DocumentSurface({
         )}
         {selectedQuote && anchorPoint && inlineComposerOpen && (
           <div
-            className="absolute z-10 w-[min(340px,calc(100%-2rem))]"
-            style={{ top: anchorPoint.top, left: anchorPoint.left }}
+            className="fixed inset-x-3 bottom-3 z-50 w-auto pb-[env(safe-area-inset-bottom)] md:absolute md:inset-x-auto md:bottom-auto md:top-[var(--comment-composer-top)] md:left-[var(--comment-composer-left)] md:z-10 md:w-[min(340px,calc(100%-2rem))] md:pb-0"
+            style={overlayPositionStyle("--comment-composer-top", anchorPoint.top, "--comment-composer-left", anchorPoint.left)}
           >
             <form
               data-comment-composer
@@ -522,6 +523,13 @@ export function DocumentSurface({
       </div>
     </section>
   );
+}
+
+function overlayPositionStyle(topVar: string, top: number, leftVar: string, left: number) {
+  return {
+    [topVar]: `${top}px`,
+    [leftVar]: `${left}px`,
+  } as CSSProperties;
 }
 
 function expandPartialWordSelection(markdown: string, selectedText: string) {

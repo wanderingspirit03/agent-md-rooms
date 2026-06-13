@@ -129,6 +129,7 @@ Primary reference: `DESIGN.md`.
 - Hardened the reusable margin-thread proposal branch with the same two-step accept confirmation so stale or future proposal surfaces cannot reintroduce one-click acceptance.
 - Added a compact two-step confirmation before applying incoming edits so remote replacements or deletions cannot overwrite local drafts in one click.
 - Cleaned up the file-header quick switcher semantics so its accessible label names the file, location, saved state, and E2EE status without reading decorative metadata twice.
+- Made inline comment composer and comment read cards become compact mobile bottom sheets while preserving anchored desktop popovers.
 - Verified recent UI slices with Playwright screenshots on desktop and mobile because `iab` is unavailable in this session.
 - Continue verifying substantial slices with a separate reviewer/subagent before pushing.
 
