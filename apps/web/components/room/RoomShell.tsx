@@ -63,6 +63,7 @@ interface RoomShellProps {
   activePresences?: CollaborationPresence[];
   mode: RoomMode;
   error?: string | null;
+  humanInvite?: HumanInvite | null;
   agentInvite?: AgentInvite | null;
   onBack: () => void;
   onExport: () => void;
@@ -91,6 +92,7 @@ export function RoomShell({
   activePresences = [],
   mode,
   error,
+  humanInvite,
   agentInvite,
   onBack,
   onExport,
@@ -129,6 +131,17 @@ export function RoomShell({
     : "Open review";
   const commentCount = Math.max(0, reviewCount - pendingCount - conflictCount);
   const securityLabel = !connected ? "E2EE offline" : !ready ? "E2EE replaying" : "E2EE";
+  const humanInviteHasWarnings = Boolean(humanInvite?.warnings?.length);
+  const humanInviteAriaLabel = projectLinkCopied
+    ? "Human invite copied"
+    : humanInviteHasWarnings
+      ? "Invite human with local network warning"
+      : "Invite human";
+  const humanInviteTooltip = projectLinkCopied
+    ? "Copied"
+    : humanInviteHasWarnings
+      ? "Invite human, local URLs"
+      : "Invite human";
   const agentInviteHasWarnings = Boolean(agentInvite?.warnings?.length);
   const agentInviteAriaLabel = agentInviteCopied
     ? "Agent handoff copied"
@@ -189,20 +202,7 @@ export function RoomShell({
   }, [commandOpen, projectFilesOpen, reviewOpen]);
 
   const copyProjectLink = async () => {
-    const link = window.location.href;
-    try {
-      await navigator.clipboard.writeText(link);
-    } catch {
-      const input = window.document.createElement("input");
-      input.value = link;
-      input.setAttribute("readonly", "");
-      input.style.position = "fixed";
-      input.style.opacity = "0";
-      window.document.body.appendChild(input);
-      input.select();
-      window.document.execCommand("copy");
-      window.document.body.removeChild(input);
-    }
+    await copyText(humanInvite?.text || window.location.href);
     setProjectLinkCopied(true);
     window.setTimeout(() => setProjectLinkCopied(false), 1400);
     onCopyProjectLink?.();
@@ -242,6 +242,9 @@ export function RoomShell({
             onBack={onBack}
             onCopyProjectLink={copyProjectLink}
             projectLinkCopied={projectLinkCopied}
+            humanInviteHasWarnings={humanInviteHasWarnings}
+            humanInviteAriaLabel={humanInviteAriaLabel}
+            humanInviteTooltip={humanInviteTooltip}
             onFileSelect={onFileSelect}
             onCreateFile={onCreateFile}
             onImportFile={openImportPicker}
@@ -305,7 +308,7 @@ export function RoomShell({
                         variant="ghost"
                         size="icon"
                         onClick={copyProjectLink}
-                        aria-label={projectLinkCopied ? "Human invite copied" : "Invite human"}
+                        aria-label={humanInviteAriaLabel}
                       >
                         {projectLinkCopied ? <Check className="h-4 w-4" /> : <UsersRound className="h-4 w-4" />}
                         <span className="sr-only" aria-live="polite">
@@ -313,7 +316,7 @@ export function RoomShell({
                         </span>
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>{projectLinkCopied ? "Copied" : "Invite human"}</TooltipContent>
+                    <TooltipContent>{humanInviteTooltip}</TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -424,6 +427,9 @@ export function RoomShell({
                 onBack={onBack}
                 onCopyProjectLink={copyProjectLink}
                 projectLinkCopied={projectLinkCopied}
+                humanInviteHasWarnings={humanInviteHasWarnings}
+                humanInviteAriaLabel={humanInviteAriaLabel}
+                humanInviteTooltip={humanInviteTooltip}
                 onClose={() => setProjectFilesOpen(false)}
               />
               <ProjectFilesBody
@@ -494,6 +500,7 @@ export function RoomShell({
             pendingCount={pendingCount}
             reviewCount={reviewCount}
             selectedQuote={selectedQuote}
+            humanInviteHasWarnings={humanInviteHasWarnings}
             agentInviteHasWarnings={agentInviteHasWarnings}
             onClose={() => setCommandOpen(false)}
             onFileSelect={(path) => {
@@ -548,6 +555,12 @@ interface AgentInvite {
   text: string;
 }
 
+interface HumanInvite {
+  url: string;
+  warnings?: string[];
+  text: string;
+}
+
 interface ProjectFile {
   name: string;
   path: string;
@@ -570,6 +583,9 @@ function ProjectFileSidebar({
   onBack,
   onCopyProjectLink,
   projectLinkCopied = false,
+  humanInviteHasWarnings = false,
+  humanInviteAriaLabel,
+  humanInviteTooltip,
   onFileSelect,
   onCreateFile,
   onImportFile,
@@ -582,6 +598,9 @@ function ProjectFileSidebar({
   onBack: () => void;
   onCopyProjectLink: () => void;
   projectLinkCopied?: boolean;
+  humanInviteHasWarnings?: boolean;
+  humanInviteAriaLabel?: string;
+  humanInviteTooltip?: string;
   onFileSelect: (path: string) => void;
   onCreateFile: (path: string) => void;
   onImportFile: () => void;
@@ -595,6 +614,9 @@ function ProjectFileSidebar({
         onBack={onBack}
         onCopyProjectLink={onCopyProjectLink}
         projectLinkCopied={projectLinkCopied}
+        humanInviteHasWarnings={humanInviteHasWarnings}
+        humanInviteAriaLabel={humanInviteAriaLabel}
+        humanInviteTooltip={humanInviteTooltip}
       />
       <ProjectFilesBody
         key={`desktop-project-files:${roomId}`}
@@ -616,6 +638,9 @@ function ProjectFilesHeader({
   onBack,
   onCopyProjectLink,
   projectLinkCopied = false,
+  humanInviteHasWarnings = false,
+  humanInviteAriaLabel,
+  humanInviteTooltip,
   onClose,
 }: {
   roomId: string;
@@ -623,6 +648,9 @@ function ProjectFilesHeader({
   onBack: () => void;
   onCopyProjectLink: () => void;
   projectLinkCopied?: boolean;
+  humanInviteHasWarnings?: boolean;
+  humanInviteAriaLabel?: string;
+  humanInviteTooltip?: string;
   onClose?: () => void;
 }) {
   return (
@@ -645,7 +673,7 @@ function ProjectFilesHeader({
             variant="ghost"
             size="icon"
             onClick={onCopyProjectLink}
-            aria-label={projectLinkCopied ? "Human invite copied" : "Invite human"}
+            aria-label={humanInviteAriaLabel || (projectLinkCopied ? "Human invite copied" : humanInviteHasWarnings ? "Invite human with local network warning" : "Invite human")}
             className={cn(
               "copy-project-link-button relative h-11 w-11 overflow-hidden transition-all duration-200 active:scale-[0.96]",
               projectLinkCopied &&
@@ -666,7 +694,7 @@ function ProjectFilesHeader({
             </span>
           </Button>
         </TooltipTrigger>
-        <TooltipContent>{projectLinkCopied ? "Copied" : "Invite human"}</TooltipContent>
+        <TooltipContent>{humanInviteTooltip || (projectLinkCopied ? "Copied" : humanInviteHasWarnings ? "Invite human, local URLs" : "Invite human")}</TooltipContent>
       </Tooltip>
       {onClose && (
         <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close project files" className="h-11 w-11">
@@ -1398,6 +1426,7 @@ function ProjectCommandPalette({
   pendingCount,
   reviewCount,
   selectedQuote,
+  humanInviteHasWarnings,
   agentInviteHasWarnings,
   onClose,
   onFileSelect,
@@ -1417,6 +1446,7 @@ function ProjectCommandPalette({
   pendingCount: number;
   reviewCount: number;
   selectedQuote: string;
+  humanInviteHasWarnings: boolean;
   agentInviteHasWarnings: boolean;
   onClose: () => void;
   onFileSelect: (path: string) => void;
@@ -1491,7 +1521,7 @@ function ProjectCommandPalette({
     {
       id: "copy-link",
       label: "Invite human",
-      detail: "Copy encrypted project link",
+      detail: humanInviteHasWarnings ? "Copy join handoff with local URL warning" : "Copy browser join handoff",
       group: "actions",
       searchText: "copy project link share invite human encrypted room url",
       icon: <UsersRound className="h-4 w-4" />,

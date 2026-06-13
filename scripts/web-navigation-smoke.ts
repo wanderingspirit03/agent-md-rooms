@@ -24,6 +24,19 @@ async function main() {
     await page.goto(baseUrl, { waitUntil: "networkidle", timeout: 20_000 });
     await page.getByRole("button", { name: /create project/i }).click();
     await page.waitForSelector('[data-document-surface="true"]', { timeout: 10_000 });
+    await installClipboardProbe(page);
+    await page.getByRole("button", { name: /invite human/i }).first().click();
+    await page.waitForFunction(() => Boolean((window as typeof window & { __foldClipboardText?: string }).__foldClipboardText), null, { timeout: 8_000 });
+    const humanInviteText = await page.evaluate(() => (window as typeof window & { __foldClipboardText?: string }).__foldClipboardText || "");
+    if (!humanInviteText.includes("Join this Fold project room")) {
+      throw new Error("Human invite copy did not include project join instructions.");
+    }
+    if (!humanInviteText.includes("#key=") || !humanInviteText.includes("Keep the #key=... fragment")) {
+      throw new Error("Human invite copy did not explain the encrypted room key fragment.");
+    }
+    if (!humanInviteText.includes("Use this sync server") || !humanInviteText.includes("Reachability warning")) {
+      throw new Error("Human invite copy did not include sync-server and reachability guidance.");
+    }
 
     await page.getByRole("button", { name: "Edit", exact: true }).click();
     const sourceEditor = page.getByRole("textbox", { name: /markdown source/i });
@@ -183,7 +196,26 @@ async function preparePage(page: Page, label: string, logs: string[]) {
     logs.push(`${label} console:${message.type()}: ${message.text()}`);
   });
   page.on("pageerror", (error) => logs.push(`${label} pageerror: ${error.message}`));
-  await page.addInitScript(() => localStorage.setItem("fold:theme", "dark"));
+  await page.addInitScript(() => {
+    localStorage.setItem("fold:theme", "dark");
+  });
+}
+
+async function installClipboardProbe(page: Page) {
+  await page.evaluate(`(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText(text) {
+          window.__foldClipboardText = String(text);
+          return Promise.resolve();
+        },
+        readText() {
+          return Promise.resolve(window.__foldClipboardText || "");
+        },
+      },
+    });
+  })()`);
 }
 
 async function resolveBaseUrl() {

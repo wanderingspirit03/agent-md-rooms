@@ -1241,6 +1241,16 @@ export default function RoomPage() {
       syncUrl: serverUrl,
     });
   }, [roomId, roomSecret, serverUrl]);
+  const humanInvite = useMemo(() => {
+    if (!roomId || !roomSecret || typeof window === "undefined") return null;
+    return createHumanInvite({
+      roomId,
+      roomSecret,
+      projectName,
+      appUrl: window.location.origin,
+      syncUrl: serverUrl,
+    });
+  }, [projectName, roomId, roomSecret, serverUrl]);
 
   if (!isKeyConfigured) {
     return (
@@ -1274,6 +1284,7 @@ export default function RoomPage() {
         error={syncError}
         onBack={() => router.push("/")}
         onExport={handleDownloadMarkdown}
+        humanInvite={humanInvite}
         agentInvite={agentInvite}
         onCreateFile={handleCreateProjectFile}
         onImportFile={handleImportProjectFile}
@@ -1862,6 +1873,49 @@ function createAgentInvite({
   };
 }
 
+function createHumanInvite({
+  roomId,
+  roomSecret,
+  projectName,
+  appUrl,
+  syncUrl,
+}: {
+  roomId: string;
+  roomSecret: string;
+  projectName: string;
+  appUrl: string;
+  syncUrl: string;
+}) {
+  const normalizedAppUrl = appUrl.replace(/\/$/, "");
+  const normalizedSyncUrl = syncUrl.replace(/\/$/, "");
+  const url = `${normalizedAppUrl}/room/${encodeURIComponent(roomId)}#key=${encodeURIComponent(roomSecret)}`;
+  const warnings = shareabilityWarnings({
+    appUrl: normalizedAppUrl,
+    syncUrl: normalizedSyncUrl,
+  });
+  const warningLines = warnings.length
+    ? ["", "Reachability warning:", ...warnings.map((warning) => `- ${warning}`)]
+    : [];
+
+  return {
+    url,
+    warnings,
+    text: [
+      `Join this Fold project room: ${projectName || "Fold project"}`,
+      ...warningLines,
+      "",
+      "1. Open the encrypted project link:",
+      `   ${url}`,
+      "",
+      "2. Keep the #key=... fragment in the URL. It is the room key and is not sent to the server.",
+      "",
+      `3. Use this sync server if the app asks or if the room does not connect: ${normalizedSyncUrl}`,
+      "",
+      "4. Review Markdown, comment inline, and accept or reject suggestions from the room.",
+    ].join("\n"),
+  };
+}
+
 function shareabilityWarnings(access: { appUrl: string; syncUrl: string }) {
   const warnings: string[] = [];
   for (const [label, value] of [["appUrl", access.appUrl], ["syncUrl", access.syncUrl]] as const) {
@@ -1870,6 +1924,7 @@ function shareabilityWarnings(access: { appUrl: string; syncUrl: string }) {
       host === "localhost" ||
       host === "127.0.0.1" ||
       host === "::1" ||
+      host === "[::1]" ||
       host.startsWith("10.") ||
       host.startsWith("192.168.") ||
       /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)
