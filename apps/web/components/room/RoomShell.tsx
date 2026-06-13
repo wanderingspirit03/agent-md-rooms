@@ -2035,7 +2035,7 @@ function ModeIconButton({
       onClick={onClick}
       className={cn(
         "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-9 md:w-9",
-        active ? "bg-midnight text-white shadow-sm" : "text-ink-muted hover:bg-porcelain hover:text-ink",
+        active ? "bg-midnight-soft text-ink" : "text-ink-muted hover:bg-porcelain hover:text-ink",
       )}
     >
       {children}
@@ -2059,7 +2059,7 @@ function ModeButton({
       onClick={onClick}
       className={cn(
         "inline-flex h-7 items-center gap-1.5 rounded px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong",
-        active ? "bg-midnight text-white shadow-sm" : "text-ink-muted hover:bg-porcelain hover:text-ink",
+        active ? "bg-midnight-soft text-ink" : "text-ink-muted hover:bg-porcelain hover:text-ink",
       )}
     >
       {children}
