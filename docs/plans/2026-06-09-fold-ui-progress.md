@@ -86,6 +86,7 @@ Primary reference: `DESIGN.md`.
 - Added encrypted live presence snapshots with a compact collaborator stack for the selected Markdown file.
 - Added quiet per-file presence indicators in the project sidebar so collaboration is visible across the file tree.
 - Added encrypted typing/commenting activity hints to presence records with quiet toolbar and sidebar indicators.
+- Added a mobile-only collaborator hint that appears only when more than one active persona is on the current file.
 - Added `npm run web:smoke:collab` to verify two browser clients stream encrypted Markdown edits in the same project room without refresh.
 - Removed boxed collaborator avatar chrome and moved the E2EE signal into quiet file metadata instead of a right-toolbar pill.
 - Calmed sync error presentation into a compact E2EE status strip so offline/local development does not dominate the document.

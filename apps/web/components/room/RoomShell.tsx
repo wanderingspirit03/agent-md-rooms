@@ -360,6 +360,7 @@ export function RoomShell({
                     onOpen={() => setCommandOpen(true)}
                     compact
                   />
+                  <MobilePresenceHint presences={activePresences} />
                   <ReviewStatusControl
                     commentCount={commentCount}
                     pendingCount={pendingCount}
@@ -1904,6 +1905,49 @@ function PresenceStack({
           </div>
           {(displayPresences.some((presence) => presence.status === "editing") || hasLiveActivity) && (
             <span className={cn("ml-1.5 h-1.5 w-1.5 rounded-full", hasLiveActivity ? "bg-midnight-strong" : "bg-ink-subtle")} aria-hidden="true" />
+          )}
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function MobilePresenceHint({ presences }: { presences: CollaborationPresence[] }) {
+  const displayPresences = uniquePresencesByPersona(presences);
+  if (displayPresences.length <= 1) return null;
+
+  const visible = displayPresences.slice(0, 2);
+  const hiddenCount = Math.max(0, displayPresences.length - visible.length);
+  const label = displayPresences.map((presence) => `${presenceLabel(presence)} ${presence.filePath}`).join(", ");
+  const hasLiveActivity = displayPresences.some((presence) => presence.activity && presence.activity !== "idle");
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          className="flex h-11 shrink-0 items-center px-0.5 md:hidden"
+          role="group"
+          aria-label={`Active collaborators: ${label}`}
+          title={label}
+        >
+          <div className="flex items-center" aria-hidden="true">
+            {visible.map((presence, index) => (
+              <PersonaAvatar
+                key={presence.clientId}
+                persona={presence.persona}
+                compact
+                className={cn("h-6 w-6 ring-1 ring-studio-paper/80", index > 0 && "-ml-1.5")}
+              />
+            ))}
+            {hiddenCount > 0 && (
+              <span className="-ml-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-rail px-1 text-[10px] font-medium text-ink-subtle ring-1 ring-studio-paper/80">
+                +{hiddenCount}
+              </span>
+            )}
+          </div>
+          {(displayPresences.some((presence) => presence.status === "editing") || hasLiveActivity) && (
+            <span className={cn("ml-1 h-1.5 w-1.5 rounded-full", hasLiveActivity ? "bg-midnight-strong" : "bg-ink-subtle")} aria-hidden="true" />
           )}
         </div>
       </TooltipTrigger>
