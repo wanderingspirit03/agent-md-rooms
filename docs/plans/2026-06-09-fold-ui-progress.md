@@ -140,6 +140,7 @@ Primary reference: `DESIGN.md`.
 - Calmed review-drawer summary counts by removing bordered badge chrome and using singular/plural labels such as `1 comment`.
 - Shortened and unboxed review comment anchor labels so whole-document notes read like quiet annotation metadata instead of nested chips.
 - Collapsed the review-drawer version checkpoint form behind a quiet `Save checkpoint` action so comments and suggestions stay primary until versioning is requested.
+- Lightened the review drawer scrim and shadow so document context remains visible while review work is open.
 - Renamed Mermaid placeholder chrome from implementation-style `Preview disabled` to quiet `Source` while keeping sanitized source rendering.
 - Verified recent UI slices with Playwright screenshots on desktop and mobile because `iab` is unavailable in this session.
 - Continue verifying substantial slices with a separate reviewer/subagent before pushing.
