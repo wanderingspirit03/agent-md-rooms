@@ -6,6 +6,7 @@ import { chromium, type Page } from "playwright";
 const DEFAULT_URLS = ["http://localhost:3001", "http://localhost:3000"];
 const DEFAULT_SYNC_URL = "http://127.0.0.1:8787";
 const EDIT_MODE_COMMENT_MARKER = `Edit mode source comment ${Date.now()}.`;
+const EDIT_MODE_CURSOR_COMMENT_MARKER = `Edit mode cursor comment ${Date.now()}.`;
 
 async function main() {
   const baseUrl = await resolveBaseUrl();
@@ -60,6 +61,34 @@ async function main() {
       EDIT_MODE_COMMENT_MARKER,
       { timeout: 8_000 },
     );
+    await page.keyboard.press("Escape");
+
+    await page.getByRole("button", { name: "Edit", exact: true }).click();
+    const cursorEditor = page.getByRole("textbox", { name: /markdown source/i });
+    await cursorEditor.waitFor({ state: "visible", timeout: 8_000 });
+    await cursorEditor.evaluate((element) => {
+      if (!(element instanceof HTMLTextAreaElement)) throw new Error("Markdown source editor is not a textarea.");
+      const candidates = ["Keep Markdown canonical.", "Room URL stays shareable.", "Review Flow"];
+      const anchor = candidates.find((candidate) => element.value.includes(candidate));
+      if (!anchor) throw new Error("Could not find a stable source-editor phrase for cursor annotation.");
+      const offset = element.value.indexOf(anchor) + anchor.length;
+      element.focus();
+      element.setSelectionRange(offset, offset);
+      element.dispatchEvent(new Event("select", { bubbles: true }));
+      element.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+    });
+    await page.getByRole("button", { name: /add comment at source cursor/i }).click({ timeout: 8_000 });
+    await page.waitForSelector('[data-comment-composer]', { timeout: 8_000 });
+    await page.getByRole("textbox", { name: /^cursor comment$/i }).fill(EDIT_MODE_CURSOR_COMMENT_MARKER);
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    await page.getByRole("button", { name: "Read", exact: true }).click();
+    await page.getByRole("button", { name: /open 1 file comment/i }).click({ timeout: 8_000 });
+    await page.waitForFunction(
+      (marker) => document.body.innerText.includes(marker) && document.body.innerText.includes("Insertion point"),
+      EDIT_MODE_CURSOR_COMMENT_MARKER,
+      { timeout: 8_000 },
+    );
+    await page.getByRole("button", { name: /close file comments/i }).click();
 
     await page.getByRole("button", { name: /open command palette/i }).click();
     const firstPaletteInput = page.getByRole("combobox", { name: /search commands and files/i });

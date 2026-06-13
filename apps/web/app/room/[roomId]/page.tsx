@@ -87,6 +87,7 @@ export default function RoomPage() {
   const [newCommentText, setNewCommentText] = useState("");
   const [composerFocusToken, setComposerFocusToken] = useState(0);
   const [selectedQuote, setSelectedQuote] = useState("");
+  const [selectedInsertionOffset, setSelectedInsertionOffset] = useState<number | null>(null);
 
   const yDocRef = useRef<Y.Doc | null>(null);
   const yTextRef = useRef<Y.Text | null>(null);
@@ -639,7 +640,7 @@ export default function RoomPage() {
         text: newCommentText.trim(),
         createdAt: new Date().toISOString(),
         type: "note",
-        ...createCommentAnchor(currentMarkdown, selectedQuote),
+        ...createCommentAnchor(currentMarkdown, selectedQuote, selectedInsertionOffset),
       };
       const encrypted = await encryptUpdate(encoder.encode(JSON.stringify(record)), keyRef.current, {
         roomId,
@@ -650,6 +651,7 @@ export default function RoomPage() {
       setComments((prev) => upsertComment(prev, record));
       setNewCommentText("");
       setSelectedQuote("");
+      setSelectedInsertionOffset(null);
       clearPresenceActivity();
     } catch (err) {
       setSyncError(`Could not post comment: ${String(err)}`);
@@ -767,6 +769,7 @@ export default function RoomPage() {
   const handleRestoreFileVersion = (version: FileVersion) => {
     if (version.filePath !== selectedFilePath) return;
     setSelectedQuote("");
+    setSelectedInsertionOffset(null);
     setNewCommentText("");
     clearPresenceActivity();
     if (selectedFilePath !== LIVE_FILE_PATH) {
@@ -882,6 +885,7 @@ export default function RoomPage() {
       markProjectFileUpdatedAt(conflict.path, conflict.remoteUpdatedAt);
       clearFileConflict(conflict.path);
       setSelectedQuote("");
+      setSelectedInsertionOffset(null);
       setNewCommentText("");
       clearPresenceActivity();
       return;
@@ -891,6 +895,7 @@ export default function RoomPage() {
     clearFileConflict(conflict.path);
     setSelectedFilePath(conflict.path);
     setSelectedQuote("");
+    setSelectedInsertionOffset(null);
     setNewCommentText("");
     clearPresenceActivity();
   };
@@ -1085,6 +1090,7 @@ export default function RoomPage() {
     setVirtualFiles((current) => ({ ...current, [path]: current[path] ?? nextMarkdown }));
     setSelectedFilePath(path);
     setSelectedQuote("");
+    setSelectedInsertionOffset(null);
     setNewCommentText("");
     clearPresenceActivity();
     setEditMode("edit");
@@ -1103,6 +1109,7 @@ export default function RoomPage() {
       setVirtualFiles((current) => ({ ...current, [importedPath]: text }));
       setSelectedFilePath(importedPath);
       setSelectedQuote("");
+      setSelectedInsertionOffset(null);
       setNewCommentText("");
       clearPresenceActivity();
       setEditMode("read");
@@ -1164,6 +1171,7 @@ export default function RoomPage() {
     flushProjectFileSnapshot(selectedFilePath);
     setSelectedFilePath(path);
     setSelectedQuote("");
+    setSelectedInsertionOffset(null);
     setNewCommentText("");
     clearPresenceActivity();
   };
@@ -1229,6 +1237,8 @@ export default function RoomPage() {
             onProjectFileLinkClick={handleSelectProjectFile}
             selectedQuote={selectedQuote}
             onSelectedQuoteChange={setSelectedQuote}
+            selectedInsertionOffset={selectedInsertionOffset}
+            onSelectedInsertionOffsetChange={setSelectedInsertionOffset}
             comments={selectedFileComments}
             proposals={selectedFileProposals}
             activeProposalId={selectedProposal?.id ?? null}
@@ -1441,8 +1451,19 @@ function isFileVersion(value: unknown): value is FileVersion {
 function createCommentAnchor(
   markdown: string,
   selectedQuote: string,
+  insertionOffset: number | null = null,
 ): Pick<ChatComment, "anchorType" | "selectedQuote" | "createdFromMarkdown" | "beforeContext" | "afterContext"> {
   const quote = selectedQuote.trim();
+  if (!quote && insertionOffset !== null) {
+    const offset = Math.max(0, Math.min(markdown.length, insertionOffset));
+    return {
+      anchorType: "insertion-point",
+      createdFromMarkdown: markdown.slice(Math.max(0, offset - 160), offset + 160),
+      beforeContext: markdown.slice(Math.max(0, offset - 120), offset),
+      afterContext: markdown.slice(offset, offset + 120),
+    };
+  }
+
   if (!quote) {
     return {
       anchorType: "document",

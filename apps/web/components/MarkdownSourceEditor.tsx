@@ -11,6 +11,7 @@ interface MarkdownSourceEditorProps {
   onChange: (markdown: string) => void;
   onCommit?: (markdown: string) => void;
   onSelectionQuoteChange?: (quote: string) => void;
+  onInsertionOffsetChange?: (offset: number | null) => void;
 }
 
 export default function MarkdownSourceEditor({
@@ -19,10 +20,12 @@ export default function MarkdownSourceEditor({
   onChange,
   onCommit,
   onSelectionQuoteChange,
+  onInsertionOffsetChange,
 }: MarkdownSourceEditorProps) {
   const onChangeRef = useRef(onChange);
   const onCommitRef = useRef(onCommit);
   const onSelectionQuoteChangeRef = useRef(onSelectionQuoteChange);
+  const onInsertionOffsetChangeRef = useRef(onInsertionOffsetChange);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [markdown, setMarkdown] = useState(initialMarkdown);
   const [tabIndents, setTabIndents] = useState(true);
@@ -31,6 +34,7 @@ export default function MarkdownSourceEditor({
   onChangeRef.current = onChange;
   onCommitRef.current = onCommit;
   onSelectionQuoteChangeRef.current = onSelectionQuoteChange;
+  onInsertionOffsetChangeRef.current = onInsertionOffsetChange;
 
   const counts = useMemo(() => ({
     lines: markdown.split("\n").length,
@@ -51,7 +55,13 @@ export default function MarkdownSourceEditor({
     const textarea = textareaRef.current;
     if (!textarea) return;
     const selectedText = textarea.value.slice(textarea.selectionStart, textarea.selectionEnd).trim();
-    onSelectionQuoteChangeRef.current?.(selectedText.length >= 2 ? selectedText.slice(0, 180) : "");
+    if (selectedText.length >= 2) {
+      onSelectionQuoteChangeRef.current?.(selectedText.slice(0, 180));
+      onInsertionOffsetChangeRef.current?.(null);
+      return;
+    }
+    onSelectionQuoteChangeRef.current?.("");
+    onInsertionOffsetChangeRef.current?.(textarea.selectionStart);
   };
 
   const handleSourceKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {

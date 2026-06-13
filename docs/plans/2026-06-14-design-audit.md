@@ -38,3 +38,8 @@ Run the audit after UI changes:
 ```bash
 FOLD_WEB_URL=http://localhost:3001 npm run web:smoke:design
 ```
+
+Recent collaboration coverage:
+
+- Edit-mode source selections can create inline comment threads that re-open in read mode.
+- Edit-mode cursor-only comments store encrypted insertion-point anchors with nearby Markdown context and appear as minimal file threads.

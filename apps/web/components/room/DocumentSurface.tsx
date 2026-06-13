@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { Check, ListChecks, MessageSquare, MessageSquarePlus, Pencil, Send, X } from "lucide-react";
 import MarkdownRenderer from "../MarkdownRenderer";
@@ -22,6 +22,8 @@ interface DocumentSurfaceProps {
   onProjectFileLinkClick?: (path: string) => void;
   selectedQuote: string;
   onSelectedQuoteChange: (quote: string) => void;
+  selectedInsertionOffset: number | null;
+  onSelectedInsertionOffsetChange: (offset: number | null) => void;
   comments: ChatComment[];
   proposals: Proposal[];
   activeProposalId?: string | null;
@@ -45,6 +47,8 @@ export function DocumentSurface({
   onProjectFileLinkClick,
   selectedQuote,
   onSelectedQuoteChange,
+  selectedInsertionOffset,
+  onSelectedInsertionOffsetChange,
   comments,
   proposals,
   activeProposalId = null,
@@ -79,6 +83,10 @@ export function DocumentSurface({
     () => proposals.filter((proposal) => proposal.status === "pending"),
     [proposals],
   );
+  const insertionPreview = useMemo(
+    () => selectedInsertionOffset === null ? null : createInsertionPreview(markdown, selectedInsertionOffset),
+    [markdown, selectedInsertionOffset],
+  );
   const activeComment = useMemo(
     () => activeComments.find((comment) => comment.id === activeCommentCard?.commentId) || null,
     [activeComments, activeCommentCard],
@@ -87,6 +95,10 @@ export function DocumentSurface({
     setFileComposerOpen(false);
     onNewCommentTextChange("");
   };
+  const clearSelectedAnchor = useCallback(() => {
+    onSelectedQuoteChange("");
+    onSelectedInsertionOffsetChange(null);
+  }, [onSelectedInsertionOffsetChange, onSelectedQuoteChange]);
 
   useEffect(() => {
     if (mode === "edit") return;
@@ -99,8 +111,8 @@ export function DocumentSurface({
     }
     setFileComposerOpen(true);
     setAnchorPoint(null);
-    onSelectedQuoteChange("");
-  }, [anchorPoint, composerFocusToken, mode, onSelectedQuoteChange, selectedQuote]);
+    clearSelectedAnchor();
+  }, [anchorPoint, clearSelectedAnchor, composerFocusToken, mode, selectedQuote]);
 
   useEffect(() => {
     if (mode !== "edit" || composerFocusToken === 0) return;
@@ -108,9 +120,9 @@ export function DocumentSurface({
     setFileComposerOpen(false);
     setInlineComposerOpen(false);
     setAnchorPoint(null);
-    onSelectedQuoteChange("");
+    clearSelectedAnchor();
     window.requestAnimationFrame(() => composerRef.current?.focus());
-  }, [composerFocusToken, mode, onSelectedQuoteChange]);
+  }, [clearSelectedAnchor, composerFocusToken, mode]);
 
   useEffect(() => {
     if (!fileComposerOpen || selectedQuote) return;
@@ -130,7 +142,7 @@ export function DocumentSurface({
       setActiveCommentCard(null);
       setAnchorPoint(null);
       setInlineComposerOpen(false);
-      onSelectedQuoteChange("");
+      clearSelectedAnchor();
     };
 
     const handlePointerDown = (event: PointerEvent) => {
@@ -144,7 +156,7 @@ export function DocumentSurface({
       setFileCommentsOpen(false);
       setInlineComposerOpen(false);
       setAnchorPoint(null);
-      onSelectedQuoteChange("");
+      clearSelectedAnchor();
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -153,7 +165,7 @@ export function DocumentSurface({
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("pointerdown", handlePointerDown);
     };
-  }, [activeCommentCard, anchorPoint, onSelectedQuoteChange]);
+  }, [activeCommentCard, anchorPoint, clearSelectedAnchor]);
 
   const captureSelection = (event?: React.SyntheticEvent) => {
     const target = event?.target;
@@ -165,7 +177,7 @@ export function DocumentSurface({
     if (!selection || selectedText.length < 2 || !readSurfaceRef.current) {
       setAnchorPoint(null);
       setInlineComposerOpen(false);
-      onSelectedQuoteChange("");
+      clearSelectedAnchor();
       return;
     }
 
@@ -176,6 +188,7 @@ export function DocumentSurface({
     const rangeRect = range.getBoundingClientRect();
     const surfaceRect = readSurfaceRef.current.getBoundingClientRect();
     onSelectedQuoteChange(expandPartialWordSelection(markdown, selectedText).slice(0, 180));
+    onSelectedInsertionOffsetChange(null);
     setActiveCommentCard(null);
     setFileCommentsOpen(false);
     setFileComposerOpen(false);
@@ -193,11 +206,11 @@ export function DocumentSurface({
 
     return (
       <section className="mx-auto w-full max-w-[880px] space-y-3">
-        {selectedQuote && !editComposerOpen && (
+        {(selectedQuote || selectedInsertionOffset !== null) && !editComposerOpen && (
           <div className="flex justify-end">
             <button
               type="button"
-              aria-label="Add comment to source selection"
+              aria-label={selectedQuote ? "Add comment to source selection" : "Add comment at source cursor"}
               className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-md border border-midnight/25 bg-studio-paper px-3 py-2 text-xs text-ink-muted shadow-[0_6px_18px_rgba(0,0,0,0.12)] transition-colors hover:border-midnight/45 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:min-h-9"
               onClick={() => {
                 setEditComposerOpen(true);
@@ -205,7 +218,7 @@ export function DocumentSurface({
               }}
             >
               <MessageSquarePlus className="h-3.5 w-3.5 shrink-0 text-midnight-strong" aria-hidden />
-              <span className="truncate">Comment selection</span>
+              <span className="truncate">{selectedQuote ? "Comment selection" : "Comment cursor"}</span>
             </button>
           </div>
         )}
@@ -219,7 +232,7 @@ export function DocumentSurface({
               }
               onPostComment(event);
               setEditComposerOpen(false);
-              onSelectedQuoteChange("");
+              clearSelectedAnchor();
               onNewCommentTextChange("");
             }}
             className="rounded-md border border-midnight/25 bg-studio-paper p-2 text-ink shadow-[0_10px_28px_rgba(0,0,0,0.14)]"
@@ -228,11 +241,16 @@ export function DocumentSurface({
               <div className="min-w-0">
                 <div className="flex items-center gap-2 px-1 text-xs text-ink-subtle">
                   <MessageSquarePlus className="h-3.5 w-3.5 shrink-0 text-midnight-strong" aria-hidden />
-                  <span>{selectedQuote ? "Selection comment" : "File comment"}</span>
+                  <span>{selectedQuote ? "Selection comment" : selectedInsertionOffset !== null ? "Cursor comment" : "File comment"}</span>
                 </div>
                 {selectedQuote && (
                   <p className="mt-1 line-clamp-2 border-l border-midnight/35 pl-2 text-xs leading-5 text-ink-muted">
                     {selectedQuote}
+                  </p>
+                )}
+                {!selectedQuote && insertionPreview && (
+                  <p className="mt-1 line-clamp-2 border-l border-midnight/35 pl-2 text-xs leading-5 text-ink-muted">
+                    {insertionPreview}
                   </p>
                 )}
               </div>
@@ -242,7 +260,7 @@ export function DocumentSurface({
                 className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded text-ink-subtle hover:bg-studio-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-8 md:w-8"
                 onClick={() => {
                   setEditComposerOpen(false);
-                  onSelectedQuoteChange("");
+                  clearSelectedAnchor();
                   onNewCommentTextChange("");
                 }}
               >
@@ -251,7 +269,7 @@ export function DocumentSurface({
             </div>
             <Textarea
               ref={composerRef}
-              aria-label={selectedQuote ? "Inline comment" : "File comment"}
+              aria-label={selectedQuote ? "Inline comment" : selectedInsertionOffset !== null ? "Cursor comment" : "File comment"}
               placeholder="Comment"
               rows={2}
               value={newCommentText}
@@ -271,6 +289,9 @@ export function DocumentSurface({
           initialMarkdown={parsedMarkdown.content}
           properties={parsedMarkdown.properties}
           onSelectionQuoteChange={(quote) => onSelectedQuoteChange(quote)}
+          onInsertionOffsetChange={(offset) => {
+            onSelectedInsertionOffsetChange(offset === null ? null : parsedMarkdown.propertySource.length + offset);
+          }}
           onChange={(content) => onMarkdownChange(wrapEditedMarkdown(content))}
           onCommit={(content) => onMarkdownCommit?.(wrapEditedMarkdown(content))}
         />
@@ -308,7 +329,7 @@ export function DocumentSurface({
                 setActiveCommentCard(null);
                 setAnchorPoint(null);
                 setInlineComposerOpen(false);
-                onSelectedQuoteChange("");
+                clearSelectedAnchor();
                 onOpenProposal(pendingProposals[0]);
               }}
             >
@@ -343,7 +364,7 @@ export function DocumentSurface({
               setActiveCommentCard(null);
               setAnchorPoint(null);
               setInlineComposerOpen(false);
-              onSelectedQuoteChange("");
+              clearSelectedAnchor();
             }}
           >
             <MessageSquarePlus className="h-3.5 w-3.5" />
@@ -371,6 +392,9 @@ export function DocumentSurface({
             <div className="max-h-64 space-y-2 overflow-y-auto">
               {fileComments.map((comment) => (
                 <div key={comment.id} className="rounded-md border border-studio-line bg-studio-sunken/60 px-2.5 py-2">
+                  <div className="mb-1 text-[11px] font-medium text-ink-subtle">
+                    {getCommentAnchorLabel(comment)}
+                  </div>
                   <CommentConversation comment={comment} onReply={onReplyToComment} compact />
                   {onResolveComment && (
                     <button
@@ -485,7 +509,7 @@ export function DocumentSurface({
                 const buttonRect = event.currentTarget.getBoundingClientRect();
                 const surfaceRect = readSurfaceRef.current.getBoundingClientRect();
                 const maxLeft = Math.max(16, surfaceRect.width - 320);
-                onSelectedQuoteChange("");
+                clearSelectedAnchor();
                 setAnchorPoint(null);
                 if (commentId.startsWith("proposal:")) {
                   const proposal = proposals.find((item) => item.id === commentId.slice("proposal:".length));
@@ -575,7 +599,7 @@ export function DocumentSurface({
                 onPostComment(event);
                 setInlineComposerOpen(false);
                 setAnchorPoint(null);
-                onSelectedQuoteChange("");
+                clearSelectedAnchor();
               }}
               className="rounded-md border border-studio-line bg-studio-paper/95 p-2 text-ink shadow-[0_10px_28px_rgba(0,0,0,0.18)] backdrop-blur"
             >
@@ -603,7 +627,7 @@ export function DocumentSurface({
                   onClick={() => {
                     setAnchorPoint(null);
                     setInlineComposerOpen(false);
-                    onSelectedQuoteChange("");
+                    clearSelectedAnchor();
                   }}
                 >
                   Cancel
@@ -641,4 +665,19 @@ function expandPartialWordSelection(markdown: string, selectedText: string) {
   while (end < markdown.length && /[A-Za-z0-9_-]/.test(markdown[end])) end += 1;
 
   return markdown.slice(start, end).trim() || quote;
+}
+
+function createInsertionPreview(markdown: string, offset: number) {
+  const safeOffset = Math.max(0, Math.min(markdown.length, offset));
+  const before = markdown.slice(Math.max(0, safeOffset - 80), safeOffset).trim();
+  const after = markdown.slice(safeOffset, safeOffset + 80).trim();
+  if (before && after) return `${before} | ${after}`;
+  return before || after || "Start of file";
+}
+
+function getCommentAnchorLabel(comment: ChatComment) {
+  if (comment.anchorType === "insertion-point") return "Insertion point";
+  if (comment.anchorType === "block") return "Section";
+  if (comment.anchorType === "text-range" && comment.selectedQuote) return "Saved text";
+  return "Whole file";
 }
