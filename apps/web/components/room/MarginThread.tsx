@@ -74,7 +74,7 @@ export function MarginThread({
         </p>
       )}
       {!selectedQuote && !quote && anchorLabel && (
-        <p className="mb-2 rounded-md bg-studio-paper px-2 py-1.5 text-xs text-ink-subtle">{anchorLabel}</p>
+        <p className="mb-1.5 px-0.5 text-[11px] leading-5 text-ink-subtle">{anchorLabel}</p>
       )}
       <p className="text-sm leading-6 text-ink-muted">{text}</p>
       {comment && onResolveComment && (
@@ -182,10 +182,10 @@ function QuoteBlock({
 
 function getAnchorLabel(anchorType: ChatComment["anchorType"] | Proposal["anchorType"], quote?: string) {
   if (quote) return null;
-  if (anchorType === "document") return "Whole-document thread";
-  if (anchorType === "block") return "Section thread";
+  if (anchorType === "document") return "Whole document";
+  if (anchorType === "block") return "Section";
   if (anchorType === "insertion-point") return "Insertion point";
-  if (anchorType === "text-range") return "Saved text anchor";
+  if (anchorType === "text-range") return "Saved text";
   return null;
 }
 
