@@ -116,6 +116,96 @@ html {
   animation: copy-project-link-icon-pop 220ms ease-out;
 }
 
+.milkdown-readiness-editor .ProseMirror {
+  min-height: 620px;
+  outline: none;
+  padding: 2rem 3rem 3rem;
+}
+
+.milkdown-readiness-editor .ProseMirror:focus-visible {
+  box-shadow: inset 0 0 0 2px hsl(var(--midnight-strong));
+}
+
+.milkdown-readiness-editor .ProseMirror > * + * {
+  margin-top: 1rem;
+}
+
+.milkdown-readiness-editor h1,
+.milkdown-readiness-editor h2,
+.milkdown-readiness-editor h3 {
+  color: hsl(var(--document-ink));
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.25;
+}
+
+.milkdown-readiness-editor h1 {
+  font-size: 1.8rem;
+}
+
+.milkdown-readiness-editor h2 {
+  border-bottom: 1px solid hsl(var(--document-edge));
+  font-size: 1.25rem;
+  padding-bottom: 0.35rem;
+}
+
+.milkdown-readiness-editor p,
+.milkdown-readiness-editor li {
+  line-height: 1.7;
+}
+
+.milkdown-readiness-editor ul,
+.milkdown-readiness-editor ol {
+  padding-left: 1.35rem;
+}
+
+.milkdown-readiness-editor li + li {
+  margin-top: 0.25rem;
+}
+
+.milkdown-readiness-editor pre {
+  background: hsl(var(--studio-sunken));
+  border: 1px solid hsl(var(--document-edge));
+  border-radius: 0.375rem;
+  color: hsl(var(--ink-soft));
+  overflow-x: auto;
+  padding: 0.85rem 1rem;
+}
+
+.milkdown-readiness-editor code {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.9em;
+}
+
+.milkdown-readiness-editor :not(pre) > code {
+  background: hsl(var(--midnight-mark));
+  border-radius: 0.25rem;
+  color: hsl(var(--document-ink));
+  padding: 0.1rem 0.25rem;
+}
+
+.milkdown-readiness-editor table {
+  border-collapse: collapse;
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.milkdown-readiness-editor th,
+.milkdown-readiness-editor td {
+  border: 1px solid hsl(var(--document-edge));
+  padding: 0.45rem 0.65rem;
+  text-align: left;
+}
+
+.milkdown-readiness-editor blockquote {
+  border-left: 3px solid hsl(var(--midnight-strong));
+  color: hsl(var(--document-muted));
+  margin-left: 0;
+  padding-left: 1rem;
+}
+
 @keyframes copy-project-link-pulse {
   0% {
     opacity: 0.9;
@@ -140,6 +230,13 @@ html {
   }
   100% {
     transform: scale(1);
+  }
+}
+
+@media (max-width: 640px) {
+  .milkdown-readiness-editor .ProseMirror {
+    min-height: 560px;
+    padding: 1.5rem 1rem 2.5rem;
   }
 }
 

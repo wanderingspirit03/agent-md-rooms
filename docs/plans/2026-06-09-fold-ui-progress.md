@@ -149,6 +149,7 @@ Primary reference: `DESIGN.md`.
 - Added a hidden Milkdown CommonMark/GFM fidelity harness; wrapping Fold properties preserves frontmatter, but exact Markdown bytes still fail.
 - Strengthened the Milkdown harness with structural task-list and table semantics checks.
 - Classified Milkdown source rewrites so the remaining editor gate can separate acceptable formatting normalization from unexplained Markdown churn.
+- Added a development-only `/milkdown-lab` fixture route and `npm run web:smoke:milkdown` to visually test the long handoff sample in a minimal Milkdown editor before any product editor swap.
 - Added compact named-version size metadata and a restore confirmation delta so long-document checkpoint restores show their line/word impact without adding review-drawer prose.
 - Added a compact encrypted proposal diff panel to the suggestion preview dialog so whole-document and file replacement proposals can be reviewed before accepting.
 - Added a compact two-step accept confirmation in the suggestion preview dialog so agent proposals are harder to apply accidentally.
@@ -210,6 +211,7 @@ npm run web:smoke:agent-comment # requires web app plus sync server on 127.0.0.1
 npm run web:smoke:navigation # requires web app plus sync server on 127.0.0.1:8787
 npm run web:smoke:annotations # requires web app plus sync server on 127.0.0.1:8787
 npm run web:smoke:design # requires web app plus sync server on 127.0.0.1:8787
+npm run web:smoke:milkdown # requires web app
 npm run web:smoke:proposal # requires web app plus sync server on 127.0.0.1:8787
 npm run spike:e2ee
 npm run spike:document-model

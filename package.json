@@ -20,6 +20,7 @@
     "web:smoke:navigation": "tsx scripts/web-navigation-smoke.ts",
     "web:smoke:annotations": "tsx scripts/web-annotation-theme-smoke.ts",
     "web:smoke:design": "tsx scripts/web-design-direction-smoke.ts",
+    "web:smoke:milkdown": "tsx scripts/web-milkdown-lab-smoke.ts",
     "web:smoke:proposal": "tsx scripts/web-proposal-review-smoke.ts",
     "web:reference:capture": "tsx scripts/web-obsidian-reference-capture.ts",
     "spike:e2ee": "tsx spikes/e2ee-yjs-append-log/run-spike.ts",

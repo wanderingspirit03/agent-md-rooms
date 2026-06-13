@@ -52,6 +52,15 @@ affect Markdown semantics, so they still need a product/editor decision before a
 swap. Raw Milkdown still produces frontmatter-loss churn, which is why editable
 frontmatter remains outside the first editor swap.
 
+The first isolated development-only UI fixture now exists at `/milkdown-lab`. It renders the long
+agent handoff sample through a minimal Milkdown core editor with CommonMark,
+GFM, history, clipboard, and cursor plugins. This route is intentionally hidden
+from the launcher, room UI, and production builds: it is visual evidence for the readiness gate, not
+a product editor replacement. `npm run web:smoke:milkdown` verifies local desktop dark,
+desktop light, and mobile dark renderings, checks for table rendering, blocks
+horizontal page overflow, and asserts that no nested Rich/Source chrome or
+textarea fallback appears.
+
 ## Candidate Package Scope
 
 Evaluate Milkdown as the first polished Markdown editor candidate with the package set already listed in `PLAN.md`:
@@ -117,7 +126,7 @@ If Milkdown needs prominent formatting chrome, Fold should keep the source edito
    - Add the results to the document-model report.
 
 3. Isolated editor route or fixture page
-   - Render the long handoff sample in Milkdown without replacing the main editor.
+   - Current: development-only `/milkdown-lab` renders the long handoff sample in Milkdown without replacing the main editor.
    - Check dark and bright themes, keyboard behavior, selection, scroll performance, and mobile width.
    - Verify there is no nested Rich/Source control.
 
@@ -138,6 +147,7 @@ Run before calling this gate healthy:
 npm test
 npm run typecheck
 npm run web:build
+npm run web:smoke:milkdown
 npm run spike:e2ee
 npm run spike:document-model
 npm run spike:document-model:report
