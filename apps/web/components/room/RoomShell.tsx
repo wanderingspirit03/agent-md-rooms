@@ -1557,12 +1557,14 @@ function ProjectCommandPalette({
       action: () => onCreateFile(requestedPath),
     }]
     : [];
-  const items = normalizedQuery
+  const rankedItems = normalizedQuery
     ? [
       ...createItem,
       ...rankCommandPaletteItems([...fileItems, ...staticItems], normalizedQuery),
-    ].slice(0, 12)
-    : [...recentItems, ...defaultStaticItems, ...remainingFileItems].slice(0, 12);
+    ]
+    : [...recentItems, ...defaultStaticItems, ...remainingFileItems];
+  const items = rankedItems.slice(0, 12);
+  const hiddenResultCount = normalizedQuery ? Math.max(0, rankedItems.length - items.length) : 0;
   const firstEnabledIndex = getFirstEnabledIndex(items);
   const listboxId = "project-command-palette-results";
   const activeOptionId = items[activeIndex] ? `${listboxId}-option-${activeIndex}` : undefined;
@@ -1718,6 +1720,11 @@ function ProjectCommandPalette({
             })
           )}
         </div>
+        {hiddenResultCount > 0 && (
+          <div className="border-t border-studio-line px-3 py-2 text-[11px] text-ink-subtle">
+            {hiddenResultCount} more {hiddenResultCount === 1 ? "match" : "matches"}
+          </div>
+        )}
       </div>
     </>
   );

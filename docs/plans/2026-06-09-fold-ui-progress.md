@@ -93,6 +93,7 @@ Primary reference: `DESIGN.md`.
 - Extended the web collaboration smoke to verify live Markdown edits, comment creation, and comment replies across two browser clients without refresh.
 - Added `npm run web:smoke:agent-comment` to verify a CLI-authored encrypted inline comment streams into the open web document and a browser reply replays back through the CLI.
 - Added `npm run web:smoke:navigation` to verify folder collapse persistence and quick-switch reopening of nested file ancestors.
+- Extended navigation smoke to verify broad quick-switcher searches clip to a calm result set with an explicit hidden-match hint and still open files by keyboard.
 - Added a mobile-only collaborator hint that appears only when more than one active persona is on the current file.
 - Added `npm run web:smoke:collab` to verify two browser clients stream encrypted Markdown edits in the same project room without refresh.
 - Removed boxed collaborator avatar chrome and moved the E2EE signal into quiet file metadata instead of a right-toolbar pill.
@@ -162,6 +163,7 @@ Primary reference: `DESIGN.md`.
 
 - Keep reducing visible text and secondary chrome while preserving accessible labels/tooltips.
 - Keep checking whether the command palette feels like an Obsidian-style quick switcher under larger project file sets.
+- Keep checking the quick-switcher clipped-results hint against larger imported projects and mobile widths.
 - Continue checking mobile widths for overlap and horizontal scroll.
 - Keep collaboration objects streaming through the encrypted room pipeline; avoid designs that depend on manual refresh or static server-readable fetches.
 - Keep live presence quiet and useful while preserving prompt leave behavior and avoiding people-dashboard chrome.

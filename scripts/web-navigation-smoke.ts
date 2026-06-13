@@ -50,6 +50,18 @@ async function main() {
       throw new Error("Expected quick-switching to a nested file to reopen ancestor folders.");
     }
 
+    await page.getByRole("button", { name: /open command palette/i }).click();
+    const paletteInput = page.getByRole("combobox", { name: /search commands and files/i });
+    await paletteInput.fill("md");
+    await page.waitForFunction(() => /more matches/.test(document.body.innerText), null, { timeout: 8_000 });
+    const visibleOptions = await page.getByRole("option").count();
+    if (visibleOptions !== 12) {
+      throw new Error(`Expected clipped command palette results to show 12 options, saw ${visibleOptions}.`);
+    }
+    await paletteInput.fill("renderer fidelity");
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() => document.body.innerText.includes("Renderer Fidelity"), null, { timeout: 8_000 });
+
     const screenshotPath = join(screenshotDir, "quick-switch-reopened-folder.png");
     await page.screenshot({ path: screenshotPath, fullPage: true, caret: "initial" });
 
