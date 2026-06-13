@@ -58,6 +58,7 @@ Primary reference: `DESIGN.md`.
 - Enlarged/cropped collaborator avatars and kept E2EE as quiet inline file metadata instead of boxed toolbar chrome.
 - Reduced top-toolbar chrome by changing Connect agent to an icon+tooltip action and removing the filled theme-toggle hover box.
 - Split the mobile workspace header into file/context and document-action rows with 44px touch targets through tablet widths.
+- Reduced mobile secondary chrome by keeping share/export in the command palette instead of duplicating them beside the theme switch.
 - Verified the long agent handoff report with a real encrypted file comment and named version, then adjusted mobile review sheet height for the two-row header.
 - Tightened suggestion rows further and sorted pending suggestions first in the review drawer.
 - Clarified pending suggestion actions with compact labeled pills and larger touch targets for mobile review.

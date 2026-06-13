@@ -397,34 +397,7 @@ export function RoomShell({
                       <Pencil className="h-3.5 w-3.5" />
                     </ModeIconButton>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={copyProjectLink}
-                          aria-label={projectLinkCopied ? "Human invite copied" : "Invite human"}
-                          className="h-11 w-11"
-                        >
-                          {projectLinkCopied ? <Check className="h-4 w-4" /> : <UsersRound className="h-4 w-4" />}
-                          <span className="sr-only" aria-live="polite">
-                            {projectLinkCopied ? "Human invite copied" : ""}
-                          </span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>{projectLinkCopied ? "Copied" : "Invite human"}</TooltipContent>
-                    </Tooltip>
-                    <ThemeToggle className="h-11 w-11" />
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={onExport} aria-label="Export Markdown" className="h-11 w-11">
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Export Markdown</TooltipContent>
-                    </Tooltip>
-                  </div>
+                  <ThemeToggle className="h-11 w-11" />
                 </div>
               </div>
               <SecurityStrip
