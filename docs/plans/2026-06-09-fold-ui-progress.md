@@ -98,6 +98,7 @@ Primary reference: `DESIGN.md`.
 - Fixed random/repeated frontmatter key log noise by using stable React keys.
 - Tightened the command palette quick-switcher: tested Arrow/Home/End navigation, ranked files and commands together during search, and removed repeated group headers from filtered results.
 - Calmed review-drawer suggestion rows by using desktop icon actions, keeping labeled mobile actions, and hiding the empty comments section when there is no comment work.
+- Increased mobile review sheet close, resolve, and resolved-toggle controls while preserving compact desktop review density.
 - Added an inline confirmation step for named-version restores so checkpoints stay lightweight but are harder to roll back accidentally.
 - Tuned inline annotation markers with wrapped-line-safe decoration, softer comment underlines, and clearer pending suggestion cues.
 - Reworked blank Markdown files into a quiet document-native writing prompt instead of a centered empty-state island.

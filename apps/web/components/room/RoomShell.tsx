@@ -464,7 +464,13 @@ export function RoomShell({
                   <PanelRightOpen className="h-4 w-4 text-midnight-strong" />
                   <span className="text-sm font-medium text-ink">Review</span>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => setReviewOpen(false)} aria-label="Close review">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setReviewOpen(false)}
+                  aria-label="Close review"
+                  className="h-11 w-11 md:h-9 md:w-9"
+                >
                   <X className="h-4 w-4" />
                 </Button>
               </div>

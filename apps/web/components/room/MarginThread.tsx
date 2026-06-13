@@ -83,7 +83,7 @@ export function MarginThread({
             type="button"
             aria-label={comment.resolvedAt ? "Reopen comment" : "Resolve comment"}
             title={comment.resolvedAt ? "Reopen" : "Resolve"}
-            className="inline-flex h-8 items-center gap-1.5 rounded px-2 text-xs text-ink-subtle transition-colors hover:bg-studio-sunken hover:text-midnight-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+            className="inline-flex h-11 items-center gap-1.5 rounded px-3 text-xs text-ink-subtle transition-colors hover:bg-studio-sunken hover:text-midnight-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-8 md:px-2"
             onClick={() => onResolveComment(comment, !comment.resolvedAt)}
           >
             {comment.resolvedAt ? <RotateCcw className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}

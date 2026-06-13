@@ -216,7 +216,7 @@ export function AgentBench({
                 <button
                   type="button"
                   aria-expanded={resolvedOpen}
-                  className="flex h-8 w-full items-center justify-between rounded px-1.5 text-xs text-ink-subtle transition-colors hover:bg-studio-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+                  className="flex h-11 w-full items-center justify-between rounded px-2 text-xs text-ink-subtle transition-colors hover:bg-studio-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-8 md:px-1.5"
                   onClick={() => setResolvedOpen((open) => !open)}
                 >
                   <span className="inline-flex items-center gap-1.5">
