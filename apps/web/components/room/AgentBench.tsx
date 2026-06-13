@@ -49,6 +49,7 @@ export function AgentBench({
   onKeepLocalConflict,
 }: AgentBenchProps) {
   const [resolvedOpen, setResolvedOpen] = useState(false);
+  const [versionComposerOpen, setVersionComposerOpen] = useState(false);
   const [versionTitle, setVersionTitle] = useState("");
   const [restoreCandidateId, setRestoreCandidateId] = useState<string | null>(null);
   const [incomingCandidateId, setIncomingCandidateId] = useState<string | null>(null);
@@ -269,23 +270,51 @@ export function AgentBench({
                 onCreateVersion(title);
                 setRestoreCandidateId(null);
                 setVersionTitle("");
+                setVersionComposerOpen(false);
               }}
             >
-              <input
-                aria-label="Version name"
-                value={versionTitle}
-                onChange={(event) => setVersionTitle(event.target.value)}
-                placeholder="Name checkpoint"
-                className="min-w-0 flex-1 rounded border border-studio-line bg-studio-sunken px-2 py-1.5 text-xs text-ink outline-none placeholder:text-ink-subtle focus-visible:ring-2 focus-visible:ring-midnight-strong"
-              />
-              <button
-                type="submit"
-                aria-label="Save version"
-                disabled={!versionTitle.trim()}
-                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded border border-studio-line bg-rail text-ink-muted transition-colors hover:bg-studio-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong disabled:cursor-not-allowed disabled:opacity-40 md:h-8 md:w-8"
-              >
-                <Save className="h-3.5 w-3.5" />
-              </button>
+              {versionComposerOpen ? (
+                <>
+                  <input
+                    aria-label="Version name"
+                    value={versionTitle}
+                    onChange={(event) => setVersionTitle(event.target.value)}
+                    placeholder="Name checkpoint"
+                    className="min-w-0 flex-1 rounded border border-studio-line bg-studio-sunken px-2 py-1.5 text-xs text-ink outline-none placeholder:text-ink-subtle focus-visible:ring-2 focus-visible:ring-midnight-strong"
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    aria-label="Cancel version"
+                    title="Cancel"
+                    onClick={() => {
+                      setVersionTitle("");
+                      setVersionComposerOpen(false);
+                    }}
+                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded text-ink-subtle transition-colors hover:bg-studio-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-8 md:w-8"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="submit"
+                    aria-label="Save version"
+                    disabled={!versionTitle.trim()}
+                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded text-ink-muted transition-colors hover:bg-studio-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong disabled:cursor-not-allowed disabled:opacity-40 md:h-8 md:w-8"
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  aria-label="Save named version"
+                  onClick={() => setVersionComposerOpen(true)}
+                  className="inline-flex h-11 w-full items-center gap-2 rounded px-1.5 text-left text-xs text-ink-subtle transition-colors hover:bg-studio-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong md:h-8"
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  <span>Save checkpoint</span>
+                </button>
+              )}
             </form>
             {recentVersions.length > 0 && (
               <div className="space-y-0.5">
