@@ -2,6 +2,7 @@
 
 import { AlertTriangle, Bot, Check, Clock3, FileText, ListChecks, MessageSquare, RotateCcw, Save, Undo2, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { extractMarkdownProperties } from "../../lib/markdown-properties";
 import type { RoomPersona } from "../../lib/personas";
 import { cn } from "../../lib/utils";
 import { MarginThread } from "./MarginThread";
@@ -60,8 +61,9 @@ export function AgentBench({
   const activeNotes = activeComments.filter((comment) => comment.type !== "request");
   const resolvedComments = comments.filter((comment) => comment.resolvedAt);
   const pendingProposals = proposals.filter((proposal) => proposal.status === "pending");
-  const detachedComments = activeComments.filter((comment) => isMissingTextAnchor(comment, markdown));
-  const detachedProposals = proposals.filter((proposal) => isMissingTextAnchor(proposal, markdown));
+  const renderedMarkdown = extractMarkdownProperties(markdown).content;
+  const detachedComments = activeComments.filter((comment) => isMissingTextAnchor(comment, renderedMarkdown));
+  const detachedProposals = proposals.filter((proposal) => isMissingTextAnchor(proposal, renderedMarkdown));
   const detachedCount = detachedComments.length + detachedProposals.length;
   const recentVersions = versions.slice(0, 5);
   const recentProposals = [...proposals]
@@ -221,7 +223,7 @@ export function AgentBench({
                   <MarginThread
                     key={comment.id}
                     comment={comment}
-                    anchorState={isMissingTextAnchor(comment, markdown) ? "missing" : "found"}
+                    anchorState={isMissingTextAnchor(comment, renderedMarkdown) ? "missing" : "found"}
                     onResolveComment={onResolveComment}
                     onReplyToComment={onReplyToComment}
                   />
@@ -236,7 +238,7 @@ export function AgentBench({
               <MarginThread
                 key={comment.id}
                 comment={comment}
-                anchorState={isMissingTextAnchor(comment, markdown) ? "missing" : "found"}
+                anchorState={isMissingTextAnchor(comment, renderedMarkdown) ? "missing" : "found"}
                 onResolveComment={onResolveComment}
                 onReplyToComment={onReplyToComment}
               />
@@ -261,7 +263,7 @@ export function AgentBench({
                       <MarginThread
                         key={comment.id}
                         comment={comment}
-                        anchorState={isMissingTextAnchor(comment, markdown) ? "missing" : "found"}
+                        anchorState={isMissingTextAnchor(comment, renderedMarkdown) ? "missing" : "found"}
                         onResolveComment={onResolveComment}
                         onReplyToComment={onReplyToComment}
                       />
@@ -280,7 +282,7 @@ export function AgentBench({
               <ProposalSlip
                 key={proposal.id}
                 proposal={proposal}
-                anchorMissing={isMissingTextAnchor(proposal, markdown)}
+                anchorMissing={isMissingTextAnchor(proposal, renderedMarkdown)}
                 onOpen={onOpenProposal}
                 onAccept={onAcceptProposal}
                 onReject={onRejectProposal}
