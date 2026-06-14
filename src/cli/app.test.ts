@@ -215,6 +215,86 @@ describe('fold CLI app', () => {
       await rm(cwd, { recursive: true, force: true });
     }
   });
+
+  it('routes encrypted request queues for agent replies', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'fold-cli-app-'));
+    const server = new EncryptedAppendLogServer();
+    const serverUrl = await server.start();
+
+    try {
+      await writeFile(join(cwd, 'brief.md'), '# Brief\n\nAgent handoff target.', 'utf8');
+      const publishOutput = buildOutputCapture();
+      await runFoldCli(['publish', 'brief.md', '--server', serverUrl, '--json'], {
+        process: {
+          stdout: { write: publishOutput.stdout.write },
+          stderr: { write: publishOutput.stderr.write },
+        },
+        cwd,
+      });
+      const published = JSON.parse(publishOutput.stdout.value) as { room?: { url?: string } };
+      const room = published.room?.url ?? '';
+
+      const addOutput = buildOutputCapture();
+      await runFoldCli([
+        'comment',
+        '--room',
+        room,
+        '--path',
+        'brief.md',
+        '--quote',
+        'Agent handoff target',
+        '--type',
+        'request',
+        '--text',
+        'Please answer this request.',
+        '--json',
+      ], {
+        process: {
+          stdout: { write: addOutput.stdout.write },
+          stderr: { write: addOutput.stderr.write },
+        },
+        cwd,
+      });
+      const added = JSON.parse(addOutput.stdout.value) as { comment?: { id?: string; type?: string } };
+
+      const requestsOutput = buildOutputCapture();
+      await runFoldCli(['requests', '--room', room, '--json'], {
+        process: {
+          stdout: { write: requestsOutput.stdout.write },
+          stderr: { write: requestsOutput.stderr.write },
+        },
+        cwd,
+      });
+      const requests = JSON.parse(requestsOutput.stdout.value) as {
+        filters?: { type?: string; open?: boolean };
+        comments?: Array<{ id?: string; type?: string }>;
+      };
+
+      const replyOutput = buildOutputCapture();
+      await runFoldCli(['reply', added.comment?.id ?? '', '--room', room, '--text', 'Answering from the agent loop.', '--json'], {
+        process: {
+          stdout: { write: replyOutput.stdout.write },
+          stderr: { write: replyOutput.stderr.write },
+        },
+        cwd,
+      });
+      const reply = JSON.parse(replyOutput.stdout.value) as { comment?: { type?: string; replies?: unknown[] } };
+
+      expect(addOutput.stderr.value).toBe('');
+      expect(requestsOutput.stderr.value).toBe('');
+      expect(replyOutput.stderr.value).toBe('');
+      expect(added.comment?.type).toBe('request');
+      expect(requests.filters).toEqual({ type: 'request', open: true, path: null });
+      expect(requests.comments?.map((comment) => ({ id: comment.id, type: comment.type }))).toEqual([
+        { id: added.comment?.id, type: 'request' },
+      ]);
+      expect(reply.comment?.type).toBe('request');
+      expect(reply.comment?.replies).toHaveLength(1);
+    } finally {
+      await server.stop();
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
 });
 
 function buildOutputCapture(): {

@@ -92,6 +92,15 @@ type ProposalRoomFlags = {
 type CommentListFlags = {
   room: string;
   path?: string;
+  type?: 'all' | 'comment' | 'request';
+  open: boolean;
+  json: boolean;
+};
+
+type RequestListFlags = {
+  room: string;
+  path?: string;
+  open: boolean;
   json: boolean;
 };
 
@@ -99,6 +108,7 @@ type CommentFlags = {
   room: string;
   path?: string;
   quote?: string;
+  type?: 'comment' | 'request';
   text: string;
   json: boolean;
 };
@@ -422,18 +432,74 @@ export const app: Application<FoldCommandContext> = buildApplication(
               brief: 'Limit comments to a room file path',
               placeholder: 'path',
             },
+            type: {
+              kind: 'parsed',
+              parse: buildChoiceParser(['all', 'comment', 'request'] as const),
+              optional: true,
+              brief: 'Limit comments by thread type',
+              placeholder: 'all|comment|request',
+            },
+            open: {
+              kind: 'boolean',
+              default: false,
+              withNegated: false,
+              brief: 'Only show unresolved comments or requests',
+            },
             json: jsonFlag(),
           },
         },
         docs: {
           brief: 'List encrypted room comments',
-          customUsage: ['--room <alias-or-url-or-token> [--path <room-path>] [--json]'],
+          customUsage: ['--room <alias-or-url-or-token> [--path <room-path>] [--type all|comment|request] [--open] [--json]'],
         },
         async func(this: FoldCommandContext, flags) {
           const result = await listComments({
             cwd: this.cwd,
             room: flags.room,
             path: flags.path,
+            type: flags.type,
+            open: flags.open,
+          });
+          if (flags.json) writeJson(this, result);
+          else writeCommentsHuman(this, result);
+        },
+      }),
+      requests: buildCommand<RequestListFlags, [], FoldCommandContext>({
+        parameters: {
+          flags: {
+            room: {
+              kind: 'parsed',
+              parse: parseString,
+              brief: 'Room alias, URL, or token',
+              placeholder: 'alias-or-url-or-token',
+            },
+            path: {
+              kind: 'parsed',
+              parse: parseString,
+              optional: true,
+              brief: 'Limit requests to a room file path',
+              placeholder: 'path',
+            },
+            open: {
+              kind: 'boolean',
+              default: true,
+              withNegated: true,
+              brief: 'Only show unresolved requests',
+            },
+            json: jsonFlag(),
+          },
+        },
+        docs: {
+          brief: 'List open encrypted agent requests',
+          customUsage: ['--room <alias-or-url-or-token> [--path <room-path>] [--no-open] [--json]'],
+        },
+        async func(this: FoldCommandContext, flags) {
+          const result = await listComments({
+            cwd: this.cwd,
+            room: flags.room,
+            path: flags.path,
+            type: 'request',
+            open: flags.open,
           });
           if (flags.json) writeJson(this, result);
           else writeCommentsHuman(this, result);
@@ -462,6 +528,13 @@ export const app: Application<FoldCommandContext> = buildApplication(
               brief: 'Selected text to anchor this comment',
               placeholder: 'text',
             },
+            type: {
+              kind: 'parsed',
+              parse: buildChoiceParser(['comment', 'request'] as const),
+              optional: true,
+              brief: 'Thread type to create',
+              placeholder: 'comment|request',
+            },
             text: {
               kind: 'parsed',
               parse: parseString,
@@ -473,7 +546,7 @@ export const app: Application<FoldCommandContext> = buildApplication(
         },
         docs: {
           brief: 'Add an encrypted comment to a room file',
-          customUsage: ['--room <alias-or-url-or-token> --text <text> [--path <room-path>] [--quote <text>] [--json]'],
+          customUsage: ['--room <alias-or-url-or-token> --text <text> [--path <room-path>] [--quote <text>] [--type comment|request] [--json]'],
         },
         async func(this: FoldCommandContext, flags) {
           const result = await addComment({
@@ -481,6 +554,7 @@ export const app: Application<FoldCommandContext> = buildApplication(
             room: flags.room,
             path: flags.path,
             quote: flags.quote,
+            type: flags.type === 'request' ? 'request' : 'note',
             text: flags.text,
           });
           if (flags.json) writeJson(this, result);

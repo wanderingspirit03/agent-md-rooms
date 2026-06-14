@@ -17,8 +17,9 @@ fold export --room <alias-or-url-or-token> [--path <room-path>] [--output <file-
 fold status --room <alias-or-url-or-token> [--json]
 fold propose <file-or-directory> --room <alias-or-url-or-token> [--path <room-path>] [--title <text>] [--comment <text>] [--json]
 fold proposals --room <alias-or-url-or-token> [--json]
-fold comments --room <alias-or-url-or-token> [--path <room-path>] [--json]
-fold comment --room <alias-or-url-or-token> --text <text> [--path <room-path>] [--quote <text>] [--json]
+fold comments --room <alias-or-url-or-token> [--path <room-path>] [--type all|comment|request] [--open] [--json]
+fold requests --room <alias-or-url-or-token> [--path <room-path>] [--no-open] [--json]
+fold comment --room <alias-or-url-or-token> --text <text> [--path <room-path>] [--quote <text>] [--type comment|request] [--json]
 fold reply <comment-id> --room <alias-or-url-or-token> --text <text> [--json]
 fold show-proposal <proposal-id> --room <alias-or-url-or-token> [--json]
 fold accept <proposal-id> --room <alias-or-url-or-token> [--json]
@@ -67,9 +68,10 @@ fold room invite launch --for human
 - `status` calls `GET /rooms/:roomId/status`, which returns metadata only: `roomId`, `recordCount`, and `latestSeq`.
 - `propose` submits an encrypted whole-file or whole-project replacement proposal. It does not mutate accepted Markdown. Its JSON response is compact and returns proposal ids, status, persona, hashes, and project summaries, not full proposed Markdown.
 - `proposals` lists decrypted proposal summaries by replaying encrypted room records.
-- `comments` lists decrypted comment roots and replies by replaying encrypted room records.
-- `comment` appends an encrypted agent-authored file or quote comment without changing Markdown.
-- `reply` appends an encrypted reply to an unresolved comment. Resolved threads reject replies until reopened.
+- `comments` lists decrypted comment/request roots and replies by replaying encrypted room records, with optional type/path/open filters.
+- `requests` lists unresolved encrypted request threads by default so agents can answer human asks without scanning ordinary comments.
+- `comment` appends an encrypted agent-authored file or quote comment/request without changing Markdown.
+- `reply` appends an encrypted reply to an unresolved comment or request. Resolved threads reject replies until reopened.
 - `show-proposal` decrypts one proposal, including proposed Markdown and timeline events.
 - `accept` appends an encrypted canonical document update plus an encrypted proposal-accepted event. Its JSON response is compact and does not echo the accepted Markdown body.
 - `reject` appends an encrypted proposal-rejected event without changing canonical Markdown. Its JSON response is compact and does not echo the rejected Markdown body.
@@ -100,6 +102,7 @@ npm run --silent cli -- room add "$ROOM_URL" --alias launch
 npm run --silent cli -- status --room launch --json
 npm run --silent cli -- export --room launch --output ./accepted-project --json
 npm run --silent cli -- comments --room launch --json
+npm run --silent cli -- requests --room launch --json
 npm run --silent cli -- propose ./accepted-project --room launch --title "Tighten plan" --comment "Proposed by agent workflow." --json
 npm run --silent cli -- proposals --room launch --json
 ```

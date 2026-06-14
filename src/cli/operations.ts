@@ -58,6 +58,8 @@ import {
   createEncryptedCommentEvent,
   createEncryptedCommentRecord,
   replayCommentsFromRecords,
+  type RoomComment,
+  type ThreadType,
 } from '../rooms/comments.js';
 import { assignPersona } from '../rooms/personas.js';
 import {
@@ -135,12 +137,15 @@ export interface ProposalRoomOptions {
 
 export interface CommentListOptions extends ProposalRoomOptions {
   path?: string;
+  type?: 'all' | 'comment' | 'request';
+  open?: boolean;
 }
 
 export interface AddCommentOptions extends ProposalRoomOptions {
   path?: string;
   text: string;
   quote?: string;
+  type?: ThreadType;
 }
 
 export interface ReplyCommentOptions extends ProposalRoomOptions {
@@ -514,15 +519,23 @@ export async function listComments(options: CommentListOptions): Promise<Comment
   const reference = await resolveRoomReference(options.cwd, options.room);
   const records = await listEncryptedUpdates(reference);
   const comments = await replayCommentsFromRecords(reference, records);
-  const visibleComments = options.path
-    ? comments.filter((comment) => comment.filePath === options.path)
-    : comments;
+  const type = options.type ?? 'all';
+  const visibleComments = comments.filter((comment) => commentMatchesFilter(comment, {
+    path: options.path,
+    type,
+    open: options.open ?? false,
+  }));
 
   return {
     schema: 'fold.comments.result.v1',
     ok: true,
     mode: 'comment-list',
     room: publicRoomResult(reference, createRoomToken(reference)),
+    filters: {
+      type,
+      open: options.open ?? false,
+      path: options.path ?? null,
+    },
     comments: visibleComments,
     server: {
       recordCount: records.length,
@@ -550,6 +563,7 @@ export async function addComment(options: AddCommentOptions): Promise<CommentRes
     markdown: file.markdown,
     filePath: file.path,
     selectedQuote: options.quote,
+    type: options.type,
   });
   const record = await appendEncryptedUpdate(reference, await createEncryptedCommentRecord(reference, comment));
 
@@ -599,6 +613,17 @@ export async function replyToComment(options: ReplyCommentOptions): Promise<Comm
       latestSeq: record.seq,
     },
   };
+}
+
+function commentMatchesFilter(
+  comment: RoomComment,
+  filter: { path?: string; type: 'all' | 'comment' | 'request'; open: boolean },
+) {
+  if (filter.path && comment.filePath !== filter.path) return false;
+  if (filter.open && comment.resolvedAt) return false;
+  if (filter.type === 'request' && comment.type !== 'request') return false;
+  if (filter.type === 'comment' && comment.type !== 'note') return false;
+  return true;
 }
 
 export async function showProposal(options: ProposalIdOptions): Promise<ShowProposalResult> {
@@ -821,9 +846,10 @@ export async function createRoomInvite(options: RoomInviteOptions): Promise<Room
     `   fold export --room ${JSON.stringify(options.alias)} --output ./fold-project --json`,
     `   fold propose ./fold-project --room ${JSON.stringify(options.alias)} --title "Describe the change" --comment "Summarize what changed." --json`,
     '',
-    '5. Join comment threads when clarification is better than a proposal:',
-    `   fold comments --room ${JSON.stringify(options.alias)} --json`,
-    `   fold reply "<comment-id>" --room ${JSON.stringify(options.alias)} --text "Short reply." --json`,
+    '5. Answer human requests and join comment threads when clarification is better than a proposal:',
+    `   fold requests --room ${JSON.stringify(options.alias)} --json`,
+    `   fold comments --room ${JSON.stringify(options.alias)} --type comment --open --json`,
+    `   fold reply "<thread-id>" --room ${JSON.stringify(options.alias)} --text "Short reply." --json`,
     `   fold comment --room ${JSON.stringify(options.alias)} --path "docs/PLAN.md" --text "Short note." --json`,
   ].join('\n');
   const text = options.audience === 'agent'

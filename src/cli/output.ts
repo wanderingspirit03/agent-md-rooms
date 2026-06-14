@@ -145,27 +145,37 @@ export function writeDecisionHuman(context: CommandContext, result: DecidePropos
 
 export function writeCommentsHuman(context: CommandContext, result: CommentsResult): void {
   if (result.comments.length === 0) {
-    context.process.stdout.write('No comments found.\n');
+    context.process.stdout.write(`No ${commentListLabel(result)} found.\n`);
     return;
   }
 
   context.process.stdout.write(`${result.comments.map((comment) => [
-    `${comment.id}  ${comment.resolvedAt ? 'resolved' : 'open'}  ${comment.filePath ?? 'document'}`,
+    `${comment.id}  ${comment.type === 'request' ? 'request' : 'comment'}  ${comment.resolvedAt ? 'resolved' : 'open'}  ${comment.filePath ?? 'document'}`,
     `  ${comment.persona.name} (${comment.persona.label}): ${comment.text}`,
     ...(comment.replies || []).map((reply) => `  ↳ ${reply.id}  ${reply.persona.name}: ${reply.text}`),
   ].join('\n')).join('\n')}\n`);
 }
 
 export function writeCommentHuman(context: CommandContext, result: CommentResult): void {
+  const kind = result.comment.type === 'request' ? 'request' : 'comment';
   context.process.stdout.write([
-    result.schema === 'fold.reply.result.v1' ? '✓ Added encrypted comment reply' : '✓ Added encrypted comment',
+    result.schema === 'fold.reply.result.v1' ? `✓ Added encrypted ${kind} reply` : `✓ Added encrypted ${kind}`,
     `→ Room: ${result.room.serverRoomUrl}`,
-    `→ Comment: ${result.comment.id}`,
+    `→ ${result.comment.type === 'request' ? 'Request' : 'Comment'}: ${result.comment.id}`,
     `→ File: ${result.comment.filePath ?? 'document'}`,
     `→ Replies: ${result.comment.replies?.length ?? 0}`,
     `→ Server records: ${result.server.recordCount}`,
     '',
   ].join('\n'));
+}
+
+function commentListLabel(result: CommentsResult) {
+  const base = result.filters.type === 'request'
+    ? 'requests'
+    : result.filters.type === 'comment'
+      ? 'comments'
+      : 'comments';
+  return result.filters.open ? `open ${base}` : base;
 }
 
 export function writeRoomProfileHuman(context: CommandContext, result: RoomProfileResult): void {

@@ -228,9 +228,71 @@ describe('CLI operations', () => {
       expect(replied.schema).toBe('fold.reply.result.v1');
       expect(replied.comment.replies).toHaveLength(1);
       expect(listed.comments).toHaveLength(1);
+      expect(listed.filters).toEqual({ type: 'all', open: false, path: null });
       expect(listed.comments[0]?.replies?.[0]?.text).toBe('Yes, threaded replies are encrypted room records.');
       expect(server.store.serialized(published.room.roomId)).not.toContain('Can an agent clarify this?');
       expect(server.store.serialized(published.room.roomId)).not.toContain('threaded replies');
+    } finally {
+      await server.stop();
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('lets agents list and reply to open encrypted request threads', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'fold-cli-requests-'));
+    const server = new EncryptedAppendLogServer();
+    const serverUrl = await server.start();
+    try {
+      await writeFile(join(cwd, 'brief.md'), '# Brief\n\nKeep the launch request actionable.', 'utf8');
+      const published = await publishMarkdown({
+        cwd,
+        filePath: 'brief.md',
+        serverUrl,
+        save: true,
+      });
+
+      const note = await addComment({
+        cwd,
+        room: published.room.alias!,
+        path: 'brief.md',
+        quote: 'Brief',
+        text: 'Ordinary note for the human.',
+      });
+      const request = await addComment({
+        cwd,
+        room: published.room.alias!,
+        path: 'brief.md',
+        quote: 'launch request',
+        text: 'Agent, please make this actionable.',
+        type: 'request',
+      });
+      const requestQueue = await listComments({
+        cwd,
+        room: published.room.alias!,
+        type: 'request',
+        open: true,
+      });
+      const reply = await replyToComment({
+        cwd,
+        room: published.room.alias!,
+        commentId: request.comment.id,
+        text: 'I will propose a tighter launch checklist next.',
+      });
+      const commentQueue = await listComments({
+        cwd,
+        room: published.room.alias!,
+        type: 'comment',
+      });
+
+      expect(note.comment.type).toBe('note');
+      expect(request.comment.type).toBe('request');
+      expect(requestQueue.filters).toEqual({ type: 'request', open: true, path: null });
+      expect(requestQueue.comments.map((comment) => comment.id)).toEqual([request.comment.id]);
+      expect(reply.comment.type).toBe('request');
+      expect(reply.comment.replies?.[0]?.text).toBe('I will propose a tighter launch checklist next.');
+      expect(commentQueue.comments.map((comment) => comment.id)).toEqual([note.comment.id]);
+      expect(server.store.serialized(published.room.roomId)).not.toContain('Agent, please make this actionable.');
+      expect(server.store.serialized(published.room.roomId)).not.toContain('tighter launch checklist');
     } finally {
       await server.stop();
       await rm(cwd, { recursive: true, force: true });

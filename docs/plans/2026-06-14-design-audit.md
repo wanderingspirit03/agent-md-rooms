@@ -46,3 +46,4 @@ Recent collaboration coverage:
 - Proposal previews now include encrypted discussion replies, keeping suggestions conversational without changing exported Markdown.
 - Human invites now copy a browser join handoff with the encrypted link, key-fragment warning, sync server, and local reachability guidance.
 - Selected text can now become an encrypted agent request from the command palette and re-open as an inline request thread.
+- Agents can list open encrypted request threads through the CLI and reply inside the same thread.

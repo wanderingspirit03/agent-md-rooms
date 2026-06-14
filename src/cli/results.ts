@@ -259,6 +259,11 @@ export interface CommentsResult {
   ok: true;
   mode: 'comment-list';
   room: PublicRoomResult;
+  filters: {
+    type: 'all' | 'comment' | 'request';
+    open: boolean;
+    path: string | null;
+  };
   comments: RoomComment[];
   server: {
     recordCount: number;

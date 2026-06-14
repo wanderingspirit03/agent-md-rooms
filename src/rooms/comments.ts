@@ -10,6 +10,7 @@ export const CLI_COMMENT_EVENT_SENDER_ID_PREFIX = 'fold-cli:comment-event';
 export const CLI_COMMENT_SENDER_ID_PREFIX = 'fold-cli:comment';
 
 export type ThreadAnchorType = 'text-range' | 'insertion-point' | 'block' | 'document';
+export type ThreadType = 'note' | 'request';
 
 export interface CommentReply {
   id: string;
@@ -33,7 +34,7 @@ export interface RoomComment {
   createdAt: string;
   resolvedAt?: string;
   resolvedByPersonaId?: string;
-  type: 'note' | 'request';
+  type: ThreadType;
   anchorType?: ThreadAnchorType;
   selectedQuote?: string;
   createdFromMarkdown?: string;
@@ -72,6 +73,7 @@ export function createComment(input: {
   markdown: string;
   filePath: string;
   selectedQuote?: string;
+  type?: ThreadType;
 }): RoomComment {
   return {
     id: randomUUID().slice(0, 12),
@@ -80,7 +82,7 @@ export function createComment(input: {
     filePath: input.filePath,
     text: input.text,
     createdAt: new Date().toISOString(),
-    type: 'note',
+    type: input.type ?? 'note',
     ...createCommentAnchor(input.markdown, input.selectedQuote ?? ''),
   };
 }
@@ -105,7 +107,7 @@ export function createCommentReplyEvent(input: {
     actorPersonaId: input.persona.id,
     commentId: input.comment.id,
     filePath: input.comment.filePath,
-    message: `Replied to comment on ${input.comment.selectedQuote || input.comment.filePath || 'document'}`,
+    message: `Replied to ${input.comment.type === 'request' ? 'request' : 'comment'} on ${input.comment.selectedQuote || input.comment.filePath || 'document'}`,
     reply,
   };
 }
