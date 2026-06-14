@@ -6,7 +6,8 @@
     "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start --port 3000",
-    "lint": "next lint"
+    "typecheck": "tsc --noEmit --project tsconfig.json",
+    "check": "npm run typecheck && npm run build"
   },
   "dependencies": {
     "@milkdown/core": "^7.21.2",

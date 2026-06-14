@@ -8,7 +8,7 @@ import {
   replayProposalsFromRecords,
 } from './proposals.js';
 import { createRoomAccess } from './room-reference.js';
-import { encryptJsonRecord } from './timeline.js';
+import { encryptJsonRecord } from './encrypted-records.js';
 
 describe('encrypted proposal model', () => {
   it('derives proposal status transitions by replaying encrypted room records', async () => {

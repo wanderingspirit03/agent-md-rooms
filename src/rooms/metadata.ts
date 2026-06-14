@@ -1,8 +1,10 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import type { EncryptedMarkdownSnapshot, MarkdownDocumentSummary } from './markdown-snapshot.js';
 
 export const ROOM_METADATA_VERSION = 1;
+export const ROOM_METADATA_DIR_MODE = 0o700;
+export const ROOM_METADATA_FILE_MODE = 0o600;
 
 export interface RoomMetadataFile {
   version: typeof ROOM_METADATA_VERSION;
@@ -49,8 +51,15 @@ export async function readRoomMetadata(path: string): Promise<RoomMetadataFile> 
 }
 
 export async function writeRoomMetadata(path: string, metadata: RoomMetadataFile): Promise<void> {
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, `${JSON.stringify(metadata, null, 2)}\n`, 'utf8');
+  const directory = dirname(path);
+  await mkdir(directory, { recursive: true, mode: ROOM_METADATA_DIR_MODE });
+  await applyModeIfSupported(directory, ROOM_METADATA_DIR_MODE);
+  await applyModeIfSupported(path, ROOM_METADATA_FILE_MODE, { allowMissing: true });
+  await writeFile(path, `${JSON.stringify(metadata, null, 2)}\n`, {
+    encoding: 'utf8',
+    mode: ROOM_METADATA_FILE_MODE,
+  });
+  await applyModeIfSupported(path, ROOM_METADATA_FILE_MODE);
 }
 
 export async function upsertRoomMetadata(path: string, entry: RoomMetadataEntry): Promise<RoomMetadataFile> {
@@ -132,4 +141,23 @@ function isRoomMetadataFile(value: unknown): value is RoomMetadataFile {
 
 function isNotFoundError(error: unknown): boolean {
   return Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT');
+}
+
+async function applyModeIfSupported(
+  path: string,
+  mode: number,
+  options: { allowMissing?: boolean } = {},
+): Promise<void> {
+  try {
+    await chmod(path, mode);
+  } catch (error) {
+    if (options.allowMissing && isNotFoundError(error)) return;
+    if (isModeUnsupportedError(error)) return;
+    throw error;
+  }
+}
+
+function isModeUnsupportedError(error: unknown): boolean {
+  if (!error || typeof error !== 'object' || !('code' in error)) return false;
+  return error.code === 'ENOSYS' || error.code === 'EINVAL' || (process.platform === 'win32' && error.code === 'EPERM');
 }

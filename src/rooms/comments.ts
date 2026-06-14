@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto';
 import type { EncryptedUpdateRecord, IncomingEncryptedUpdate } from '../server/append-log.js';
 import type { RoomPersona } from './personas.js';
 import type { RoomAccess } from './room-reference.js';
-import { decryptJsonRecord, encryptJsonRecord } from './timeline.js';
+import { decryptJsonRecord, encryptJsonRecord } from './encrypted-records.js';
+import { assertContiguousRecords } from './append-log-validation.js';
 
 export const COMMENT_EVENT_SENDER_ID_PREFIX = 'web-client:comment-event';
 export const COMMENT_SENDER_ID_PREFIX = 'web-client:comment';
@@ -116,6 +117,7 @@ export async function replayCommentsFromRecords(
   access: RoomAccess,
   records: EncryptedUpdateRecord[],
 ): Promise<RoomComment[]> {
+  assertContiguousRecords(records, access.roomId);
   let comments: RoomComment[] = [];
   for (const record of records) {
     if (isCommentEventSender(record.senderId)) {

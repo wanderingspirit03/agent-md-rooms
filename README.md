@@ -8,6 +8,33 @@ Fold is not production-hardened yet, but it is no longer just a spike: this repo
 
 Start with [PLAN.md](PLAN.md) for the product and architecture direction.
 
+## Fastest Hosted Path
+
+The recommended hosted alpha path is a single Node service that serves both the web app and encrypted append-log sync from one public origin:
+
+```bash
+npm install
+npm run build
+npm start
+```
+
+Set `FOLD_PUBLIC_URL` to the HTTPS URL people open, and set `FOLD_DATA_DIR` to a persistent volume path if your host provides one:
+
+```bash
+FOLD_PUBLIC_URL=https://your-fold.example
+FOLD_DATA_DIR=/persistent/fold/append-log
+```
+
+Then create a room and copy a human or agent handoff:
+
+```bash
+npm run --silent cli -- room create --alias launch --json
+npm run --silent cli -- room invite launch --for human
+npm run --silent cli -- room invite launch --for agent
+```
+
+See [docs/deploy.md](docs/deploy.md) for generic Node host, split web/sync, WebSocket, Docker, Compose, and persistence notes.
+
 ## Current Status
 
 Fold currently supports local/self-hosted alpha workflows:
@@ -18,13 +45,13 @@ Fold currently supports local/self-hosted alpha workflows:
 - export accepted Markdown back to `.md` files or a project directory;
 - submit, inspect, accept, and reject encrypted agent proposals;
 - derive proposal status by replaying encrypted room events client-side;
-- open rooms in a Next.js web app with Markdown read/edit, project files, comments, proposal review, named versions, presence activity, and human/agent invites.
+- open rooms in a Next.js web app with Markdown read/edit, project files, file comments, early inline-style review context, proposal review, file restore points, encrypted ephemeral presence, and human/agent invites.
 
-The server stores encrypted room records plus plaintext routing metadata only: `roomId`, append-log `seq`, and `senderId`. Markdown, project files, proposals, comments, timeline/status events, versions, personas, and presence payloads are encrypted client-side.
+The server stores encrypted room records plus plaintext routing metadata only: `roomId`, append-log `seq`, and `senderId`. Markdown, project files, proposals, comments, timeline/status events, file versions, and personas are encrypted client-side before durable storage. Presence is also encrypted client-side, but it is broadcast over WebSocket only and is not stored in the durable append log.
 
 Fold is alpha software. It has not been security-audited, and production durability, access control, fork/truncation protection, compaction, key rotation, and deployment hardening remain open.
 
-## Quickstart
+## Local Development
 
 Install dependencies:
 
@@ -55,9 +82,19 @@ npm run --silent cli -- publish ./README.md \
   --json
 ```
 
-Open the printed `room.url`.
+Open the printed `room.url`. The URL fragment contains the room key, so treat the full URL as secret.
 
 Use `--silent` when parsing JSON from `npm run`; otherwise npm can print banners before the CLI output.
+
+Routine command JSON redacts room access material. Use aliases or explicit invite/publish/create outputs when a workflow intentionally needs a secret room URL or `fold:v1:` token.
+
+## How To Think About Fold
+
+- A room is the collaboration unit: one Markdown file or a small Markdown project tree.
+- A room URL is the sharing unit: `/room/:roomId#key=...`.
+- The server stores encrypted records plus routing metadata; clients decrypt and replay room state.
+- Accepted Markdown is portable and exportable. Agent edits are proposals until accepted.
+- The browser is for humans to read, edit, comment, review, and copy invites. The CLI is the stable agent interface.
 
 ## Human Workflow
 
@@ -149,6 +186,7 @@ fold comments --room <alias-or-url-or-token> [--path <room-path>] [--type all|co
 fold requests --room <alias-or-url-or-token> [--path <room-path>] [--no-open] [--json]
 fold comment --room <alias-or-url-or-token> --text <text> [--path <room-path>] [--quote <text>] [--type comment|request] [--json]
 fold reply <comment-id> --room <alias-or-url-or-token> --text <text> [--json]
+fold context --room <alias-or-url-or-token> [--json]
 fold show-proposal <proposal-id> --room <alias-or-url-or-token> [--json]
 fold accept <proposal-id> --room <alias-or-url-or-token> [--json]
 fold reject <proposal-id> --room <alias-or-url-or-token> [--json]
@@ -165,7 +203,7 @@ Fold uses an Excalidraw-style room-link model:
 /room/:roomId#key=...
 ```
 
-The `#key` fragment contains client-side room key material and is not sent to server APIs. The CLI can also store the same key material in a local `fold:v1:` token or `.fold/rooms.json`; treat those as secrets.
+The `#key` fragment contains client-side room key material and is not sent to server APIs. The CLI can also store the same key material in a local `fold:v1:` token or `.fold/rooms.json`; treat those as secrets. Browser recent projects store non-secret convenience metadata by default, not room keys, so reopening a recent room without a URL fragment asks for the key again.
 
 Clients derive a room key locally with HKDF-SHA256:
 
@@ -179,7 +217,7 @@ Clients encrypt room payloads before sending them to the sync server. The server
 { roomId, seq, senderId, nonce, ciphertext }
 ```
 
-Encrypted payloads include document Markdown updates, project snapshots, proposal records, proposed Markdown, diffs, comments, timeline events, proposal status events, named versions, presence activity, and persona metadata.
+Durable encrypted payloads include document Markdown updates, project snapshots, proposal records, proposed Markdown, diffs, comments, timeline events, proposal status events, file versions, and persona metadata. Ephemeral presence payloads are encrypted and broadcast live over WebSocket, but they are not appended to room history.
 
 The server can still see plaintext routing metadata:
 
@@ -189,7 +227,7 @@ The server can still see plaintext routing metadata:
 - record counts and latest sequence
 - request timing and network metadata
 
-Some `senderId` values reveal the kind of record being sent, such as document update, project snapshot, proposal, timeline event, comment, version, or presence record.
+Some `senderId` values reveal the kind of record being sent, such as document update, project snapshot, proposal, timeline event, comment, version, or ephemeral presence.
 
 ### Alpha Security Limitations
 
@@ -210,6 +248,8 @@ Known limitations:
 - no admin recovery if the room key is lost.
 
 If you lose the room key, Fold cannot recover encrypted room contents for you.
+
+This is a private-link model, not an account permission model. Do not use the alpha for regulated, safety-critical, or irreplaceable production data.
 
 ## Document Model
 
@@ -236,12 +276,13 @@ See:
 - Accepted Markdown export to file or directory.
 - Encrypted proposal records with diffs, personas, and timeline events.
 - Proposal status derived by encrypted event replay, not trusted plaintext server state.
+- Redacted `fold context --room` packets for agent handoff.
 - Next.js web room app at `/room/:roomId#key=...`.
 - Web room unlock with key fragment/manual key flow.
 - Project file tree, recent files, local Markdown import, current-file export.
 - Sanitized Markdown read mode with GFM and math support.
 - Source Markdown edit mode.
-- Inline/file comments, proposal review, named versions, presence activity, and agent handoff copy.
+- File comments, early inline-style review context, proposal review, file restore points, encrypted ephemeral presence activity, and agent handoff copy.
 
 ## Still Hardening
 
@@ -274,22 +315,22 @@ See:
 Core checks:
 
 ```bash
-npm test
-npm run typecheck
-npm run spike:e2ee
-npm run spike:document-model
-npm run spike:document-model:report
+npm run check
 ```
 
-For web changes, also run:
+The check script runs the unit tests, root typecheck, E2EE spike,
+document-model spike, non-mutating document-model report check, web
+typecheck, and web build.
+
+To intentionally regenerate the tracked document-model comparison reports, run:
 
 ```bash
-npm run web:build
+npm run spike:document-model:report:update
 ```
 
 ## Secrets
 
-Treat room URLs, `fold:v1:` tokens, and `.fold/rooms.json` as secrets. They contain client-side key material and grant decryption access.
+Treat room URLs with `#key=...`, `fold:v1:` tokens, and `.fold/rooms.json` as secrets. They contain client-side key material and grant decryption access. The CLI writes `.fold` with owner-only permissions and `.fold/rooms.json` with owner-read/write permissions where POSIX modes are supported. Browser recent-room storage is only a local index of room ids, display names, sources, visit times, and review counts by default.
 
 Do not commit `.fold/rooms.json`.
 

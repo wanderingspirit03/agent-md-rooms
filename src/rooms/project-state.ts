@@ -5,7 +5,8 @@ import type { EncryptedUpdateRecord, IncomingEncryptedUpdate } from '../server/a
 import type { MarkdownDocumentSummary } from './markdown-snapshot.js';
 import { summarizeMarkdown } from './markdown-snapshot.js';
 import type { RoomAccess } from './room-reference.js';
-import { decryptJsonRecord, encryptJsonRecord } from './timeline.js';
+import { decryptJsonRecord, encryptJsonRecord } from './encrypted-records.js';
+import { assertContiguousRecords } from './append-log-validation.js';
 
 export const PROJECT_SCHEMA = 'fold.project.v1';
 export const PROJECT_UPDATE_SENDER_ID_PREFIX = 'fold-cli:project';
@@ -165,8 +166,9 @@ export async function decryptProjectSnapshotsFromRecords(
   access: RoomAccess,
   records: EncryptedUpdateRecord[],
 ): Promise<ProjectSnapshot[]> {
+  assertContiguousRecords(records, access.roomId);
   const snapshots: ProjectSnapshot[] = [];
-  const fileUpdatedAt = new Map<string, string>();
+  const fileAppliedSeq = new Map<string, number>();
   let current: ProjectSnapshot | undefined;
   for (const record of records) {
     if (record.senderId.startsWith(PROJECT_UPDATE_SENDER_ID_PREFIX)) {
@@ -175,9 +177,9 @@ export async function decryptProjectSnapshotsFromRecords(
         throw new Error('Invalid encrypted project snapshot payload');
       }
       current = normalizeProjectSnapshot(value);
-      fileUpdatedAt.clear();
+      fileAppliedSeq.clear();
       for (const file of current.files) {
-        fileUpdatedAt.set(file.path, current.updatedAt);
+        fileAppliedSeq.set(file.path, record.seq);
       }
       snapshots.push(current);
       continue;
@@ -189,7 +191,7 @@ export async function decryptProjectSnapshotsFromRecords(
         throw new Error('Invalid encrypted web project file snapshot payload');
       }
       const path = normalizeProjectPath(value.path);
-      if (isStaleProjectFileSnapshot(fileUpdatedAt.get(path), value.updatedAt)) {
+      if (isStaleProjectFileSnapshotSeq(fileAppliedSeq.get(path), record.seq)) {
         continue;
       }
       current = replaceProjectFile(
@@ -197,7 +199,7 @@ export async function decryptProjectSnapshotsFromRecords(
         path,
         value.markdown,
       );
-      fileUpdatedAt.set(path, value.updatedAt);
+      fileAppliedSeq.set(path, record.seq);
       current = normalizeProjectSnapshot({
         ...current,
         updatedAt: value.updatedAt,
@@ -209,8 +211,17 @@ export async function decryptProjectSnapshotsFromRecords(
 }
 
 export function normalizeProjectPath(input: string): string {
-  const normalized = input.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+/g, '/');
-  if (!normalized || normalized === '.' || normalized.includes('..')) {
+  const withoutLeadingSlash = input.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+/g, '/');
+  const segments = withoutLeadingSlash.split('/');
+  if (
+    segments.length === 0 ||
+    segments.some((segment) => segment === '..') ||
+    /^[a-zA-Z]:/.test(segments[0] ?? '')
+  ) {
+    throw new Error(`Invalid project path: ${input}`);
+  }
+  const normalized = segments.filter((segment) => segment && segment !== '.').join('/');
+  if (!normalized) {
     throw new Error(`Invalid project path: ${input}`);
   }
   return normalized;
@@ -277,6 +288,10 @@ export function isStaleProjectFileSnapshot(currentUpdatedAt: string | undefined,
     return nextTime < currentTime;
   }
   return nextUpdatedAt < currentUpdatedAt;
+}
+
+export function isStaleProjectFileSnapshotSeq(currentSeq: number | undefined, nextSeq: number): boolean {
+  return currentSeq !== undefined && nextSeq <= currentSeq;
 }
 
 function defaultRoomPathForFile(sourcePath: string): string {

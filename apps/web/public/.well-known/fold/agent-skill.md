@@ -44,6 +44,8 @@ If the global `fold` command is unavailable, use the repository-local form shown
 npm run --silent cli -- <command>
 ```
 
+The copied agent handoff is authoritative for the room. Prefer its exact alias, token, app URL, and sync URL.
+
 ## Join A Room
 
 Import the secret room URL or token once, then use the alias. Agent invites normally use a token because it preserves both the web app URL and sync server URL:
@@ -97,7 +99,24 @@ Accept/reject only when a human or higher-level workflow explicitly asks you to 
 
 ## Create A Room For A Human
 
-When you create the room first, publish the Markdown project and send the human invite back to the user:
+When you create the room first on a hosted Fold deployment, use the hosted public URL once and send the human invite back to the user:
+
+```bash
+FOLD_PUBLIC_URL=https://your-fold.example \
+fold publish ./project --alias launch
+fold room invite launch --for human
+fold room invite launch --for agent
+```
+
+When working from this repository, use the local CLI wrapper:
+
+```bash
+FOLD_PUBLIC_URL=https://your-fold.example \
+npm run --silent cli -- publish ./project --alias launch
+npm run --silent cli -- room invite launch --for human
+```
+
+For local development, publish with explicit local URLs:
 
 ```bash
 fold publish ./project --server http://127.0.0.1:8787 --alias launch
@@ -139,5 +158,6 @@ fold room set-url launch \
 
 - Mac-local single-machine: `localhost` is fine.
 - Mac-local collaborators: the server must bind to a reachable host, the firewall must allow the port, and collaborators need a URL that points to the host Mac.
-- Hosted platforms such as Railway should use public HTTPS URLs and persistent append-log storage.
+- Hosted platforms should use public HTTPS URLs, WebSocket support, and persistent append-log storage.
+- Same-origin hosted Fold uses one URL for both the browser app and sync server. Set `FOLD_PUBLIC_URL` or pass explicit `--app-url` and `--sync-url`.
 - Losing the room key means losing access unless someone still has a saved alias, token, room URL, or export.

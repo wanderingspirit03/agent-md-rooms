@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AppendLogStore } from '../server/append-log.js';
-import { createEncryptedCommentRecord, replayCommentsFromRecords, type RoomComment } from './comments.js';
+import { createEncryptedCommentEvent, createEncryptedCommentRecord, replayCommentsFromRecords, type RoomComment } from './comments.js';
 import { createRoomAccess } from './room-reference.js';
 
 describe('encrypted room comments', () => {
@@ -35,5 +35,43 @@ describe('encrypted room comments', () => {
     expect(replayed[0]?.selectedQuote).toBe('Keep Markdown canonical.');
     expect(store.serialized(access.roomId)).not.toContain('Please check');
     expect(store.serialized(access.roomId)).not.toContain('Keep Markdown canonical');
+  });
+
+  it('rejects missing append-log sequences during comment replay', async () => {
+    const access = createRoomAccess();
+    const store = new AppendLogStore();
+    const request: RoomComment = {
+      id: 'request-1',
+      authorPersonaId: 'persona-agent-requester',
+      persona: {
+        schema: 'fold.persona.v1',
+        id: 'persona-agent-requester',
+        name: 'Branch Echo',
+        label: 'Agent',
+        kind: 'agent',
+        color: '#1e3a8a',
+        participantFingerprint: 'agent-requester',
+      },
+      filePath: 'docs/PLAN.md',
+      text: 'Please check this section.',
+      createdAt: new Date().toISOString(),
+      type: 'request',
+    };
+
+    const first = await store.append(access.roomId, await createEncryptedCommentRecord(access, request));
+    const third = {
+      roomId: access.roomId,
+      seq: 3,
+      ...(await createEncryptedCommentEvent(access, {
+        id: 'ev-comment-resolve-request-1',
+        type: 'comment_resolved',
+        createdAt: new Date().toISOString(),
+        actorPersonaId: request.authorPersonaId,
+        message: 'Resolved comment',
+        commentId: request.id,
+      })),
+    };
+
+    await expect(replayCommentsFromRecords(access, [first, third])).rejects.toThrow(/missing, duplicate, or reordered/);
   });
 });

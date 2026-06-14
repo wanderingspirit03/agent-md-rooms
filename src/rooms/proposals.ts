@@ -12,17 +12,17 @@ import {
 } from './project-state.js';
 import {
   createTimelineEvent,
-  encryptJsonRecord,
   decryptTimelineEvent,
-  decryptJsonRecord,
   TIMELINE_EVENT_SENDER_ID_PREFIX,
   type TimelineEvent,
 } from './timeline.js';
+import { decryptJsonRecord, encryptJsonRecord } from './encrypted-records.js';
 import {
   CLI_COMMENT_EVENT_SENDER_ID_PREFIX,
   COMMENT_EVENT_SENDER_ID_PREFIX,
   type CommentReply,
 } from './comments.js';
+import { assertContiguousRecords } from './append-log-validation.js';
 
 export const PROPOSAL_SCHEMA = 'fold.proposal.v1';
 export const PROPOSAL_SENDER_ID_PREFIX = 'fold-cli:proposal';
@@ -93,9 +93,11 @@ export async function createEncryptedProposalRecord(
   const record: ProposalRecord = {
     schema: PROPOSAL_SCHEMA,
     id,
-    kind: proposedProject
-      ? (options.path ? 'file-replacement' : 'project-replacement')
-      : 'whole-document-replacement',
+    kind: options.path
+      ? 'file-replacement'
+      : proposedProject
+        ? 'project-replacement'
+        : 'whole-document-replacement',
     createdAt,
     updatedAt: createdAt,
     title: options.title ?? defaultProposalTitle(options.baseMarkdown, options.proposedMarkdown),
@@ -142,9 +144,10 @@ export async function createEncryptedProposalRecord(
 
 export async function createProposalAcceptedEvent(
   access: RoomAccess,
-  proposal: Pick<ProposalView, 'id' | 'proposed' | 'title'>,
+  proposal: Pick<ProposalView, 'id' | 'proposed' | 'title' | 'proposedProject' | 'path'>,
   documentSha256: string,
   actorPersonaId: string,
+  acceptedProject?: ProjectSnapshot,
 ): Promise<IncomingEncryptedUpdate> {
   const event = createTimelineEvent({
     idSeed: `proposal:${proposal.id}:accepted`,
@@ -153,6 +156,7 @@ export async function createProposalAcceptedEvent(
     proposalId: proposal.id,
     documentSha256,
     message: `Accepted ${proposal.title}`,
+    acceptedProject: acceptedProject ?? proposal.proposedProject,
   });
   return encryptJsonRecord(access, `${TIMELINE_EVENT_SENDER_ID_PREFIX}:${event.id}`, event);
 }
@@ -339,20 +343,4 @@ function projectDiff(baseProject: ProjectSnapshot, proposedProject: ProjectSnaps
     if (after !== undefined) lines.push(...after.split('\n').map((line) => `+${line}`));
   }
   return lines.join('\n');
-}
-
-function assertContiguousRecords(records: EncryptedUpdateRecord[], roomId: string): void {
-  let expectedSeq = 1;
-  for (const record of records) {
-    if (record.roomId !== roomId) {
-      throw new Error(`Received update for unexpected room ${JSON.stringify(record.roomId)}`);
-    }
-    if (!Number.isSafeInteger(record.seq) || record.seq < 1) {
-      throw new Error(`Received invalid append-log sequence ${record.seq}`);
-    }
-    if (record.seq !== expectedSeq) {
-      throw new Error(`Detected missing, duplicate, or reordered append-log sequence ${record.seq}; expected ${expectedSeq}`);
-    }
-    expectedSeq += 1;
-  }
 }

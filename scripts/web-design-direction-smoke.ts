@@ -104,7 +104,7 @@ async function main() {
           ok: true,
           baseUrl,
           syncUrl: DEFAULT_SYNC_URL,
-          roomUrl: desktop.url(),
+          ...safeRoomLogFields(desktop.url()),
           launcherScreenshotPath,
           desktopScreenshotPath,
           mobileScreenshotPath,
@@ -119,6 +119,14 @@ async function main() {
   } finally {
     await browser.close();
   }
+}
+
+function safeRoomLogFields(roomUrl: string) {
+  const parsed = new URL(roomUrl);
+  return {
+    roomId: parsed.pathname.split('/').filter(Boolean).at(-1) ?? '',
+    serverRoomUrl: `${parsed.origin}${parsed.pathname}`,
+  };
 }
 
 async function assertReferencePack() {

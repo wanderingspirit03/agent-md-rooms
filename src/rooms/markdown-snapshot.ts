@@ -5,15 +5,15 @@ import {
   deriveRoomKey,
   encryptUpdate,
   type EncryptedPayload,
-} from '../../spikes/e2ee-yjs-append-log/crypto.js';
-import type { EncryptedUpdateRecord, IncomingEncryptedUpdate } from '../../spikes/e2ee-yjs-append-log/server.js';
+} from './crypto.js';
+import type { EncryptedUpdateRecord, IncomingEncryptedUpdate } from '../server/append-log.js';
+import { assertContiguousRecords } from './append-log-validation.js';
 import type { RoomAccess } from './room-reference.js';
 
 export const MARKDOWN_YTEXT_NAME = 'markdown';
 export const MARKDOWN_CANONICAL = 'y.text:markdown';
 export const ENCRYPTED_SNAPSHOT_FORMAT = 'encrypted-yjs-update-v1';
 export const DOCUMENT_UPDATE_SENDER_ID = 'fold-cli:document';
-export const SUGGESTION_UPDATE_SENDER_ID_PREFIX = 'fold-cli:suggestion';
 
 export interface EncryptedMarkdownSnapshot extends EncryptedPayload {
   format: typeof ENCRYPTED_SNAPSHOT_FORMAT;
@@ -177,23 +177,4 @@ async function encryptMarkdownYjsUpdate(
     senderId,
     ...encrypted,
   };
-}
-
-function assertContiguousRecords(records: EncryptedUpdateRecord[], roomId: string): void {
-  let expectedSeq = 1;
-  for (const record of records) {
-    if (record.roomId !== roomId) {
-      throw new Error(`Received update for unexpected room ${JSON.stringify(record.roomId)}`);
-    }
-
-    if (!Number.isSafeInteger(record.seq) || record.seq < 1) {
-      throw new Error(`Received invalid append-log sequence ${record.seq}`);
-    }
-
-    if (record.seq !== expectedSeq) {
-      throw new Error(`Detected missing, duplicate, or reordered append-log sequence ${record.seq}; expected ${expectedSeq}`);
-    }
-
-    expectedSeq += 1;
-  }
 }

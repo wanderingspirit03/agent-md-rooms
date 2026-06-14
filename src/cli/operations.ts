@@ -42,6 +42,7 @@ import {
   replaceProjectFile,
   singleFileProject,
   summarizeProject,
+  isStaleProjectFileSnapshotSeq,
   WEB_PROJECT_FILE_SENDER_ID_PREFIX,
   writeMarkdownProject,
   type ProjectSnapshot,
@@ -63,17 +64,19 @@ import {
   type ThreadType,
 } from '../rooms/comments.js';
 import { assignPersona } from '../rooms/personas.js';
+import { resolvePublicOrigin } from '../deploy/public-origin.js';
 import {
   createEncryptedTimelineEvent,
   createTimelineEvent,
-  decryptJsonRecord,
   decryptTimelineEvent,
   TIMELINE_EVENT_SENDER_ID_PREFIX,
 } from '../rooms/timeline.js';
+import { decryptJsonRecord } from '../rooms/encrypted-records.js';
 import type {
   DecideProposalResult,
   CommentResult,
   CommentsResult,
+  ContextResult,
   ExportResult,
   PatchResult,
   ProposalSummaryResult,
@@ -86,6 +89,7 @@ import type {
   RoomInviteResult,
   RoomListResult,
   RoomProfileResult,
+  SafeRoomResult,
   ShowProposalResult,
   StatusResult,
 } from './results.js';
@@ -195,11 +199,13 @@ export async function publishMarkdown(options: PublishOptions): Promise<PublishR
   const primary = projectFileOrThrow(project, project.primaryPath);
   const markdown = primary.markdown;
   const savedAlias = options.alias ?? defaultAliasForSource(options.filePath);
-  const access = createRoomAccess(
-    options.serverUrl ?? options.syncUrl ?? options.appUrl ?? DEFAULT_SERVER_URL,
-    options.appUrl ?? options.serverUrl ?? options.syncUrl ?? DEFAULT_SERVER_URL,
-    options.syncUrl ?? options.serverUrl ?? DEFAULT_SERVER_URL,
-  );
+  const urls = resolvePublicOrigin({
+    serverUrl: options.serverUrl,
+    appUrl: options.appUrl,
+    syncUrl: options.syncUrl,
+    defaultUrl: DEFAULT_SERVER_URL,
+  });
+  const access = createRoomAccess(urls.syncUrl, urls.appUrl, urls.syncUrl);
   const document = summarizeMarkdown(markdown);
   const projectSummary = summarizeProject(project);
   const encryptedUpdate = await createEncryptedMarkdownUpdate(markdown, access, CLI_SENDER_ID);
@@ -264,11 +270,13 @@ export async function publishMarkdown(options: PublishOptions): Promise<PublishR
 export async function createRoomProfile(options: RoomCreateOptions): Promise<RoomCreateResult> {
   const markdown = '';
   const project = singleFileProject('document.md', markdown);
-  const access = createRoomAccess(
-    options.serverUrl ?? options.syncUrl ?? options.appUrl ?? DEFAULT_SERVER_URL,
-    options.appUrl ?? options.serverUrl ?? options.syncUrl ?? DEFAULT_SERVER_URL,
-    options.syncUrl ?? options.serverUrl ?? DEFAULT_SERVER_URL,
-  );
+  const urls = resolvePublicOrigin({
+    serverUrl: options.serverUrl,
+    appUrl: options.appUrl,
+    syncUrl: options.syncUrl,
+    defaultUrl: DEFAULT_SERVER_URL,
+  });
+  const access = createRoomAccess(urls.syncUrl, urls.appUrl, urls.syncUrl);
   const document = summarizeMarkdown(markdown);
   const projectSummary = summarizeProject(project);
   await appendEncryptedUpdate(access, await createEncryptedMarkdownUpdate(markdown, access, CLI_SENDER_ID));
@@ -348,7 +356,7 @@ export async function exportMarkdown(options: ExportOptions): Promise<ExportResu
     schema: 'fold.export.result.v1',
     ok: true,
     mode: 'server-backed',
-    room: publicRoomResult(reference, createRoomToken(reference)),
+    room: safeRoomResult(reference),
     metadata: {
       path: metadataPath,
       found: Boolean(entry),
@@ -379,12 +387,15 @@ export async function roomStatus(options: StatusOptions): Promise<StatusResult> 
   const status = await fetchRoomStatus(reference);
   const records = await listEncryptedUpdates(reference);
   const project = records.length > 0 ? await currentProjectFromRecords(records, reference, entry) : null;
+  const replayedDocument = project
+    ? summarizeMarkdown(projectFileOrThrow(project, project.primaryPath).markdown)
+    : null;
 
   return {
     schema: 'fold.status.result.v1',
     ok: true,
     mode: 'server-backed',
-    room: publicRoomResult(reference, createRoomToken(reference)),
+    room: safeRoomResult(reference),
     metadata: {
       path: metadataPath,
       found: Boolean(entry),
@@ -392,12 +403,52 @@ export async function roomStatus(options: StatusOptions): Promise<StatusResult> 
       createdAt: entry?.createdAt ?? null,
       updatedAt: entry?.updatedAt ?? null,
     },
-    document: entry?.document ?? null,
+    document: replayedDocument ?? entry?.document ?? null,
     project: project ? summarizeProject(project) : null,
     server: {
       checked: true,
       recordCount: status.recordCount,
       latestSeq: status.latestSeq,
+    },
+  };
+}
+
+export async function roomContext(options: StatusOptions): Promise<ContextResult> {
+  const reference = await resolveRoomReference(options.cwd, options.room);
+  const metadataPath = defaultMetadataPath(options.cwd);
+  const entry = await findRoomMetadata(metadataPath, reference.roomId, reference.serverUrl);
+  const records = await listEncryptedUpdates(reference);
+  const project = await currentProjectFromRecords(records, reference, entry);
+  const projectSummary = summarizeProject(project);
+  const primary = projectFileOrThrow(project, project.primaryPath);
+  const document = summarizeMarkdown(primary.markdown);
+  const comments = await replayCommentsFromRecords(reference, records);
+  const proposalReplay = await replayProposalsFromRecords(reference, records);
+  const proposals = proposalReplay.proposals.map(publicProposalListItem);
+
+  return {
+    schema: 'fold.context.result.v1',
+    ok: true,
+    mode: 'agent-context',
+    room: safeRoomResult(reference),
+    document,
+    project: projectSummary,
+    files: project.files.map((file) => ({
+      path: file.path,
+      markdown: file.markdown,
+      ...summarizeMarkdown(file.markdown),
+    })),
+    comments: {
+      unresolved: comments.filter((comment) => !comment.resolvedAt),
+    },
+    proposals: {
+      pending: proposals.filter((proposal) => proposal.status === 'pending'),
+      accepted: proposals.filter((proposal) => proposal.status === 'accepted'),
+      rejected: proposals.filter((proposal) => proposal.status === 'rejected'),
+    },
+    server: {
+      recordCount: records.length,
+      latestSeq: records.at(-1)?.seq ?? null,
     },
   };
 }
@@ -454,7 +505,7 @@ export async function proposeMarkdown(options: ProposeOptions): Promise<ProposeR
     baseMarkdown,
     proposedMarkdown,
     baseProject,
-    proposedProject,
+    proposedProject: proposedPath ? undefined : proposedProject,
     path: proposedPath,
     title: options.title,
     comment: options.comment,
@@ -469,7 +520,7 @@ export async function proposeMarkdown(options: ProposeOptions): Promise<ProposeR
     schema: 'fold.propose.result.v1',
     ok: true,
     mode: 'proposal',
-    room: publicRoomResult(reference, createRoomToken(reference)),
+    room: safeRoomResult(reference),
     metadata: {
       path: metadataPath,
       found: Boolean(entry),
@@ -498,20 +549,8 @@ export async function listProposals(options: ProposalRoomOptions): Promise<Propo
     schema: 'fold.proposals.result.v1',
     ok: true,
     mode: 'proposal-list',
-    room: publicRoomResult(reference, createRoomToken(reference)),
-    proposals: replay.proposals.map((proposal) => ({
-      id: proposal.id,
-      title: proposal.title,
-      comment: proposal.comment,
-      status: proposal.status,
-      createdAt: proposal.createdAt,
-      updatedAt: proposal.statusUpdatedAt,
-      persona: proposal.persona,
-      base: proposal.base,
-      proposed: summarizeMarkdown(proposal.proposed.markdown),
-      path: proposal.path,
-      project: proposal.proposedProject ? summarizeProject(proposal.proposedProject) : undefined,
-    })),
+    room: safeRoomResult(reference),
+    proposals: replay.proposals.map(publicProposalListItem),
     server: {
       recordCount: records.length,
       latestSeq: records.at(-1)?.seq ?? null,
@@ -534,7 +573,7 @@ export async function listComments(options: CommentListOptions): Promise<Comment
     schema: 'fold.comments.result.v1',
     ok: true,
     mode: 'comment-list',
-    room: publicRoomResult(reference, createRoomToken(reference)),
+    room: safeRoomResult(reference),
     filters: {
       type,
       open: options.open ?? false,
@@ -575,7 +614,7 @@ export async function addComment(options: AddCommentOptions): Promise<CommentRes
     schema: 'fold.comment.result.v1',
     ok: true,
     mode: 'comment',
-    room: publicRoomResult(reference, createRoomToken(reference)),
+    room: safeRoomResult(reference),
     comment,
     server: {
       recordCount: record.seq,
@@ -610,7 +649,7 @@ export async function replyToComment(options: ReplyCommentOptions): Promise<Comm
     schema: 'fold.reply.result.v1',
     ok: true,
     mode: 'comment',
-    room: publicRoomResult(reference, createRoomToken(reference)),
+    room: safeRoomResult(reference),
     comment: updated,
     server: {
       recordCount: record.seq,
@@ -636,7 +675,7 @@ export async function showProposal(options: ProposalIdOptions): Promise<ShowProp
     schema: 'fold.show-proposal.result.v1',
     ok: true,
     mode: 'proposal',
-    room: publicRoomResult(reference, createRoomToken(reference)),
+    room: safeRoomResult(reference),
     proposal,
     timeline: timeline.filter((event) => event.proposalId === proposal.id),
     server: {
@@ -658,8 +697,21 @@ export async function acceptProposal(options: ProposalIdOptions): Promise<Decide
     throw new Error(`Proposal ${proposal.id} is based on ${proposal.base.sha256} but current document is ${currentDocument.sha256}`);
   }
   const document = summarizeMarkdown(proposal.proposed.markdown);
-  const acceptedProject = proposal.proposedProject ?? singleFileProject(proposal.path ?? currentProject.primaryPath, proposal.proposed.markdown);
+  const acceptedProject = proposal.proposedProject
+    ?? (proposal.path
+      ? replaceProjectFile(currentProject, proposal.path, proposal.proposed.markdown)
+      : singleFileProject(currentProject.primaryPath, proposal.proposed.markdown));
   const primaryMarkdown = projectFileOrThrow(acceptedProject, acceptedProject.primaryPath).markdown;
+  const reviewerPersona = assignPersona({
+    roomId: reference.roomId,
+    participantKind: 'human',
+    participantFingerprint: CLI_REVIEWER_FINGERPRINT,
+  });
+  const eventUpdate = await createProposalAcceptedEvent(reference, proposal, document.sha256, reviewerPersona.id, acceptedProject);
+  const eventRecord = await appendEncryptedUpdate(reference, eventUpdate);
+
+  // The accepted event carries the accepted project so replay can recover even if
+  // these redundant compatibility snapshots fail after the decision is durable.
   const documentUpdate = await createEncryptedMarkdownReplacementUpdateFromRecords(
     records,
     primaryMarkdown,
@@ -667,13 +719,6 @@ export async function acceptProposal(options: ProposalIdOptions): Promise<Decide
   );
   await appendEncryptedUpdate(reference, documentUpdate);
   await appendEncryptedUpdate(reference, await createEncryptedProjectSnapshot(reference, acceptedProject));
-  const reviewerPersona = assignPersona({
-    roomId: reference.roomId,
-    participantKind: 'human',
-    participantFingerprint: CLI_REVIEWER_FINGERPRINT,
-  });
-  const eventUpdate = await createProposalAcceptedEvent(reference, proposal, document.sha256, reviewerPersona.id);
-  const eventRecord = await appendEncryptedUpdate(reference, eventUpdate);
   const replay = await replayProposalsFromRecords(reference, await listEncryptedUpdates(reference));
   const updated = findProposalInReplay(replay.proposals, options.proposalId);
 
@@ -681,7 +726,7 @@ export async function acceptProposal(options: ProposalIdOptions): Promise<Decide
     schema: 'fold.accept.result.v1',
     ok: true,
     mode: 'proposal-decision',
-    room: publicRoomResult(reference, createRoomToken(reference)),
+    room: safeRoomResult(reference),
     proposal: publicProposalSummary(updated),
     status: 'accepted',
     document,
@@ -711,7 +756,7 @@ export async function rejectProposal(options: ProposalIdOptions): Promise<Decide
     schema: 'fold.reject.result.v1',
     ok: true,
     mode: 'proposal-decision',
-    room: publicRoomResult(reference, createRoomToken(reference)),
+    room: safeRoomResult(reference),
     proposal: publicProposalSummary(updated),
     status: 'rejected',
     document: null,
@@ -761,7 +806,7 @@ export async function listRoomProfiles(options: { cwd: string }): Promise<RoomLi
     schema: 'fold.room.list.result.v1',
     ok: true,
     metadata: { path: metadataPath },
-    rooms: rooms.map((room) => publicRoomListResult(accessFromEntry(room))),
+    rooms: rooms.map((room) => safeRoomResult(accessFromEntry(room))),
   };
 }
 
@@ -870,7 +915,7 @@ export async function createRoomInvite(options: RoomInviteOptions): Promise<Room
     ok: true,
     audience: options.audience,
     room: options.audience === 'agent'
-      ? publicRoomListResult(access)
+      ? safeRoomResult(access)
       : publicRoomResult(access, entry.token),
     warnings,
     invite: {
@@ -896,7 +941,7 @@ function publicRoomResult(access: RoomAccess, token: string): PublicRoomResult {
   };
 }
 
-function publicRoomListResult(access: RoomAccess & { alias?: string }): PublicRoomResult {
+function safeRoomResult(access: RoomAccess & { alias?: string }): SafeRoomResult {
   return {
     roomId: access.roomId,
     alias: access.alias ?? null,
@@ -904,9 +949,7 @@ function publicRoomListResult(access: RoomAccess & { alias?: string }): PublicRo
     syncUrl: access.syncUrl,
     serverUrl: access.serverUrl,
     serverRoomUrl: serverRoomUrlForAccess(access),
-    url: serverRoomUrlForAccess(access),
-    token: '[redacted]',
-    hasClientKey: false,
+    hasClientKey: true,
   };
 }
 
@@ -914,6 +957,22 @@ function publicProposalSummary(proposal: ProposalView): ProposalSummaryResult {
   return {
     id: proposal.id,
     kind: proposal.kind,
+    title: proposal.title,
+    comment: proposal.comment,
+    status: proposal.status,
+    createdAt: proposal.createdAt,
+    updatedAt: proposal.statusUpdatedAt,
+    persona: proposal.persona,
+    base: proposal.base,
+    proposed: summarizeMarkdown(proposal.proposed.markdown),
+    path: proposal.path,
+    project: proposal.proposedProject ? summarizeProject(proposal.proposedProject) : undefined,
+  };
+}
+
+function publicProposalListItem(proposal: ProposalView) {
+  return {
+    id: proposal.id,
     title: proposal.title,
     comment: proposal.comment,
     status: proposal.status,
@@ -1017,9 +1076,8 @@ async function currentProjectFromRecords(
   access: RoomAccess,
   entry?: RoomMetadataEntry,
 ): Promise<ProjectSnapshot> {
-  const replay = await replayProposalsFromRecords(access, records);
-  const proposalsById = new Map(replay.proposals.map((proposal) => [proposal.id, proposal]));
-  const fileUpdatedAt = new Map<string, string>();
+  let proposalsById: Map<string, ProposalView> | undefined;
+  const fileAppliedSeq = new Map<string, number>();
   let project: ProjectSnapshot | undefined;
 
   for (const record of records) {
@@ -1029,8 +1087,8 @@ async function currentProjectFromRecords(
         throw new Error('Invalid encrypted project snapshot payload');
       }
       project = normalizeProjectSnapshot(value);
-      fileUpdatedAt.clear();
-      for (const file of project.files) fileUpdatedAt.set(file.path, project.updatedAt);
+      fileAppliedSeq.clear();
+      for (const file of project.files) fileAppliedSeq.set(file.path, record.seq);
       continue;
     }
 
@@ -1039,10 +1097,10 @@ async function currentProjectFromRecords(
       if (!isReplayWebProjectFileSnapshot(value)) {
         throw new Error('Invalid encrypted web project file snapshot payload');
       }
-      if (isStaleProjectFileSnapshot(fileUpdatedAt.get(value.path), value.updatedAt)) continue;
+      if (isStaleProjectFileSnapshotSeq(fileAppliedSeq.get(value.path), record.seq)) continue;
       project = replaceProjectFile(project ?? singleFileProject(value.path, value.markdown), value.path, value.markdown);
       project = normalizeProjectSnapshot({ ...project, updatedAt: value.updatedAt });
-      fileUpdatedAt.set(projectFileOrThrow(project, value.path).path, value.updatedAt);
+      fileAppliedSeq.set(projectFileOrThrow(project, value.path).path, record.seq);
       continue;
     }
 
@@ -1052,6 +1110,10 @@ async function currentProjectFromRecords(
     if (event.acceptedProject) {
       project = normalizeProjectSnapshot(event.acceptedProject);
     } else {
+      if (!proposalsById) {
+        const replay = await replayProposalsFromRecords(access, records);
+        proposalsById = new Map(replay.proposals.map((proposal) => [proposal.id, proposal]));
+      }
       const accepted = proposalsById.get(event.proposalId);
       if (accepted?.proposedProject) {
         project = normalizeProjectSnapshot(accepted.proposedProject);
@@ -1060,8 +1122,8 @@ async function currentProjectFromRecords(
       }
     }
     if (project) {
-      fileUpdatedAt.clear();
-      for (const file of project.files) fileUpdatedAt.set(file.path, project.updatedAt);
+      fileAppliedSeq.clear();
+      for (const file of project.files) fileAppliedSeq.set(file.path, record.seq);
     }
   }
 

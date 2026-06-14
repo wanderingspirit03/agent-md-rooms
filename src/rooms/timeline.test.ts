@@ -41,6 +41,12 @@ describe('encrypted room timeline', () => {
         proposalId: 'prop-1',
         documentSha256: 'sha-proposed',
         message: 'Accepted proposal',
+        acceptedProject: {
+          schema: 'fold.project.v1',
+          primaryPath: 'docs/PLAN.md',
+          files: [{ path: 'docs/PLAN.md', markdown: '# Accepted\n' }],
+          updatedAt: '2026-06-07T00:02:00.000Z',
+        },
       },
       {
         schema: 'fold.timeline-event.v1',

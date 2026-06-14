@@ -8,18 +8,22 @@ The product language should emphasize projects, files, humans, and agents. Borro
 
 Start with `PLAN.md` before making product or architecture changes.
 
-## Current Non-UI State
+## Current Implementation State
 
 - The active spikes are `spikes/e2ee-yjs-append-log/` and `spikes/document-model/`.
 - V1 canonical document state is raw Markdown in `Y.Text`; editor-native structures are helper/derived state unless they prove lossless Markdown fidelity.
 - The E2EE spike validates encrypted Yjs update payloads, WebSocket backlog replay, same-client reconnect, basic file-backed JSONL restart/replay, metadata authentication for client-known fields, and delivered-record sequence/replay detection.
 - The document-model spike compares Markdown-canonical `Y.Text` against a non-UI ProseMirror/CommonMark editor-canonical proxy and records the v1 Markdown-canonical decision.
-- The repo now has an early server-backed TypeScript CLI and file-backed append-log server. Local flow starts with `npm run server -- --port 8787 --data ./data`, then `npm run --silent cli -- publish ./notes.md --server http://127.0.0.1:8787 --json`.
-- Current CLI room workflow includes `publish`, `status`, `export`, `propose`, `proposals`, `show-proposal`, `accept`, `reject`, and legacy `patch` as a compatibility wrapper around proposal submission.
-- Proposal records, proposal status/timeline events, persona metadata, and document Markdown are encrypted room payloads decrypted/replayed client-side. Proposal status is derived by replaying encrypted room records, not by trusting mutable plaintext server state.
+- The repo has a server-backed TypeScript CLI, file-backed append-log server, hosted same-origin Node entrypoint, Docker/Compose deployment files, and an early Next.js web room app.
+- Local development usually starts with `npm run server -- --port 8787 --data ./data`, `npm run web:dev`, then `npm run --silent cli -- publish ./notes.md --app-url http://127.0.0.1:3000 --sync-url http://127.0.0.1:8787 --json`.
+- Hosted alpha deployment usually starts with `npm run build`, `npm start`, `FOLD_PUBLIC_URL`, and a persistent `FOLD_DATA_DIR`.
+- Current CLI room workflow includes `publish`, `room create/add/list/show/set-url/forget/invite`, `status`, `export`, `context`, `comment`, `reply`, `comments`, `requests`, `propose`, `proposals`, `show-proposal`, `accept`, `reject`, and legacy `patch` as a compatibility wrapper around proposal submission.
+- Proposal records, proposal status/timeline events, comments, file versions, persona metadata, project snapshots, and document Markdown are encrypted room payloads decrypted/replayed client-side. Proposal status is derived by replaying encrypted room records, not by trusting mutable plaintext server state.
+- Presence payloads are encrypted client-side and broadcast over WebSocket only; they are not persisted in the durable append log.
+- Routine JSON command outputs must stay redacted: only explicit create, publish, room profile, and invite workflows should emit decryption-capable room URLs, tokens, or secrets.
 - Agent personas should be assigned by the room/system, not self-selected by agents. Preserve distinct, memorable agent personas and visible agent-vs-human identity.
 - The server still stores plaintext routing metadata: `roomId`, `seq`, and `senderId`.
-- Production-grade durability, append-log compaction, fork/truncation detection, hash chains or signed checkpoints, awareness encryption, editor integration, inline comments, and named versions remain open.
+- Production-grade durability, append-log compaction, fork/truncation detection, hash chains or signed checkpoints, presence/awareness protocol hardening, key rotation/revocation, account authorization, robust inline anchoring, and richer editor integration remain open.
 
 ## Renderer and Editor Direction
 
@@ -45,9 +49,9 @@ Start with `PLAN.md` before making product or architecture changes.
 Run these before reporting completion:
 
 ```bash
-npm test
-npm run typecheck
-npm run spike:e2ee
-npm run spike:document-model
-npm run spike:document-model:report
+npm run check
 ```
+
+`npm run spike:document-model:report` is a non-mutating freshness check. Use
+`npm run spike:document-model:report:update` only when intentionally
+regenerating the tracked comparison report artifacts.

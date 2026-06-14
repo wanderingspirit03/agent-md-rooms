@@ -230,7 +230,7 @@ async function main() {
           ok: true,
           baseUrl,
           syncUrl: DEFAULT_SYNC_URL,
-          roomUrl: page.url(),
+          ...safeRoomLogFields(page.url()),
           screenshotPath,
         },
         null,
@@ -240,6 +240,14 @@ async function main() {
   } finally {
     await browser.close();
   }
+}
+
+function safeRoomLogFields(roomUrl: string) {
+  const parsed = new URL(roomUrl);
+  return {
+    roomId: parsed.pathname.split('/').filter(Boolean).at(-1) ?? '',
+    serverRoomUrl: `${parsed.origin}${parsed.pathname}`,
+  };
 }
 
 async function preparePage(page: Page, label: string, logs: string[]) {

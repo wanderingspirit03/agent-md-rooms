@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { EncryptedAppendLogServer } from '../../spikes/e2ee-yjs-append-log/server.js';
 import { decryptMarkdownFromRecords } from '../rooms/markdown-snapshot.js';
 import { defaultMetadataPath, readRoomMetadata } from '../rooms/metadata.js';
+import { createProposalAcceptedEvent } from '../rooms/proposals.js';
 import { createRoomToken, parseRoomReference, type RoomAccess } from '../rooms/room-reference.js';
 import {
   acceptProposal,
@@ -21,9 +22,19 @@ import {
   publishMarkdown,
   rejectProposal,
   replyToComment,
+  roomContext,
   roomStatus,
   showProposal,
 } from './operations.js';
+
+function expectSafeRoomOutput(value: unknown) {
+  const serialized = JSON.stringify(value);
+  expect(serialized).not.toContain('#key=');
+  expect(serialized).not.toContain('fold:v1:');
+  expect(serialized).not.toContain('roomSecret');
+  expect(value).not.toHaveProperty('room.url');
+  expect(value).not.toHaveProperty('room.token');
+}
 
 describe('CLI operations', () => {
   it('publishes Markdown as encrypted local metadata by default', async () => {
@@ -43,6 +54,7 @@ describe('CLI operations', () => {
       expect(result.schema).toBe('fold.publish.result.v1');
       expect(result.mode).toBe('server-backed');
       expect(result.room.url).toContain('#key=');
+      expect(result.room.token).toContain('fold:v1:');
       expect(result.room.serverRoomUrl).not.toContain('#key=');
       expect(result.room.alias).toBe('report');
       expect(result.metadata.saved).toBe(true);
@@ -86,6 +98,36 @@ describe('CLI operations', () => {
     }
   });
 
+  it('uses hosted public URL environment defaults for publish links and tokens', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'fold-cli-env-'));
+    const server = new EncryptedAppendLogServer();
+    const serverUrl = await server.start();
+    const previousPublicUrl = process.env.FOLD_PUBLIC_URL;
+    try {
+      process.env.FOLD_PUBLIC_URL = serverUrl;
+      await writeFile(join(cwd, 'hosted.md'), '# Hosted Room', 'utf8');
+
+      const result = await publishMarkdown({
+        cwd,
+        filePath: 'hosted.md',
+        save: true,
+      });
+      const parsed = parseRoomReference(result.room.token);
+
+      expect(result.room.appUrl).toBe(serverUrl);
+      expect(result.room.syncUrl).toBe(serverUrl);
+      expect(result.room.url).toContain(`${serverUrl}/room/`);
+      expect(parsed.appUrl).toBe(serverUrl);
+      expect(parsed.syncUrl).toBe(serverUrl);
+      expect(result.server.recordCount).toBe(3);
+    } finally {
+      if (previousPublicUrl === undefined) delete process.env.FOLD_PUBLIC_URL;
+      else process.env.FOLD_PUBLIC_URL = previousPublicUrl;
+      await server.stop();
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
   it('creates an empty encrypted room without requiring a source file', async () => {
     const cwd = await mkdtemp(join(tmpdir(), 'fold-room-create-'));
     const server = new EncryptedAppendLogServer();
@@ -115,6 +157,7 @@ describe('CLI operations', () => {
       expect(created.schema).toBe('fold.room.create.result.v1');
       expect(created.room.alias).toBe('empty');
       expect(created.room.url).toContain('#key=');
+      expect(created.room.token).toContain('fold:v1:');
       expect(created.project.primaryPath).toBe('document.md');
       expect(created.project.fileCount).toBe(1);
       expect(created.server.recordCount).toBe(3);
@@ -150,6 +193,7 @@ describe('CLI operations', () => {
       });
 
       expect(exported.schema).toBe('fold.export.result.v1');
+      expectSafeRoomOutput(exported);
       expect(exported.document.markdown).toBe(markdown);
       expect(exported.output.written).toBe(true);
       expect(exported.server.recordCount).toBe(3);
@@ -180,6 +224,7 @@ describe('CLI operations', () => {
       });
 
       expect(status.schema).toBe('fold.status.result.v1');
+      expectSafeRoomOutput(status);
       expect(status.metadata.found).toBe(true);
       expect(status.document?.bytes).toBe(Buffer.byteLength('status text', 'utf8'));
       expect(status.server.checked).toBe(true);
@@ -360,6 +405,7 @@ describe('CLI operations', () => {
       });
 
       expect(patch.schema).toBe('fold.patch.result.v1');
+      expectSafeRoomOutput(patch);
       expect(patch.mode).toBe('suggestion');
       expect(patch.server.recordCount).toBe(5);
       expect(patch.base.sha256).toBe(published.document.sha256);
@@ -417,6 +463,9 @@ describe('CLI operations', () => {
 
       let proposals = await listProposals({ cwd, room: published.room.token });
       expect(proposals.proposals.map((proposal) => proposal.status)).toEqual(['pending', 'pending']);
+      expectSafeRoomOutput(acceptedProposal);
+      expectSafeRoomOutput(rejectedProposal);
+      expectSafeRoomOutput(proposals);
       expect(proposals.proposals[0]?.persona.kind).toBe('agent');
       expect(proposals.proposals[0]?.proposed).not.toHaveProperty('markdown');
 
@@ -427,6 +476,7 @@ describe('CLI operations', () => {
       });
       expect(JSON.stringify(acceptedProposal)).not.toContain(acceptedMarkdown);
       expect(shown.proposal.proposed.markdown).toBe(acceptedMarkdown);
+      expectSafeRoomOutput(shown);
       expect(shown.timeline.map((event) => event.type)).toContain('proposal_submitted');
 
       const accepted = await acceptProposal({
@@ -446,18 +496,22 @@ describe('CLI operations', () => {
       });
       proposals = await listProposals({ cwd, room: published.room.token });
       const exported = await exportMarkdown({ cwd, room: published.room.token });
+      const status = await roomStatus({ cwd, room: published.room.token });
       const canonicalMarkdown = await decryptMarkdownFromRecords(
         server.store.list(published.room.roomId),
         parseRoomReference(published.room.token),
       );
 
       expect(accepted.schema).toBe('fold.accept.result.v1');
+      expectSafeRoomOutput(accepted);
       expect(accepted.proposal.status).toBe('accepted');
       expect(JSON.stringify(accepted)).not.toContain(acceptedMarkdown);
       expect(rejected.schema).toBe('fold.reject.result.v1');
+      expectSafeRoomOutput(rejected);
       expect(rejected.proposal.status).toBe('rejected');
       expect(proposals.proposals.map((proposal) => proposal.status)).toEqual(['accepted', 'rejected']);
       expect(exported.document.markdown).toBe(acceptedMarkdown);
+      expect(status.document?.sha256).toBe(exported.document.sha256);
       expect(canonicalMarkdown).toBe(acceptedMarkdown);
       expect(server.store.list(published.room.roomId).filter((record) => record.senderId === 'fold-cli:document')).toHaveLength(2);
 
@@ -504,6 +558,7 @@ describe('CLI operations', () => {
       });
 
       expect(status.room.alias).toBe('launch');
+      expectSafeRoomOutput(status);
       expect(invite.invite.text).toContain('fold room add');
       expect(invite.invite.text).toContain('npm run --silent cli -- room add');
       expect(invite.invite.text).toContain('fold export --room "launch" --output ./fold-project --json');
@@ -512,15 +567,15 @@ describe('CLI operations', () => {
       expect(invite.invite.text).toContain('fold:v1:');
       expect(invite.invite.text).not.toContain('#key=');
       expect(invite.warnings.length).toBeGreaterThan(0);
-      expect(invite.room.url).toBe(published.room.serverRoomUrl);
-      expect(invite.room.token).toBe('[redacted]');
-      expect(invite.room.hasClientKey).toBe(false);
+      expect(invite.room).not.toHaveProperty('url');
+      expect(invite.room).not.toHaveProperty('token');
+      expect(invite.room.hasClientKey).toBe(true);
       expect(humanInvite.invite.text).toContain('Open this Fold project:');
       expect(humanInvite.invite.text).toContain('#key=');
       expect(humanInvite.room.hasClientKey).toBe(true);
-      expect(list.rooms[0]?.token).toBe('[redacted]');
-      expect(list.rooms[0]?.url).not.toContain('#key=');
-      expect(list.rooms[0]?.hasClientKey).toBe(false);
+      expect(list.rooms[0]).not.toHaveProperty('token');
+      expect(list.rooms[0]).not.toHaveProperty('url');
+      expect(list.rooms[0]?.hasClientKey).toBe(true);
     } finally {
       await server.stop();
       await rm(cwd, { recursive: true, force: true });
@@ -675,7 +730,7 @@ describe('CLI operations', () => {
       await acceptProposal({ cwd, room: 'ordered-replay', proposalId: proposed.proposal.id });
 
       const access = parseRoomReference(published.room.token);
-      const { encryptJsonRecord } = await import('../rooms/timeline.js');
+      const { encryptJsonRecord } = await import('../rooms/encrypted-records.js');
       await server.store.append(access.roomId, await encryptJsonRecord(access, 'web-client:file:after-accept', {
         type: 'project_file_snapshot',
         path: 'docs/PLAN.md',
@@ -697,6 +752,62 @@ describe('CLI operations', () => {
     }
   });
 
+  it('recovers accepted project state from the encrypted decision event alone', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'fold-accepted-event-only-'));
+    const server = new EncryptedAppendLogServer();
+    const serverUrl = await server.start();
+    try {
+      await mkdir(join(cwd, 'project', 'docs'), { recursive: true });
+      await writeFile(join(cwd, 'project', 'README.md'), '# Readme\n\nOriginal readme.', 'utf8');
+      await writeFile(join(cwd, 'project', 'docs', 'PLAN.md'), '# Plan\n\nOriginal plan.', 'utf8');
+      const published = await publishMarkdown({
+        cwd,
+        filePath: 'project',
+        serverUrl,
+        save: true,
+        alias: 'event-only',
+      });
+
+      await writeFile(join(cwd, 'project', 'docs', 'PLAN.md'), '# Plan\n\nAccepted from event.', 'utf8');
+      const proposed = await proposeMarkdown({
+        cwd,
+        filePath: 'project',
+        room: 'event-only',
+        title: 'Accept via event only',
+      });
+      const shown = await showProposal({
+        cwd,
+        room: 'event-only',
+        proposalId: proposed.proposal.id,
+      });
+      const access = parseRoomReference(published.room.token);
+      const acceptedEvent = await createProposalAcceptedEvent(
+        access,
+        shown.proposal,
+        shown.proposal.proposed.sha256,
+        'persona-human-reviewer',
+        shown.proposal.proposedProject,
+      );
+      await server.store.append(access.roomId, acceptedEvent);
+
+      const proposals = await listProposals({ cwd, room: 'event-only' });
+      const exported = await exportMarkdown({
+        cwd,
+        room: 'event-only',
+        outputPath: 'event-only-export',
+      });
+
+      expect(proposals.proposals.find((proposal) => proposal.id === proposed.proposal.id)?.status).toBe('accepted');
+      expect(shown.proposal.proposedProject).toBeDefined();
+      expect(exported.project?.primaryPath).toBe('README.md');
+      expect(await readFile(join(cwd, 'event-only-export', 'README.md'), 'utf8')).toContain('Original readme.');
+      expect(await readFile(join(cwd, 'event-only-export', 'docs', 'PLAN.md'), 'utf8')).toContain('Accepted from event.');
+    } finally {
+      await server.stop();
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
   it('replays web-created project file snapshots in CLI project exports', async () => {
     const cwd = await mkdtemp(join(tmpdir(), 'fold-web-file-'));
     const server = new EncryptedAppendLogServer();
@@ -711,7 +822,7 @@ describe('CLI operations', () => {
         save: true,
       });
       const access = parseRoomReference(published.room.token);
-      const { encryptJsonRecord } = await import('../rooms/timeline.js');
+      const { encryptJsonRecord } = await import('../rooms/encrypted-records.js');
       await server.store.append(access.roomId, await encryptJsonRecord(access, 'web-client:file:test', {
         type: 'project_file_snapshot',
         path: 'docs/PLAN.md',
@@ -727,6 +838,50 @@ describe('CLI operations', () => {
 
       expect(await readFile(join(cwd, 'web-export', 'README.md'), 'utf8')).toContain('Original readme.');
       expect(await readFile(join(cwd, 'web-export', 'docs', 'PLAN.md'), 'utf8')).toContain('Created in the web UI.');
+    } finally {
+      await server.stop();
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('prints a redacted agent context packet with files, comments, and proposals', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'fold-context-'));
+    const server = new EncryptedAppendLogServer();
+    const serverUrl = await server.start();
+    try {
+      await mkdir(join(cwd, 'project'), { recursive: true });
+      await writeFile(join(cwd, 'project', 'README.md'), '# Context\n\nAccepted body.', 'utf8');
+      const published = await publishMarkdown({
+        cwd,
+        filePath: 'project',
+        serverUrl,
+        alias: 'context-room',
+        save: true,
+      });
+      await addComment({
+        cwd,
+        room: 'context-room',
+        text: 'Please decide whether this needs a follow-up.',
+        path: 'README.md',
+        type: 'request',
+      });
+      await writeFile(join(cwd, 'proposal.md'), '# Context\n\nProposed body.', 'utf8');
+      await proposeMarkdown({
+        cwd,
+        filePath: 'proposal.md',
+        room: 'context-room',
+        path: 'README.md',
+        title: 'Update context',
+      });
+
+      const context = await roomContext({ cwd, room: 'context-room' });
+
+      expect(context.schema).toBe('fold.context.result.v1');
+      expectSafeRoomOutput(context);
+      expect(context.files[0]?.markdown).toContain('Accepted body.');
+      expect(context.comments.unresolved[0]?.text).toContain('Please decide');
+      expect(context.proposals.pending[0]?.title).toBe('Update context');
+      expect(JSON.stringify(context)).not.toContain(published.room.token);
     } finally {
       await server.stop();
       await rm(cwd, { recursive: true, force: true });

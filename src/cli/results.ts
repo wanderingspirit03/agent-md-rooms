@@ -16,6 +16,16 @@ export interface PublicRoomResult {
   hasClientKey: boolean;
 }
 
+export interface SafeRoomResult {
+  roomId: string;
+  alias: string | null;
+  appUrl: string;
+  syncUrl: string;
+  serverUrl: string;
+  serverRoomUrl: string;
+  hasClientKey: boolean;
+}
+
 export interface MetadataResult {
   path: string;
   saved: boolean;
@@ -39,7 +49,7 @@ export interface ExportResult {
   schema: 'fold.export.result.v1';
   ok: true;
   mode: 'server-backed';
-  room: PublicRoomResult;
+  room: SafeRoomResult;
   metadata: {
     path: string;
     found: boolean;
@@ -65,7 +75,7 @@ export interface StatusResult {
   schema: 'fold.status.result.v1';
   ok: true;
   mode: 'server-backed';
-  room: PublicRoomResult;
+  room: SafeRoomResult;
   metadata: {
     path: string;
     found: boolean;
@@ -82,11 +92,33 @@ export interface StatusResult {
   };
 }
 
+export interface ContextResult {
+  schema: 'fold.context.result.v1';
+  ok: true;
+  mode: 'agent-context';
+  room: SafeRoomResult;
+  document: MarkdownDocumentSummary;
+  project: ProjectSummary;
+  files: Array<{ path: string; markdown: string; bytes: number; sha256: string }>;
+  comments: {
+    unresolved: RoomComment[];
+  };
+  proposals: {
+    pending: ProposalListItem[];
+    accepted: ProposalListItem[];
+    rejected: ProposalListItem[];
+  };
+  server: {
+    recordCount: number;
+    latestSeq: number | null;
+  };
+}
+
 export interface PatchResult {
   schema: 'fold.patch.result.v1';
   ok: true;
   mode: 'suggestion';
-  room: PublicRoomResult;
+  room: SafeRoomResult;
   metadata: {
     path: string;
     found: boolean;
@@ -109,7 +141,7 @@ export interface ProposeResult {
   schema: 'fold.propose.result.v1';
   ok: true;
   mode: 'proposal';
-  room: PublicRoomResult;
+  room: SafeRoomResult;
   metadata: {
     path: string;
     found: boolean;
@@ -132,7 +164,7 @@ export interface ProposalsResult {
   schema: 'fold.proposals.result.v1';
   ok: true;
   mode: 'proposal-list';
-  room: PublicRoomResult;
+  room: SafeRoomResult;
   proposals: ProposalListItem[];
   server: {
     recordCount: number;
@@ -171,7 +203,7 @@ export interface ShowProposalResult {
   schema: 'fold.show-proposal.result.v1';
   ok: true;
   mode: 'proposal';
-  room: PublicRoomResult;
+  room: SafeRoomResult;
   proposal: ProposalView;
   timeline: TimelineEvent[];
   server: {
@@ -184,7 +216,7 @@ export interface DecideProposalResult {
   schema: 'fold.accept.result.v1' | 'fold.reject.result.v1';
   ok: true;
   mode: 'proposal-decision';
-  room: PublicRoomResult;
+  room: SafeRoomResult;
   proposal: ProposalSummaryResult;
   status: 'accepted' | 'rejected';
   document: MarkdownDocumentSummary | null;
@@ -230,7 +262,7 @@ export interface RoomListResult {
   metadata: {
     path: string;
   };
-  rooms: PublicRoomResult[];
+  rooms: SafeRoomResult[];
 }
 
 export interface RoomForgetResult {
@@ -246,7 +278,7 @@ export interface RoomInviteResult {
   schema: 'fold.room.invite.result.v1';
   ok: true;
   audience: 'human' | 'agent';
-  room: PublicRoomResult;
+  room: PublicRoomResult | SafeRoomResult;
   warnings: string[];
   invite: {
     text: string;
@@ -258,7 +290,7 @@ export interface CommentsResult {
   schema: 'fold.comments.result.v1';
   ok: true;
   mode: 'comment-list';
-  room: PublicRoomResult;
+  room: SafeRoomResult;
   filters: {
     type: 'all' | 'comment' | 'request';
     open: boolean;
@@ -275,7 +307,7 @@ export interface CommentResult {
   schema: 'fold.comment.result.v1' | 'fold.reply.result.v1';
   ok: true;
   mode: 'comment';
-  room: PublicRoomResult;
+  room: SafeRoomResult;
   comment: RoomComment;
   server: {
     recordCount: number;

@@ -3,7 +3,7 @@ import { appendFileSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { URL } from 'node:url';
 import { WebSocket, WebSocketServer, type RawData } from 'ws';
-import type { EncryptedPayload } from '../../spikes/e2ee-yjs-append-log/crypto.js';
+import type { EncryptedPayload } from '../rooms/crypto.js';
 
 export const SERVER_SERVICE_NAME = 'fold';
 export const SERVER_VERSION = '0.0.0';
@@ -148,7 +148,7 @@ export class EncryptedAppendLogServer {
   private server?: http.Server;
   private wss?: WebSocketServer;
   private clientsByRoom = new Map<string, Set<WebSocket>>();
-  private startedAt = 0;
+  private startedAt = Date.now();
 
   constructor(readonly store: EncryptedAppendLogStore = new AppendLogStore()) {}
 
@@ -166,52 +166,7 @@ export class EncryptedAppendLogServer {
       });
     });
 
-    this.wss = new WebSocketServer({
-      server: this.server,
-      maxPayload: MAX_WEBSOCKET_MESSAGE_BYTES,
-    });
-    this.wss.on('connection', (socket, request) => {
-      const roomId = roomIdFromPath(request.url ?? '', '/rooms/', '/ws');
-      if (!roomId) {
-        socket.close(1008, 'invalid room path');
-        return;
-      }
-
-      const clients = this.clientsByRoom.get(roomId) ?? new Set<WebSocket>();
-      clients.add(socket);
-      this.clientsByRoom.set(roomId, clients);
-
-      socket.on('error', (error: Error & { code?: string }) => {
-        if (error.code !== 'WS_ERR_UNSUPPORTED_MESSAGE_LENGTH') {
-          console.error(error.message);
-        }
-      });
-
-      for (const record of this.store.list(roomId)) {
-        socket.send(JSON.stringify({ type: 'encrypted-update', record }));
-      }
-      socket.send(JSON.stringify({ type: 'sync-complete' }));
-
-      socket.on('message', (raw) => {
-        if (rawDataBytes(raw) > MAX_WEBSOCKET_MESSAGE_BYTES) {
-          socket.close(1009, 'message too large');
-          return;
-        }
-
-        const parsed = parseIncomingMessage(rawDataToString(raw));
-        if (!parsed) {
-          socket.close(1008, 'invalid message');
-          return;
-        }
-
-        const record = this.store.append(roomId, parsed.update);
-        this.broadcast(roomId, { type: 'encrypted-update', record });
-      });
-
-      socket.on('close', () => {
-        clients.delete(socket);
-      });
-    });
+    this.attachWebSocketServer(this.server);
 
     await new Promise<void>((resolve, reject) => {
       const onError = (error: Error): void => {
@@ -240,6 +195,18 @@ export class EncryptedAppendLogServer {
     }
 
     return `http://${urlHostForAddress(address.address)}:${address.port}`;
+  }
+
+  attachWebSocketServer(server: http.Server): void {
+    if (this.wss) {
+      throw new Error('Append-log WebSocket server is already attached');
+    }
+
+    this.wss = new WebSocketServer({
+      server,
+      maxPayload: MAX_WEBSOCKET_MESSAGE_BYTES,
+    });
+    this.wss.on('connection', (socket, request) => this.handleWebSocketConnection(socket, request));
   }
 
   async stop(): Promise<void> {
@@ -278,7 +245,7 @@ export class EncryptedAppendLogServer {
     };
   }
 
-  private async handleHttp(request: http.IncomingMessage, response: http.ServerResponse): Promise<void> {
+  async handleHttpRequest(request: http.IncomingMessage, response: http.ServerResponse): Promise<boolean> {
     if (request.method === 'OPTIONS') {
       response.writeHead(204, {
         'Access-Control-Allow-Origin': '*',
@@ -286,7 +253,7 @@ export class EncryptedAppendLogServer {
         'Access-Control-Allow-Headers': 'content-type',
       });
       response.end();
-      return;
+      return true;
     }
 
     const url = new URL(request.url ?? '/', 'http://localhost');
@@ -295,32 +262,37 @@ export class EncryptedAppendLogServer {
 
     if (request.method === 'GET' && url.pathname === '/health') {
       sendJson(response, 200, this.health());
-      return;
+      return true;
     }
 
     if (request.method === 'GET' && updatesRoomId) {
       sendJson(response, 200, { updates: this.store.list(updatesRoomId) });
-      return;
+      return true;
     }
 
     if (request.method === 'POST' && updatesRoomId) {
       const body = await readJsonBody(request);
       if (!isIncomingUpdateRequest(body)) {
         sendJson(response, 400, { error: 'invalid update request' });
-        return;
+        return true;
       }
 
       const record = this.store.append(updatesRoomId, body.update);
       this.broadcast(updatesRoomId, { type: 'encrypted-update', record });
       sendJson(response, 201, { record });
-      return;
+      return true;
     }
 
     if (request.method === 'GET' && statusRoomId) {
       sendJson(response, 200, roomStatus(statusRoomId, this.store.list(statusRoomId)));
-      return;
+      return true;
     }
 
+    return false;
+  }
+
+  private async handleHttp(request: http.IncomingMessage, response: http.ServerResponse): Promise<void> {
+    if (await this.handleHttpRequest(request, response)) return;
     sendJson(response, 404, { error: 'not found' });
   }
 
@@ -329,6 +301,54 @@ export class EncryptedAppendLogServer {
     for (const client of this.clientsByRoom.get(roomId) ?? []) {
       if (client.readyState === WebSocket.OPEN) client.send(encoded);
     }
+  }
+
+  private handleWebSocketConnection(socket: WebSocket, request: http.IncomingMessage): void {
+    const roomId = roomIdFromPath(request.url ?? '', '/rooms/', '/ws');
+    if (!roomId) {
+      socket.close(1008, 'invalid room path');
+      return;
+    }
+
+    const clients = this.clientsByRoom.get(roomId) ?? new Set<WebSocket>();
+    clients.add(socket);
+    this.clientsByRoom.set(roomId, clients);
+
+    socket.on('error', (error: Error & { code?: string }) => {
+      if (error.code !== 'WS_ERR_UNSUPPORTED_MESSAGE_LENGTH') {
+        console.error(error.message);
+      }
+    });
+
+    for (const record of this.store.list(roomId)) {
+      socket.send(JSON.stringify({ type: 'encrypted-update', record }));
+    }
+    socket.send(JSON.stringify({ type: 'sync-complete' }));
+
+    socket.on('message', (raw) => {
+      if (rawDataBytes(raw) > MAX_WEBSOCKET_MESSAGE_BYTES) {
+        socket.close(1009, 'message too large');
+        return;
+      }
+
+      const parsed = parseIncomingMessage(rawDataToString(raw));
+      if (!parsed) {
+        socket.close(1008, 'invalid message');
+        return;
+      }
+
+      if (parsed.type === 'presence') {
+        this.broadcast(roomId, { type: 'presence', update: parsed.update });
+        return;
+      }
+
+      const record = this.store.append(roomId, parsed.update);
+      this.broadcast(roomId, { type: 'encrypted-update', record });
+    });
+
+    socket.on('close', () => {
+      clients.delete(socket);
+    });
   }
 }
 
@@ -364,11 +384,11 @@ function rawDataToString(raw: RawData): string {
   return Buffer.from(new Uint8Array(raw)).toString('utf8');
 }
 
-function parseIncomingMessage(raw: string): { type: 'encrypted-update'; update: IncomingEncryptedUpdate } | null {
+function parseIncomingMessage(raw: string): { type: 'encrypted-update' | 'presence'; update: IncomingEncryptedUpdate } | null {
   try {
     const value = JSON.parse(raw) as Partial<{ type: string; update: IncomingEncryptedUpdate }>;
     if (
-      value.type !== 'encrypted-update' ||
+      (value.type !== 'encrypted-update' && value.type !== 'presence') ||
       !value.update ||
       typeof value.update.senderId !== 'string' ||
       typeof value.update.nonce !== 'string' ||
@@ -376,7 +396,7 @@ function parseIncomingMessage(raw: string): { type: 'encrypted-update'; update: 
     ) {
       return null;
     }
-    return value as { type: 'encrypted-update'; update: IncomingEncryptedUpdate };
+    return value as { type: 'encrypted-update' | 'presence'; update: IncomingEncryptedUpdate };
   } catch {
     return null;
   }

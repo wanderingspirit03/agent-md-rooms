@@ -21,6 +21,7 @@ fold comments --room <alias-or-url-or-token> [--path <room-path>] [--type all|co
 fold requests --room <alias-or-url-or-token> [--path <room-path>] [--no-open] [--json]
 fold comment --room <alias-or-url-or-token> --text <text> [--path <room-path>] [--quote <text>] [--type comment|request] [--json]
 fold reply <comment-id> --room <alias-or-url-or-token> --text <text> [--json]
+fold context --room <alias-or-url-or-token> [--json]
 fold show-proposal <proposal-id> --room <alias-or-url-or-token> [--json]
 fold accept <proposal-id> --room <alias-or-url-or-token> [--json]
 fold reject <proposal-id> --room <alias-or-url-or-token> [--json]
@@ -37,15 +38,33 @@ For a local fresh setup:
 
 ```bash
 npm run server -- --port 8787 --data ./data
-npm run --silent cli -- publish ./notes.md --server http://127.0.0.1:8787 --alias notes --json
+npm run --silent cli -- publish ./notes.md \
+  --app-url http://127.0.0.1:3000 \
+  --sync-url http://127.0.0.1:8787 \
+  --alias notes \
+  --json
 ```
 
 Use `--silent` with `npm run` when parsing JSON. Without it, npm can print its run banner before the CLI output.
 
+For a hosted same-origin setup, set `FOLD_PUBLIC_URL` once and omit repeated URL flags:
+
+```bash
+FOLD_PUBLIC_URL=https://your-fold.example \
+npm run --silent cli -- room create --alias launch --json
+npm run --silent cli -- room invite launch --for human
+npm run --silent cli -- room invite launch --for agent
+```
+
+For split deployments, set `FOLD_PUBLIC_APP_URL` and `FOLD_PUBLIC_SYNC_URL`, or pass `--app-url` and `--sync-url` explicitly.
+
 When an agent creates a room first, the non-JSON `publish` output prints the next human and agent invite commands:
 
 ```bash
-fold publish ./project --server http://127.0.0.1:8787 --alias launch
+fold publish ./project \
+  --app-url http://127.0.0.1:3000 \
+  --sync-url http://127.0.0.1:8787 \
+  --alias launch
 fold room invite launch --for human
 fold room invite launch --for agent
 ```
@@ -63,7 +82,7 @@ fold room invite launch --for human
 - Rooms can also carry an encrypted Markdown project snapshot: multiple `.md` files keyed by room path.
 - `publish` creates a local room id and client-side room secret.
 - The initial primary Markdown state is encoded as a Yjs update, encrypted locally, and posted to `POST /rooms/:roomId/updates`; project snapshots are encrypted JSON room payloads.
-- Unless `--no-save` is passed, room profiles are written to `.fold/rooms.json`.
+- Unless `--no-save` is passed, room profiles are written to `.fold/rooms.json` with restrictive local permissions on POSIX systems.
 - `export` fetches encrypted records from `GET /rooms/:roomId/updates`, decrypts and replays accepted project records locally, and writes one Markdown file or a project directory.
 - `status` calls `GET /rooms/:roomId/status`, which returns metadata only: `roomId`, `recordCount`, and `latestSeq`.
 - `propose` submits an encrypted whole-file or whole-project replacement proposal. It does not mutate accepted Markdown. Its JSON response is compact and returns proposal ids, status, persona, hashes, and project summaries, not full proposed Markdown.
@@ -72,6 +91,7 @@ fold room invite launch --for human
 - `requests` lists unresolved encrypted request threads by default so agents can answer human asks without scanning ordinary comments.
 - `comment` appends an encrypted agent-authored file or quote comment/request without changing Markdown.
 - `reply` appends an encrypted reply to an unresolved comment or request. Resolved threads reject replies until reopened.
+- `context` prints a redacted agent handoff packet with accepted files, unresolved comments, and proposal summaries. It decrypts locally and does not include room tokens by default.
 - `show-proposal` decrypts one proposal, including proposed Markdown and timeline events.
 - `accept` appends an encrypted canonical document update plus an encrypted proposal-accepted event. Its JSON response is compact and does not echo the accepted Markdown body.
 - `reject` appends an encrypted proposal-rejected event without changing canonical Markdown. Its JSON response is compact and does not echo the rejected Markdown body.
@@ -85,22 +105,26 @@ fold room invite launch --for human
   - `fold.comments.result.v1`
   - `fold.comment.result.v1`
   - `fold.reply.result.v1`
+  - `fold.context.result.v1`
   - `fold.show-proposal.result.v1`
   - `fold.accept.result.v1`
   - `fold.reject.result.v1`
   - `fold.patch.result.v1`
   - `fold.room.create.result.v1`
 
+Routine JSON results such as `status`, `export`, `propose`, `proposals`, `comments`, `context`, `show-proposal`, `accept`, and `reject` include safe room routing fields (`roomId`, `serverRoomUrl`, `appUrl`, `syncUrl`) but omit decryption-capable `room.url`, `room.token`, and `roomSecret` fields. Secret-bearing room access material is only emitted by explicit create, publish, add/show profile, and invite workflows.
+
 ## Agent Workflow
 
 Agents should prefer JSON output and explicit room references:
 
 ```bash
-ROOM_JSON=$(npm run --silent cli -- publish ./project --server http://127.0.0.1:8787 --alias launch --json)
+ROOM_JSON=$(npm run --silent cli -- publish ./project --app-url http://127.0.0.1:3000 --sync-url http://127.0.0.1:8787 --alias launch --json)
 ROOM_URL=$(node -e 'let s=""; process.stdin.on("data", d => s += d); process.stdin.on("end", () => console.log(JSON.parse(s).room.url));' <<< "$ROOM_JSON")
 npm run --silent cli -- room add "$ROOM_URL" --alias launch
 npm run --silent cli -- status --room launch --json
 npm run --silent cli -- export --room launch --output ./accepted-project --json
+npm run --silent cli -- context --room launch --json
 npm run --silent cli -- comments --room launch --json
 npm run --silent cli -- requests --room launch --json
 npm run --silent cli -- propose ./accepted-project --room launch --title "Tighten plan" --comment "Proposed by agent workflow." --json
@@ -114,13 +138,13 @@ If the agent has no source file yet, use `fold room create --alias <name>` inste
 When testing the development CLI from another project directory, call the entrypoint directly so `.fold/rooms.json` is written in that project instead of this repo:
 
 ```bash
-/path/to/fold/node_modules/.bin/tsx /path/to/fold/src/cli/bin.ts publish ./plan.md --server http://127.0.0.1:8787 --json
+/path/to/fold/node_modules/.bin/tsx /path/to/fold/src/cli/bin.ts publish ./plan.md --app-url http://127.0.0.1:3000 --sync-url http://127.0.0.1:8787 --json
 ```
 
 Use `--no-save` for stateless automation that should not write `.fold/rooms.json`:
 
 ```bash
-npm run --silent cli -- publish ./plan.md --server http://127.0.0.1:8787 --no-save --json
+npm run --silent cli -- publish ./plan.md --app-url http://127.0.0.1:3000 --sync-url http://127.0.0.1:8787 --no-save --json
 ```
 
 ## Room URLs And Tokens
@@ -143,11 +167,15 @@ The decoded token contains `v`, `roomId`, `roomSecret`, `appUrl`, and `syncUrl`.
 
 `.fold/rooms.json` is a local access-token store. It can contain room URLs and tokens with client-side key material so agents can reuse a room alias without prompting. Do not commit or share it unless you intentionally want to share room access.
 
+The CLI creates `.fold` as owner-only (`0700`) and writes `.fold/rooms.json` as owner-read/write (`0600`) where POSIX file modes are supported. The browser workspace is different: its recent-project list stores non-secret convenience metadata such as room id, display name, source, last visit time, and review counts by default. Browser access still comes from a `#key=...` URL fragment or a pasted key/link; opening a recent project without a key shows the room access gate.
+
 Room profiles store separate URLs:
 
 - `appUrl`: the web app origin humans open.
 - `syncUrl`: the append-log API/WebSocket origin clients call.
 - `serverUrl`: compatibility alias for `syncUrl`.
+
+When `--app-url`, `--sync-url`, and `--server` are omitted, `publish` and `room create` use `FOLD_PUBLIC_APP_URL` / `FOLD_PUBLIC_SYNC_URL`, then `FOLD_PUBLIC_URL`, then common provider public URL variables, then local development defaults.
 
 `fold room invite` warns when `appUrl` or `syncUrl` looks local-only, such as `localhost`, `127.0.0.1`, or private LAN addresses.
 
@@ -161,31 +189,39 @@ The web app exposes an agent skill at:
 
 Agent invites point to this skill and then instruct the agent to run `fold room add ... --alias ...`.
 
-## TODO: Server Integration
+## Append-Log API Contract
 
-The current HTTP spike contract is:
+The CLI talks to the append-log sync API. Room contents are encrypted before any request leaves the CLI:
 
 - `POST /rooms/:roomId/updates` appends encrypted payloads and broadcasts them to WebSocket subscribers.
 - `GET /rooms/:roomId/updates` replays encrypted append-log records.
 - `GET /rooms/:roomId/status` returns non-sensitive room metadata.
 - `GET /rooms/:roomId/ws` remains the WebSocket stream for live encrypted updates.
 
-Future production work should split accepted document updates and review suggestions into clearer room namespaces or typed encrypted envelopes. This spike keeps suggestions in the encrypted append log and identifies them by sender id prefix so export can validate sequence continuity while ignoring unaccepted suggestions.
+Records have plaintext routing metadata (`roomId`, `seq`, `senderId`) and encrypted payload material (`nonce`, `ciphertext`). Clients validate contiguous delivered sequences before replaying room state, but the current alpha still does not provide malicious-server fork/truncation proofs, append-log compaction, access control, or key rotation.
+
+Accepted document updates, project snapshots, proposals, proposal decisions, comments, versions, persona records, and timeline events are typed encrypted payloads in the same room log. Presence updates are broadcast live and are not persisted as durable append-log records.
 
 ## Fresh Verification Notes
 
 The current fresh local workflow has been verified with:
 
 - `publish --json`
+- `room create --json`
+- `room add --json`
+- `room invite`
 - `status --json`
 - `export --json`
+- `context --json`
 - `propose --json`
 - `proposals --json`
 - `show-proposal --json`
 - `accept --json`
+- `reject --json`
 - `export --output --json`
 - `publish --no-save --json`
 - `comments --json`
+- `requests --json`
 - `comment --json`
 - `reply --json`
 

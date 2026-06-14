@@ -16,7 +16,6 @@ import {
 
 interface RecentRoom {
   roomId: string;
-  key: string;
   name: string;
   visitedAt: string;
   source?: "created" | "joined" | "agent";
@@ -51,12 +50,11 @@ export default function HomePage() {
     localStorage.setItem("fold:recent-rooms", JSON.stringify(rooms));
   };
 
-  const saveRoomToRecent = (roomId: string, key: string, name: string, source: NonNullable<RecentRoom["source"]>) => {
+  const saveRoomToRecent = (roomId: string, name: string, source: NonNullable<RecentRoom["source"]>) => {
     const list: RecentRoom[] = [
       {
         ...recentRooms.find((room) => room.roomId === roomId),
         roomId,
-        key,
         name,
         source,
         visitedAt: new Date().toISOString(),
@@ -82,7 +80,7 @@ export default function HomePage() {
         return;
       }
 
-      saveRoomToRecent(roomId, matchKey[1], "Joined project", "joined");
+      saveRoomToRecent(roomId, "Joined project", "joined");
       router.push(`/room/${roomId}#key=${matchKey[1]}`);
     } catch {
       window.alert("Paste a full project link.");
@@ -97,7 +95,7 @@ export default function HomePage() {
       const roomBytes = window.crypto.getRandomValues(new Uint8Array(16));
       const roomId = toBase64Url(roomBytes);
 
-      saveRoomToRecent(roomId, roomSecret, "Untitled project", "created");
+      saveRoomToRecent(roomId, "Untitled project", "created");
       router.push(`/room/${roomId}#key=${roomSecret}`);
     } catch (err) {
       window.alert(`Could not create project: ${String(err)}`);
@@ -120,7 +118,7 @@ export default function HomePage() {
       },
       ...recentRooms.filter((item) => item.roomId !== room.roomId),
     ].slice(0, 10));
-    router.push(`/room/${room.roomId}#key=${room.key}`);
+    router.push(`/room/${room.roomId}`);
   };
 
   const handleSetArchived = (room: RecentRoom, archived: boolean) => {
@@ -408,12 +406,10 @@ function normalizeRecentRooms(value: unknown): RecentRoom[] {
     .filter((room): room is RecentRoom => (
       Boolean(room) &&
       typeof room === "object" &&
-      typeof (room as RecentRoom).roomId === "string" &&
-      typeof (room as RecentRoom).key === "string"
+      typeof (room as RecentRoom).roomId === "string"
     ))
     .map((room) => ({
       roomId: room.roomId,
-      key: room.key,
       name: typeof room.name === "string" ? room.name : "Joined project",
       visitedAt: typeof room.visitedAt === "string" ? room.visitedAt : new Date(0).toISOString(),
       source: normalizeRoomSource(room.source) || inferRoomSource(room),

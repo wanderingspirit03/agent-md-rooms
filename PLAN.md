@@ -82,7 +82,7 @@ Spike result: a minimal custom encrypted Yjs append-log provider in `spikes/e2ee
 
 This is deliberately closer to Excalidraw-style trust than classic SaaS document storage.
 
-The first technical spike proved the basic Yjs encryption shape for a single Markdown text document: all document semantics remain client-side, and the sync server persists opaque encrypted Yjs payloads without inspecting Markdown, comments, or patch content. It also validates WebSocket backlog replay for joining clients, AES-GCM authentication of client-known metadata, client-side sequence validation for delivered records, and basic file-backed restart/replay. This does not yet prove production-grade durability, compaction, awareness encryption, editor integration, comments, suggestions, or named versions.
+The first technical spike proved the basic Yjs encryption shape for a single Markdown text document: all document semantics remain client-side, and the sync server persists opaque encrypted Yjs payloads without inspecting Markdown, comments, or patch content. It also validates WebSocket backlog replay for joining clients, AES-GCM authentication of client-known metadata, client-side sequence validation for delivered records, and basic file-backed restart/replay. That spike alone did not prove production-grade durability, compaction, awareness encryption, editor integration, comments, suggestions, or named versions; later alpha implementation covers some collaboration surfaces, while the production hardening items remain open.
 
 ## Collaboration Model
 
@@ -97,7 +97,7 @@ Use Yjs as the real-time collaboration layer.
 - Do not start v1 with normal Hocuspocus persistence, because server-side `Y.Doc` or state-vector persistence conflicts with strict server-unreadability. Hocuspocus can be reconsidered only as a non-decrypting transport layer or for a weaker private-link model.
 - Avoid `y-webrtc` as the default provider because self-hosted persistence and deployment should be predictable.
 
-Important caveat: Yjs solves real-time synchronization, not review workflows by itself. Inline comments, anchors, suggestions, accept/reject flows, and named versions need explicit product and data modeling.
+Important caveat: Yjs solves real-time synchronization, not review workflows by itself. The alpha now has early comments, proposal review, accept/reject, and file restore points, but robust inline anchoring, richer suggestion semantics, and production-grade version modeling still need explicit product and data modeling.
 
 V1 canonical document representation is raw Markdown text in `Y.Text`.
 
@@ -132,9 +132,11 @@ Read-mode defaults:
 - Use custom React components for links, images, code blocks, tables, task lists, headings, and proposal/comment anchors.
 - Preserve Markdown portability: renderer enhancements must not require custom Markdown syntax for ordinary documents.
 
-### Locked edit-mode editor
+### Deferred rich edit-mode evaluation
 
-Use Milkdown as the v1 polished Markdown editor candidate and remove BlockNote as a first-line prototype dependency.
+Current implementation note: edit mode is source-only Markdown. Do not add a nested rich/source toggle inside edit mode while the room-level Read/Edit switch is the active interaction model.
+
+Milkdown remains the deferred v1 polished Markdown editor candidate, and BlockNote should stay out of the first-line prototype path unless Markdown round-tripping evidence forces a plan change.
 
 Milkdown rationale:
 
@@ -374,7 +376,9 @@ Dependency policy:
 
 ## Phased Roadmap
 
-### Phase 1: Server Ergonomics
+Status note: this roadmap mixes completed alpha work with planned hardening. `Done` means the repo has an alpha implementation; `Partial` means a usable path exists but the product or protocol is not mature; `Planned` means the section is still mostly future direction.
+
+### Phase 1: Server Ergonomics (Done)
 
 Make the encrypted append-log server easy to run locally.
 
@@ -386,7 +390,7 @@ Make the encrypted append-log server easy to run locally.
 
 Goal: no one should need a one-off `tsx -e` command to start the server.
 
-### Phase 2: Self-Hosting
+### Phase 2: Self-Hosting (Partial)
 
 Make deployment boring for OSS users.
 
@@ -398,7 +402,7 @@ Make deployment boring for OSS users.
 
 Goal: a self-hoster can run the encrypted sync server in minutes.
 
-### Phase 3: Web Room Viewer
+### Phase 3: Web Room Viewer (Done)
 
 Build the first browser room experience.
 
@@ -412,7 +416,7 @@ Build the first browser room experience.
 
 Goal: humans can view what agents publish.
 
-### Phase 4: Web Editing
+### Phase 4: Web Editing (Partial)
 
 Add collaborative editing for the accepted document.
 
@@ -424,7 +428,7 @@ Add collaborative editing for the accepted document.
 
 Goal: humans can edit the accepted room document collaboratively.
 
-### Phase 5: Patch Review UI
+### Phase 5: Patch Review UI (Partial)
 
 Make agent patch suggestions useful.
 
@@ -439,7 +443,7 @@ Make agent patch suggestions useful.
 
 Goal: agents can propose changes and humans can review them safely.
 
-### Phase 6: Comments
+### Phase 6: Comments (Partial)
 
 Add review discussion around documents and patches.
 
@@ -451,7 +455,7 @@ Add review discussion around documents and patches.
 
 Goal: humans and agents can discuss the document without leaving the room.
 
-### Phase 7: Versions
+### Phase 7: Versions (Partial)
 
 Add understandable checkpoints.
 
@@ -464,7 +468,7 @@ Add understandable checkpoints.
 
 Goal: room history becomes recoverable and explainable.
 
-### Phase 8: Product Polish
+### Phase 8: Product Polish (Planned)
 
 Make the platform feel cohesive and reliable.
 
@@ -479,19 +483,21 @@ Goal: move from promising spike to usable OSS product.
 
 ## First Implementation Milestones
 
-1. Complete the E2EE plus Yjs persistence spike. Current result: `viable_with_constraints` for a custom encrypted append-log provider.
-2. Extend the spike with protocol and durability hardening. Current result: minimal file-backed replay, WebSocket backlog replay, AAD metadata authentication, same-client reconnect, and delivered-record sequence/replay detection are proven; production durability, compaction, awareness assumptions, hash chains, signed checkpoints, and fork/truncation detection remain open.
-3. Use Markdown-canonical `Y.Text` as the v1 document representation.
-4. Create the Milkdown versus BlockNote editor prototype comparison.
-5. Pick the editor based on Markdown fidelity, UX, license fit, and implementation complexity.
-6. Implement encrypted single-room document creation and loading.
-7. Add WebSocket-based Yjs sync and encrypted or non-sensitive presence.
-8. Add CLI publish and export.
-9. Validate inline comment anchoring with collaborative edits.
-10. Add agent patch suggestions using whole-document Markdown diffs.
-11. Add direct agent patch mode.
-12. Add named versions.
-13. Add Docker Compose and self-hosting docs.
+Status note: these are historical milestones, kept so future agents understand how the alpha got here.
+
+1. Done: complete the E2EE plus Yjs persistence spike. Current result: `viable_with_constraints` for a custom encrypted append-log provider.
+2. Partial: extend the spike with protocol and durability hardening. Current result: minimal file-backed replay, WebSocket backlog replay, AAD metadata authentication, same-client reconnect, and delivered-record sequence/replay detection are proven; production durability, compaction, awareness assumptions, hash chains, signed checkpoints, and fork/truncation detection remain open.
+3. Done: use Markdown-canonical `Y.Text` as the v1 document representation.
+4. Deferred: create the Milkdown versus BlockNote editor prototype comparison.
+5. Deferred: pick the rich editor based on Markdown fidelity, UX, license fit, and implementation complexity.
+6. Done: implement encrypted single-room document creation and loading.
+7. Partial: add WebSocket-based Yjs sync and encrypted or non-sensitive presence. Presence is encrypted and ephemeral; deeper awareness hardening remains open.
+8. Done: add CLI publish and export.
+9. Planned: validate robust inline comment anchoring with collaborative edits.
+10. Done: add agent proposal suggestions using whole-document or whole-project Markdown diffs.
+11. Planned: add direct trusted-agent patch mode.
+12. Partial: add file restore points and version-like checkpoints; richer named-version export remains open.
+13. Done: add Docker Compose and self-hosting docs.
 
 ## Test Plan
 

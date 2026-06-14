@@ -1,4 +1,4 @@
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { analyzeEditorCanonicalRoundTrip } from "./editor-canonical.js";
 import {
   analyzeMarkdownCanonicalRoundTrip,
@@ -12,6 +12,7 @@ import {
 import { loadMarkdownSamples } from "./sample-loader.js";
 
 const reportPath = "spikes/document-model/COMPARISON.md";
+const htmlReportPath = "spikes/document-model/COMPARISON.html";
 const samples = await loadMarkdownSamples();
 const milkdownReportsByName = new Map<string, Awaited<ReturnType<typeof analyzeMilkdownCanonicalRoundTrip>>>();
 const milkdownPropertiesReportsByName = new Map<string, Awaited<ReturnType<typeof analyzeMilkdownWithPropertiesRoundTrip>>>();
@@ -91,10 +92,26 @@ This report shows the same agent-authored Markdown samples through the durable M
 ${sections.join("\n")}
 `;
 
-await writeFile(reportPath, report);
-await writeFile("spikes/document-model/COMPARISON.html", renderHtmlReport());
-console.log(`Wrote ${reportPath}`);
-console.log("Wrote spikes/document-model/COMPARISON.html");
+const htmlReport = renderHtmlReport();
+
+if (process.argv.includes("--check")) {
+  await checkGeneratedReport(reportPath, report);
+  await checkGeneratedReport(htmlReportPath, htmlReport);
+  console.log("Document model comparison reports are up to date.");
+} else {
+  await writeFile(reportPath, report);
+  await writeFile(htmlReportPath, htmlReport);
+  console.log(`Wrote ${reportPath}`);
+  console.log(`Wrote ${htmlReportPath}`);
+}
+
+async function checkGeneratedReport(path: string, expected: string): Promise<void> {
+  const current = await readFile(path, "utf8");
+
+  if (current !== expected) {
+    throw new Error(`${path} is out of date. Run npm run spike:document-model:report:update to regenerate it.`);
+  }
+}
 
 function formatList(values: readonly string[]): string {
   return values.length === 0 ? "none" : values.join(", ");

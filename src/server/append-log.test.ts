@@ -11,6 +11,14 @@ import {
 import { parseServerCliOptions } from './entrypoint.js';
 
 describe('production append-log server', () => {
+  it('reports sane health before standalone start for hosted embedding', () => {
+    const server = new EncryptedAppendLogServer();
+    const health = server.health();
+
+    expect(health.uptimeSeconds).toBeGreaterThanOrEqual(0);
+    expect(health.uptimeSeconds).toBeLessThan(5);
+  });
+
   it('starts with file-backed persistence and reports health', async () => {
     const dataDirectory = await mkdtemp(join(tmpdir(), 'fold-server-'));
     const server = new EncryptedAppendLogServer(new FileAppendLogStore(dataDirectory));
@@ -159,6 +167,50 @@ describe('production append-log server', () => {
     }
   });
 
+  it('broadcasts websocket presence without appending durable records', async () => {
+    const dataDirectory = await mkdtemp(join(tmpdir(), 'fold-server-'));
+    const server = new EncryptedAppendLogServer(new FileAppendLogStore(dataDirectory));
+    const roomId = 'volatile-presence-room';
+    let sender: WebSocket | undefined;
+    let receiver: WebSocket | undefined;
+
+    try {
+      const serverUrl = await server.start();
+      const wsUrl = `${serverUrl.replace('http:', 'ws:')}/rooms/${roomId}/ws`;
+      sender = new WebSocket(wsUrl);
+      receiver = new WebSocket(wsUrl);
+      await Promise.all([waitForOpen(sender), waitForOpen(receiver)]);
+
+      const receivedPresence = waitForMessageType(receiver, 'presence');
+      sender.send(JSON.stringify({
+        type: 'presence',
+        update: {
+          senderId: 'web-client:presence:sender',
+          nonce: 'presence-nonce',
+          ciphertext: 'presence-ciphertext',
+        },
+      }));
+      const presence = await receivedPresence as { update?: Record<string, unknown> };
+      const status = await apiJson<Record<string, unknown>>(`${serverUrl}/rooms/${roomId}/status`);
+
+      expect(presence.update).toEqual({
+        senderId: 'web-client:presence:sender',
+        nonce: 'presence-nonce',
+        ciphertext: 'presence-ciphertext',
+      });
+      expect(status.body).toEqual({
+        roomId,
+        recordCount: 0,
+        latestSeq: null,
+      });
+    } finally {
+      sender?.close();
+      receiver?.close();
+      await server.stop();
+      await rm(dataDirectory, { recursive: true, force: true });
+    }
+  });
+
   it('replays file-backed append-log records after restart', async () => {
     const dataDirectory = await mkdtemp(join(tmpdir(), 'fold-server-'));
     const roomId = 'restart-replay-room';
@@ -213,6 +265,30 @@ describe('production append-log server', () => {
     });
   });
 });
+
+function waitForOpen(socket: WebSocket): Promise<void> {
+  return new Promise((resolveOpen, rejectOpen) => {
+    socket.once('open', () => resolveOpen());
+    socket.once('error', rejectOpen);
+  });
+}
+
+function waitForMessageType(socket: WebSocket, type: string): Promise<unknown> {
+  return new Promise((resolveMessage, rejectMessage) => {
+    const timeout = setTimeout(() => {
+      socket.off('message', onMessage);
+      rejectMessage(new Error(`Timed out waiting for ${type}`));
+    }, 2_000);
+    const onMessage = (raw: WebSocket.RawData) => {
+      const parsed = JSON.parse(raw.toString()) as { type?: string };
+      if (parsed.type !== type) return;
+      clearTimeout(timeout);
+      socket.off('message', onMessage);
+      resolveMessage(parsed);
+    };
+    socket.on('message', onMessage);
+  });
+}
 
 async function apiJson<T>(url: string, init?: RequestInit): Promise<{ status: number; body: T }> {
   const response = await fetch(url, init);

@@ -16,7 +16,13 @@ import {
   encryptUpdate,
   EncryptedPayload,
 } from "../../../lib/crypto";
+import {
+  acceptAppendLogRecordSequence,
+  createAppendLogSequenceGate,
+} from "../../../lib/append-log-sequence";
+import { defaultSyncUrl } from "../../../lib/deployment";
 import { assignWebPersona, type RoomPersona } from "../../../lib/personas";
+import { createWebRoomToken, createWebRoomUrl } from "../../../lib/room-reference";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -51,7 +57,6 @@ interface ProjectSnapshot {
 
 interface LocalRecentRoom {
   roomId: string;
-  key: string;
   name: string;
   visitedAt: string;
   source?: "created" | "joined" | "agent";
@@ -67,7 +72,7 @@ export default function RoomPage() {
   const roomId = params?.roomId as string;
 
   const [roomSecret, setRoomSecret] = useState("");
-  const [serverUrl, setServerUrl] = useState("http://127.0.0.1:8787");
+  const [serverUrl, setServerUrl] = useState(defaultSyncUrl);
   const [isKeyConfigured, setIsKeyConfigured] = useState(false);
   const [clientId] = useState(() => `web-client-${Math.random().toString(36).slice(2, 11)}`);
 
@@ -106,12 +111,14 @@ export default function RoomPage() {
   const yDocRef = useRef<Y.Doc | null>(null);
   const yTextRef = useRef<Y.Text | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
-  const expectedSeqRef = useRef(1);
+  const sequenceGateRef = useRef(createAppendLogSequenceGate());
+  const replayQueueRef = useRef(Promise.resolve());
   const keyRef = useRef<CryptoKey | null>(null);
   const fileSaveTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const presenceActivityTimerRef = useRef<number | null>(null);
   const virtualFilesRef = useRef(virtualFiles);
   const projectFileUpdatedAtRef = useRef(projectFileUpdatedAt);
+  const projectFileAppliedSeqRef = useRef<Record<string, number>>({});
   const fileConflictsRef = useRef(fileConflicts);
   const localMyPersonaRef = useRef<RoomPersona | null>(localMyPersona);
   const selectedFilePathRef = useRef(selectedFilePath);
@@ -121,6 +128,11 @@ export default function RoomPage() {
   const projectPrimaryPathRef = useRef("");
   const bootstrappedInitialProjectRef = useRef(false);
   const replayedRecordCountRef = useRef(0);
+
+  useEffect(() => {
+    const nextDefault = defaultSyncUrl();
+    setServerUrl((current) => current === nextDefault ? current : nextDefault);
+  }, []);
 
   useEffect(() => {
     const hash = window.location.hash;
@@ -207,7 +219,19 @@ export default function RoomPage() {
     const yText = yDoc.getText("markdown");
     yDocRef.current = yDoc;
     yTextRef.current = yText;
-    expectedSeqRef.current = 1;
+    sequenceGateRef.current = createAppendLogSequenceGate();
+    replayQueueRef.current = Promise.resolve();
+
+    const enqueueReplayTask = (task: () => Promise<void> | void) => {
+      replayQueueRef.current = replayQueueRef.current
+        .then(async () => {
+          if (destroyed) return;
+          await task();
+        })
+        .catch((err) => {
+          if (!destroyed) setSyncError(`Could not process room update: ${String(err)}`);
+        });
+    };
 
     const setupSync = async () => {
       try {
@@ -222,6 +246,7 @@ export default function RoomPage() {
         setPresenceByClientId({});
         setProjectFileUpdatedAt({});
         projectFileUpdatedAtRef.current = {};
+        projectFileAppliedSeqRef.current = {};
         setHasRemoteProjectState(false);
         setProjectPrimaryPath("");
         hasRemoteProjectStateRef.current = false;
@@ -270,17 +295,24 @@ export default function RoomPage() {
           if (!destroyed) setIsConnected(true);
         };
 
-        socket.onmessage = async (event) => {
+        socket.onmessage = (event) => {
           if (destroyed) return;
           try {
             const data = JSON.parse(event.data);
             if (data.type === "sync-complete") {
-              setMarkdown(yText.toString());
-              setSyncDone(true);
+              enqueueReplayTask(() => {
+                if (destroyed) return;
+                setMarkdown(yText.toString());
+                setSyncDone(true);
+              });
               return;
             }
             if (data.type === "encrypted-update" && data.record) {
-              await handleRoomRecord(data.record, cryptoKey, yDoc, yText);
+              enqueueReplayTask(() => handleRoomRecord(data.record, cryptoKey, yDoc, yText));
+              return;
+            }
+            if (data.type === "presence" && data.update) {
+              enqueueReplayTask(() => handlePresenceUpdate(data.update, cryptoKey));
             }
           } catch (err) {
             setSyncError(`Could not process room update: ${String(err)}`);
@@ -319,11 +351,10 @@ export default function RoomPage() {
     yDoc: Y.Doc,
     yText: Y.Text,
   ) => {
-    if (rec.seq !== expectedSeqRef.current) {
-      setSyncError(`Missing or reordered record. Expected ${expectedSeqRef.current}, received ${rec.seq}.`);
-      expectedSeqRef.current = rec.seq + 1;
-    } else {
-      expectedSeqRef.current += 1;
+    const sequenceResult = acceptAppendLogRecordSequence(sequenceGateRef.current, rec.seq);
+    if (!sequenceResult.ok) {
+      setSyncError(sequenceResult.message);
+      return;
     }
 
     setLogRecords((prev) => [...prev, rec]);
@@ -381,6 +412,9 @@ export default function RoomPage() {
             proposal.id === parsed.proposalId ? { ...proposal, status } : proposal,
           ),
         );
+        if (parsed.type === "proposal_accepted" && parsed.acceptedProject && isProjectSnapshot(parsed.acceptedProject)) {
+          applyProjectSnapshot(parsed.acceptedProject);
+        }
       }
       if (parsed.type === "comment_resolved" || parsed.type === "comment_reopened") {
         setComments((prev) => applyCommentEvent(prev, parsed));
@@ -420,7 +454,7 @@ export default function RoomPage() {
     if (rec.senderId.startsWith(PROJECT_SENDER_ID)) {
       const parsed = await decryptJson<ProjectSnapshot>(payload, cryptKey, rec);
       if (!isProjectSnapshot(parsed)) return;
-      applyProjectSnapshot(parsed, { respectLocalDrafts: true });
+      applyProjectSnapshot(parsed, { respectLocalDrafts: true, appliedSeq: rec.seq });
       return;
     }
 
@@ -428,7 +462,7 @@ export default function RoomPage() {
       const parsed = await decryptJson<ProjectFileSnapshot>(payload, cryptKey, rec);
       if (parsed.type !== "project_file_snapshot" || !parsed.path) return;
       const path = normalizeProjectFilePath(parsed.path);
-      if (!path || isStaleProjectFileSnapshot(projectFileUpdatedAtRef.current[path], parsed.updatedAt)) return;
+      if (!path || isStaleProjectFileSnapshotSeq(projectFileAppliedSeqRef.current[path], rec.seq)) return;
       if (shouldDeferRemoteProjectFile(path, parsed.markdown, parsed.updatedAt)) {
         deferRemoteProjectFile(path, parsed);
         return;
@@ -445,6 +479,7 @@ export default function RoomPage() {
         isFirstRemoteProjectFile ? { [path]: parsed.markdown } : { ...prev, [path]: parsed.markdown }
       ));
       markProjectFileUpdatedAt(path, parsed.updatedAt);
+      markProjectFileAppliedSeq(path, rec.seq);
       clearFileConflict(path);
       return;
     }
@@ -465,6 +500,20 @@ export default function RoomPage() {
     return JSON.parse(decoder.decode(bytes));
   };
 
+  const handlePresenceUpdate = async (
+    update: { senderId: string; nonce: string; ciphertext: string },
+    cryptKey: CryptoKey,
+  ) => {
+    const parsed = await decryptJson<CollaborationPresence>(update, cryptKey, {
+      roomId,
+      senderId: update.senderId,
+    });
+    if (isCollaborationPresence(parsed)) {
+      setPresenceByClientId((prev) => upsertPresence(prev, parsed));
+      setPresenceClock(Date.now());
+    }
+  };
+
   const handleAcceptProposal = async (proposal: Proposal) => {
     if (!keyRef.current || !yTextRef.current || !localMyPersona) return;
 
@@ -482,6 +531,26 @@ export default function RoomPage() {
       const acceptedPrimaryMarkdown = acceptedProject
         ? acceptedProject.files.find((file) => file.path === acceptedProject.primaryPath)?.markdown ?? proposal.proposedMarkdown
         : proposal.proposedMarkdown;
+      const eventRecord: TimelineEvent = {
+        schema: "fold.timeline-event.v1",
+        id: `ev-acc-${proposal.id}`,
+        type: "proposal_accepted",
+        createdAt,
+        actorPersonaId: localMyPersona.id,
+        proposalId: proposal.id,
+        documentSha256: proposal.proposedSha256 || null,
+        message: `Accepted ${proposal.title}`,
+        acceptedProject,
+      };
+      const encryptedEvent = await encryptUpdate(encoder.encode(JSON.stringify(eventRecord)), keyRef.current, {
+        roomId,
+        senderId: `fold-cli:event:${eventRecord.id}`,
+      });
+      const eventResponse = await postEncryptedRecord(`fold-cli:event:${eventRecord.id}`, encryptedEvent);
+      if (!eventResponse.ok) throw new Error(`Server returned ${eventResponse.status}`);
+
+      // The accepted event is self-contained. The following records are kept for
+      // compatibility with existing document/project replay paths.
       const documentUpdate = createMarkdownReplacementUpdate(
         yTextRef.current.toString(),
         acceptedPrimaryMarkdown,
@@ -501,31 +570,13 @@ export default function RoomPage() {
       const projectResponse = await postEncryptedRecord(senderId, encryptedProject);
       if (!projectResponse.ok) throw new Error(`Server returned ${projectResponse.status}`);
       applyProjectSnapshot(acceptedProject);
-
-      const eventRecord: TimelineEvent = {
-        schema: "fold.timeline-event.v1",
-        id: `ev-acc-${proposal.id}`,
-        type: "proposal_accepted",
-        createdAt,
-        actorPersonaId: localMyPersona.id,
-        proposalId: proposal.id,
-        documentSha256: proposal.proposedSha256 || null,
-        message: `Accepted ${proposal.title}`,
-        acceptedProject,
-      };
-      const encryptedEvent = await encryptUpdate(encoder.encode(JSON.stringify(eventRecord)), keyRef.current, {
-        roomId,
-        senderId: `fold-cli:event:${eventRecord.id}`,
-      });
-      const eventResponse = await postEncryptedRecord(`fold-cli:event:${eventRecord.id}`, encryptedEvent);
-      if (!eventResponse.ok) throw new Error(`Server returned ${eventResponse.status}`);
       setSelectedProposal(null);
     } catch (err) {
       setSyncError(`Could not accept proposal: ${String(err)}`);
     }
   };
 
-  const applyProjectSnapshot = (snapshot: ProjectSnapshot, options: { respectLocalDrafts?: boolean } = {}) => {
+  const applyProjectSnapshot = (snapshot: ProjectSnapshot, options: { respectLocalDrafts?: boolean; appliedSeq?: number } = {}) => {
     const normalized = normalizeProjectSnapshot(snapshot);
     const files = Object.fromEntries(normalized.files.map((file) => [file.path, file.markdown]));
     const updatedAt = Object.fromEntries(normalized.files.map((file) => [file.path, normalized.updatedAt]));
@@ -581,6 +632,9 @@ export default function RoomPage() {
     hasRemoteProjectStateRef.current = true;
     projectPrimaryPathRef.current = normalized.primaryPath;
     projectFileUpdatedAtRef.current = updatedAt;
+    if (options.appliedSeq !== undefined) {
+      projectFileAppliedSeqRef.current = Object.fromEntries(normalized.files.map((file) => [file.path, options.appliedSeq!]));
+    }
     fileConflictsRef.current = nextConflicts;
     setHasRemoteProjectState(true);
     setProjectPrimaryPath(normalized.primaryPath);
@@ -642,7 +696,8 @@ export default function RoomPage() {
         roomId,
         senderId: `fold-cli:event:${eventRecord.id}`,
       });
-      await postEncryptedRecord(`fold-cli:event:${eventRecord.id}`, encryptedEvent);
+      const response = await postEncryptedRecord(`fold-cli:event:${eventRecord.id}`, encryptedEvent);
+      if (!response.ok) throw new Error(`Server returned ${response.status}`);
       setSelectedProposal(null);
     } catch (err) {
       setSyncError(`Could not reject proposal: ${String(err)}`);
@@ -996,6 +1051,13 @@ export default function RoomPage() {
     setProjectFileUpdatedAt((prev) => ({ ...prev, [path]: updatedAt }));
   };
 
+  const markProjectFileAppliedSeq = (path: string, seq: number) => {
+    projectFileAppliedSeqRef.current = {
+      ...projectFileAppliedSeqRef.current,
+      [path]: seq,
+    };
+  };
+
   const postEncryptedRecord = (senderId: string, encrypted: EncryptedPayload) => {
     return fetch(`${serverUrl.replace(/\/$/, "")}/rooms/${encodeURIComponent(roomId)}/updates`, {
       method: "POST",
@@ -1063,15 +1125,13 @@ export default function RoomPage() {
         if (socket?.readyState === WebSocket.OPEN) {
           socket.send(
             JSON.stringify({
-              type: "encrypted-update",
+              type: "presence",
               update: {
                 senderId,
                 ...encrypted,
               },
             }),
           );
-        } else {
-          await postEncryptedRecord(senderId, encrypted);
         }
         setPresenceByClientId((prev) => upsertPresence(prev, record));
         setPresenceClock(Date.now());
@@ -1120,7 +1180,7 @@ export default function RoomPage() {
         if (socket.readyState !== WebSocket.OPEN) return;
         socket.send(
           JSON.stringify({
-            type: "encrypted-update",
+            type: "presence",
             update: {
               senderId,
               ...encrypted,
@@ -1253,7 +1313,6 @@ export default function RoomPage() {
     if (!roomId || !roomSecret || !isKeyConfigured) return;
     persistLocalRecentRoom({
       roomId,
-      key: roomSecret,
       name: projectName,
       pendingCount: proposals.filter((proposal) => proposal.status === "pending").length,
       unresolvedCount: comments.filter((comment) => !comment.resolvedAt && comment.type !== "request").length,
@@ -1518,7 +1577,6 @@ function getOrCreateParticipantFingerprint(fallback: string) {
 
 function persistLocalRecentRoom(next: {
   roomId: string;
-  key: string;
   name: string;
   pendingCount: number;
   unresolvedCount: number;
@@ -1531,7 +1589,6 @@ function persistLocalRecentRoom(next: {
     const nextRoom: LocalRecentRoom = {
       ...current,
       roomId: next.roomId,
-      key: next.key,
       name: next.name || current?.name || "Fold project",
       source: current?.source || "joined",
       visitedAt: new Date().toISOString(),
@@ -1557,11 +1614,9 @@ function normalizeLocalRecentRooms(value: unknown): LocalRecentRoom[] {
   return value.filter((room): room is LocalRecentRoom => (
     Boolean(room) &&
     typeof room === "object" &&
-    typeof (room as LocalRecentRoom).roomId === "string" &&
-    typeof (room as LocalRecentRoom).key === "string"
+    typeof (room as LocalRecentRoom).roomId === "string"
   )).map((room) => ({
     roomId: room.roomId,
-    key: room.key,
     name: typeof room.name === "string" ? room.name : "Fold project",
     visitedAt: typeof room.visitedAt === "string" ? room.visitedAt : new Date(0).toISOString(),
     source: room.source === "created" || room.source === "joined" || room.source === "agent" ? room.source : undefined,
@@ -1592,6 +1647,10 @@ function isStaleProjectFileSnapshot(currentUpdatedAt: string | undefined, nextUp
     return nextTime < currentTime;
   }
   return nextUpdatedAt < currentUpdatedAt;
+}
+
+function isStaleProjectFileSnapshotSeq(currentSeq: number | undefined, nextSeq: number) {
+  return currentSeq !== undefined && nextSeq <= currentSeq;
 }
 
 function activePresencesForFile(
@@ -1960,7 +2019,7 @@ function createAgentInvite({
     appUrl: normalizedAppUrl,
     syncUrl: normalizedSyncUrl,
   });
-  const token = createRoomToken({
+  const token = createWebRoomToken({
     roomId,
     roomSecret,
     appUrl: normalizedAppUrl,
@@ -1992,6 +2051,12 @@ function createAgentInvite({
       "4. Work through proposals, not direct mutation:",
       `   fold export --room ${JSON.stringify(alias)} --output ./fold-project --json`,
       `   fold propose ./fold-project --room ${JSON.stringify(alias)} --title "Describe the change" --comment "Summarize what changed." --json`,
+      "",
+      "5. Join comment threads when clarification is better than a proposal:",
+      `   fold requests --room ${JSON.stringify(alias)} --json`,
+      `   fold comments --room ${JSON.stringify(alias)} --type comment --open --json`,
+      `   fold reply "<thread-id>" --room ${JSON.stringify(alias)} --text "Short reply." --json`,
+      `   fold comment --room ${JSON.stringify(alias)} --path "docs/PLAN.md" --text "Short note." --json`,
     ].join("\n"),
   };
 }
@@ -2011,7 +2076,7 @@ function createHumanInvite({
 }) {
   const normalizedAppUrl = appUrl.replace(/\/$/, "");
   const normalizedSyncUrl = syncUrl.replace(/\/$/, "");
-  const url = `${normalizedAppUrl}/room/${encodeURIComponent(roomId)}#key=${encodeURIComponent(roomSecret)}`;
+  const url = createWebRoomUrl({ roomId, roomSecret, appUrl: normalizedAppUrl, syncUrl: normalizedSyncUrl });
   const warnings = shareabilityWarnings({
     appUrl: normalizedAppUrl,
     syncUrl: normalizedSyncUrl,
@@ -2042,7 +2107,12 @@ function createHumanInvite({
 function shareabilityWarnings(access: { appUrl: string; syncUrl: string }) {
   const warnings: string[] = [];
   for (const [label, value] of [["appUrl", access.appUrl], ["syncUrl", access.syncUrl]] as const) {
-    const host = new URL(value).hostname;
+    const parsed = safeUrl(value);
+    if (!parsed) {
+      warnings.push(`${label} ${value} is not a valid URL.`);
+      continue;
+    }
+    const host = parsed.hostname;
     if (
       host === "localhost" ||
       host === "127.0.0.1" ||
@@ -2058,24 +2128,12 @@ function shareabilityWarnings(access: { appUrl: string; syncUrl: string }) {
   return warnings;
 }
 
-function createRoomToken(access: { roomId: string; roomSecret: string; appUrl: string; syncUrl: string }) {
-  const encoded = base64UrlEncode(JSON.stringify({
-    v: 1,
-    roomId: access.roomId,
-    roomSecret: access.roomSecret,
-    appUrl: access.appUrl,
-    syncUrl: access.syncUrl,
-  }));
-  return `fold:v1:${encoded}`;
-}
-
-function base64UrlEncode(value: string) {
-  const bytes = new TextEncoder().encode(value);
-  const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join("");
-  return window.btoa(binary)
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
+function safeUrl(value: string) {
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
 }
 
 function createInitialVirtualFiles(): Record<string, string> {

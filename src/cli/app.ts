@@ -23,6 +23,7 @@ import {
   publishMarkdown,
   rejectProposal,
   replyToComment,
+  roomContext,
   roomStatus,
   setRoomProfileUrls,
   showRoomProfile,
@@ -414,6 +415,22 @@ export const app: Application<FoldCommandContext> = buildApplication(
           });
           if (flags.json) writeJson(this, result);
           else writeProposalsHuman(this, result);
+        },
+      }),
+      context: buildCommand<ProposalRoomFlags, [], FoldCommandContext>({
+        parameters: {
+          flags: roomOnlyFlags(),
+        },
+        docs: {
+          brief: 'Print a redacted agent context packet for a room',
+          customUsage: ['--room <alias-or-url-or-token> [--json]'],
+        },
+        async func(this: FoldCommandContext, flags) {
+          const result = await roomContext({
+            cwd: this.cwd,
+            room: flags.room,
+          });
+          writeJson(this, result);
         },
       }),
       comments: buildCommand<CommentListFlags, [], FoldCommandContext>({

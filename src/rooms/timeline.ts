@@ -1,13 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import {
-  decryptUpdate,
-  deriveRoomKey,
-  encryptUpdate,
-  type EncryptedPayload,
-} from '../../spikes/e2ee-yjs-append-log/crypto.js';
+import type { EncryptedPayload } from './crypto.js';
 import type { EncryptedUpdateRecord, IncomingEncryptedUpdate } from '../server/append-log.js';
 import type { ProjectSnapshot } from './project-state.js';
 import type { RoomAccess } from './room-reference.js';
+import { decryptJsonRecord, encryptJsonRecord } from './encrypted-records.js';
 
 export const TIMELINE_EVENT_SCHEMA = 'fold.timeline-event.v1';
 export const TIMELINE_EVENT_SENDER_ID_PREFIX = 'fold-cli:event';
@@ -53,6 +49,7 @@ export function createTimelineEvent(input: Omit<TimelineEvent, 'schema' | 'id' |
     proposalId: input.proposalId,
     documentSha256: input.documentSha256,
     message: input.message,
+    acceptedProject: input.acceptedProject,
   };
 }
 
@@ -82,35 +79,6 @@ export async function decryptTimelineEvent(
     throw new Error('Invalid encrypted timeline event payload');
   }
   return value;
-}
-
-export async function encryptJsonRecord(
-  access: RoomAccess,
-  senderId: string,
-  value: unknown,
-): Promise<IncomingEncryptedUpdate> {
-  const roomKey = await deriveRoomKey(access.roomId, access.roomSecret);
-  const encrypted = await encryptUpdate(Buffer.from(JSON.stringify(value), 'utf8'), roomKey, {
-    roomId: access.roomId,
-    senderId,
-  });
-  return {
-    senderId,
-    ...encrypted,
-  };
-}
-
-export async function decryptJsonRecord(
-  access: RoomAccess,
-  payload: EncryptedPayload,
-  senderId: string,
-): Promise<unknown> {
-  const roomKey = await deriveRoomKey(access.roomId, access.roomSecret);
-  const bytes = await decryptUpdate(payload, roomKey, {
-    roomId: access.roomId,
-    senderId,
-  });
-  return JSON.parse(Buffer.from(bytes).toString('utf8')) as unknown;
 }
 
 function isTimelineEvent(value: unknown): value is TimelineEvent {

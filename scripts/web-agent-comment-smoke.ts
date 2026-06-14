@@ -191,7 +191,8 @@ async function main() {
           ok: true,
           baseUrl,
           syncUrl: DEFAULT_SYNC_URL,
-          roomUrl: published.room.url,
+          roomId: published.room.roomId,
+          serverRoomUrl: published.room.serverRoomUrl,
           commentId: added.comment.id,
           agentComment: AGENT_COMMENT,
           agentReply: AGENT_REPLY,
@@ -221,6 +222,8 @@ async function runCliJson<T>(cwd: string, args: string[]): Promise<T> {
 
 interface PublishJson {
   room: {
+    roomId: string;
+    serverRoomUrl: string;
     url: string;
     token: string;
   };

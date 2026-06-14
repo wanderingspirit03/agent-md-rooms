@@ -1,0 +1,15 @@
+services:
+  fold:
+    build: .
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      PORT: "3000"
+      FOLD_PUBLIC_URL: "${FOLD_PUBLIC_URL:-http://localhost:3000}"
+      FOLD_DATA_DIR: "/data/append-log"
+    volumes:
+      - fold-append-log:/data/append-log
+    restart: unless-stopped
+
+volumes:
+  fold-append-log:

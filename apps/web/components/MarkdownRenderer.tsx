@@ -1,7 +1,7 @@
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
-import rehypeSanitize from "rehype-sanitize";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { MermaidDiagram } from "./MermaidDiagram";
@@ -24,6 +24,14 @@ interface MarkdownRendererProps {
   onTextHighlightClick?: (id: string, event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
+const markdownSanitizeSchema = {
+  ...defaultSchema,
+  attributes: {
+    ...defaultSchema.attributes,
+    code: [["className", /^language-./, "math-inline", "math-display"]],
+  },
+};
+
 export default function MarkdownRenderer({
   content,
   currentFilePath = "",
@@ -39,7 +47,7 @@ export default function MarkdownRenderer({
     <article className="max-w-none text-document-muted">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeKatex, rehypeSanitize]}
+        rehypePlugins={[[rehypeSanitize, markdownSanitizeSchema], rehypeKatex]}
         components={{
           h1: ({ children }) => (
             <h1 className="mb-6 mt-0 border-b border-document-edge pb-5 text-[2rem] font-semibold leading-tight tracking-normal text-document-ink">
@@ -152,8 +160,9 @@ export default function MarkdownRenderer({
                 </a>
               );
             }
+            const safeHref = safeExternalHref(href || "");
             return (
-              <a href={href} target="_blank" rel="noopener noreferrer" className="text-midnight underline underline-offset-4 hover:text-midnight-strong">
+              <a href={safeHref} target="_blank" rel="noopener noreferrer" className="text-midnight underline underline-offset-4 hover:text-midnight-strong">
                 {children}
               </a>
             );
@@ -216,6 +225,14 @@ function safeDecodeUri(value: string) {
   } catch {
     return value;
   }
+}
+
+function safeExternalHref(href: string) {
+  const trimmed = href.trim();
+  if (!trimmed) return undefined;
+  if (/^(https?:|mailto:|tel:|#)/i.test(trimmed)) return trimmed;
+  if (/^\/(?!\/)/.test(trimmed)) return trimmed;
+  return undefined;
 }
 
 function renderWithInlineComments(
