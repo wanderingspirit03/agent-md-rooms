@@ -14,6 +14,7 @@ const REJECTED_TEXT = "Rejected proposal smoke sentence.";
 const PROPOSAL_TITLE = `Proposal review smoke ${Date.now()}`;
 const REJECT_PROPOSAL_TITLE = `Rejected proposal smoke ${Date.now()}`;
 const PROPOSAL_REPLY_MARKER = `Proposal discussion reply ${Date.now()}.`;
+const PROPOSAL_ASK_AGAIN_MARKER = `Please make the proposal more specific ${Date.now()}.`;
 const execFileAsync = promisify(execFile);
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 const tsxCli = join(repoRoot, "node_modules/tsx/dist/cli.mjs");
@@ -81,6 +82,18 @@ async function main() {
       PROPOSAL_REPLY_MARKER,
       { timeout: 8_000 },
     );
+    await desktop.getByRole("button", { name: "Ask again", exact: true }).click();
+    await proposalDialog.getByLabel("Ask agent for another pass").fill(PROPOSAL_ASK_AGAIN_MARKER);
+    await proposalDialog.getByRole("button", { name: "Ask again", exact: true }).click();
+    await desktop.waitForFunction(
+      ([replyMarker, askAgainMarker]) => (
+        document.body.innerText.includes(replyMarker) &&
+        document.body.innerText.includes(askAgainMarker) &&
+        document.body.innerText.includes("2 replies")
+      ),
+      [PROPOSAL_REPLY_MARKER, PROPOSAL_ASK_AGAIN_MARKER],
+      { timeout: 8_000 },
+    );
     await desktop.getByRole("button", { name: "Accept", exact: true }).click();
     await desktop.getByRole("button", { name: /cancel accepting/i }).click();
     await desktop.getByRole("button", { name: "Accept", exact: true }).waitFor({ state: "visible", timeout: 8_000 });
@@ -131,6 +144,17 @@ async function main() {
     const replayedProposal = replayed.proposals.find((proposal) => proposal.id === proposed.proposal.id);
     if (replayedProposal?.status !== "accepted") {
       throw new Error(`Expected proposal ${proposed.proposal.id} to replay as accepted.`);
+    }
+    const shownProposal = await runCliJson<ShowProposalJson>(cwd, [
+      "show-proposal",
+      proposed.proposal.id,
+      "--room",
+      published.room.token,
+      "--json",
+    ]);
+    const shownReplies = shownProposal.proposal.replies || [];
+    if (!shownReplies.some((reply) => reply.text === PROPOSAL_ASK_AGAIN_MARKER)) {
+      throw new Error("CLI show-proposal did not replay the encrypted ask-again discussion reply.");
     }
 
     await writeFile(planPath, `# Proposal Review Smoke\n\n${REJECTED_TEXT}\n`, "utf8");
@@ -196,6 +220,7 @@ async function main() {
           proposalId: proposed.proposal.id,
           rejectedProposalId: rejectedCandidate.proposal.id,
           proposalReplyMarker: PROPOSAL_REPLY_MARKER,
+          proposalAskAgainMarker: PROPOSAL_ASK_AGAIN_MARKER,
           desktopDialogScreenshotPath,
           mobileDialogScreenshotPath,
         },
@@ -262,6 +287,14 @@ interface ProposalsJson {
     id: string;
     status: string;
   }>;
+}
+
+interface ShowProposalJson {
+  proposal: {
+    replies?: Array<{
+      text: string;
+    }>;
+  };
 }
 
 async function preparePage(page: Page, label: string, logs: string[]) {

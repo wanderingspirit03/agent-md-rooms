@@ -48,3 +48,4 @@ Recent collaboration coverage:
 - Selected text can now become an encrypted agent request from the command palette and re-open as an inline request thread.
 - Agents can list open encrypted request threads through the CLI and reply inside the same thread.
 - The room toolbar, file tree, command palette, and review drawer now count and label agent requests separately from ordinary comments.
+- Pending suggestion previews now include a compact Ask again action that writes an encrypted proposal discussion reply and replays through the CLI.

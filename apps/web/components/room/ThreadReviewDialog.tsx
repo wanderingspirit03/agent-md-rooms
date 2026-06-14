@@ -1,11 +1,12 @@
 "use client";
 
-import { Check, Quote, X } from "lucide-react";
+import { Bot, Check, Quote, Send, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import MarkdownRenderer from "../MarkdownRenderer";
 import { extractMarkdownProperties } from "../../lib/markdown-properties";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
+import { Textarea } from "../ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -34,11 +35,15 @@ export function ThreadReviewDialog({
   onReply,
 }: ThreadReviewDialogProps) {
   const [confirmingAccept, setConfirmingAccept] = useState(false);
+  const [askAgainOpen, setAskAgainOpen] = useState(false);
+  const [askAgainText, setAskAgainText] = useState("");
   const parsedProposal = proposal ? extractMarkdownProperties(proposal.proposedMarkdown) : null;
   const diff = proposal ? proposal.diff || fallbackDiff(proposal.createdFromMarkdown, proposal.proposedMarkdown) : "";
 
   useEffect(() => {
     setConfirmingAccept(false);
+    setAskAgainOpen(false);
+    setAskAgainText("");
   }, [proposal?.id]);
 
   return (
@@ -130,8 +135,53 @@ export function ThreadReviewDialog({
                       Apply
                     </Button>
                   </div>
+                ) : askAgainOpen ? (
+                  <form
+                    className="flex w-full flex-col gap-2"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const text = askAgainText.trim();
+                      if (!text || !onReply) return;
+                      onReply(proposal, text);
+                      setAskAgainText("");
+                      setAskAgainOpen(false);
+                    }}
+                  >
+                    <Textarea
+                      aria-label="Ask agent for another pass"
+                      placeholder="Ask for a clearer revision"
+                      rows={2}
+                      value={askAgainText}
+                      onChange={(event) => setAskAgainText(event.target.value)}
+                      className="min-h-20 resize-none border-studio-line bg-studio-sunken text-sm text-ink placeholder:text-ink-subtle focus-visible:ring-1"
+                      autoFocus
+                    />
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setAskAgainOpen(false);
+                          setAskAgainText("");
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={!askAgainText.trim() || !onReply}>
+                        <Send className="h-4 w-4" />
+                        Ask again
+                      </Button>
+                    </div>
+                  </form>
                 ) : (
                   <>
+                    {onReply && (
+                      <Button variant="outline" onClick={() => setAskAgainOpen(true)}>
+                        <Bot className="h-4 w-4" />
+                        Ask again
+                      </Button>
+                    )}
                     <Button variant="outline" onClick={() => onReject(proposal)}>
                       <X className="h-4 w-4" />
                       Reject

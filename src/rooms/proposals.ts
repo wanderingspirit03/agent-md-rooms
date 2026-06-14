@@ -18,6 +18,11 @@ import {
   TIMELINE_EVENT_SENDER_ID_PREFIX,
   type TimelineEvent,
 } from './timeline.js';
+import {
+  CLI_COMMENT_EVENT_SENDER_ID_PREFIX,
+  COMMENT_EVENT_SENDER_ID_PREFIX,
+  type CommentReply,
+} from './comments.js';
 
 export const PROPOSAL_SCHEMA = 'fold.proposal.v1';
 export const PROPOSAL_SENDER_ID_PREFIX = 'fold-cli:proposal';
@@ -51,6 +56,7 @@ export interface ProposalRecord {
 export interface ProposalView extends ProposalRecord {
   status: ProposalStatus;
   statusUpdatedAt: string;
+  replies?: CommentReply[];
 }
 
 export interface ProposalReplay {
@@ -184,6 +190,21 @@ export async function replayProposalsFromRecords(
         ...proposal,
         status: 'pending',
         statusUpdatedAt: proposal.updatedAt,
+        replies: [],
+      });
+      continue;
+    }
+
+    if (isProposalDiscussionEventSender(record.senderId)) {
+      const event = await decryptJsonRecord(access, record, record.senderId);
+      if (!isProposalReplyEvent(event)) continue;
+      const current = proposals.get(event.proposalId);
+      if (!current) continue;
+      const replies = current.replies || [];
+      if (replies.some((reply) => reply.id === event.reply.id)) continue;
+      proposals.set(current.id, {
+        ...current,
+        replies: [...replies, event.reply].sort((left, right) => left.createdAt.localeCompare(right.createdAt)),
       });
       continue;
     }
@@ -214,6 +235,24 @@ export async function replayProposalsFromRecords(
     proposals: [...proposals.values()].sort((left, right) => left.createdAt.localeCompare(right.createdAt)),
     timeline: timeline.sort((left, right) => left.createdAt.localeCompare(right.createdAt)),
   };
+}
+
+function isProposalDiscussionEventSender(senderId: string) {
+  return senderId.startsWith(COMMENT_EVENT_SENDER_ID_PREFIX) || senderId.startsWith(CLI_COMMENT_EVENT_SENDER_ID_PREFIX);
+}
+
+function isProposalReplyEvent(value: unknown): value is { type: 'proposal_replied'; proposalId: string; reply: CommentReply } {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as { type?: unknown; proposalId?: unknown; reply?: Partial<CommentReply> };
+  const reply = candidate.reply;
+  return candidate.type === 'proposal_replied'
+    && typeof candidate.proposalId === 'string'
+    && Boolean(reply)
+    && typeof reply?.id === 'string'
+    && typeof reply.authorPersonaId === 'string'
+    && reply.persona?.schema === 'fold.persona.v1'
+    && typeof reply.text === 'string'
+    && typeof reply.createdAt === 'string';
 }
 
 export async function decryptProposalRecord(

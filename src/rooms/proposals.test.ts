@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AppendLogStore } from '../server/append-log.js';
+import { COMMENT_EVENT_SENDER_ID_PREFIX } from './comments.js';
 import {
   createEncryptedProposalRecord,
   createProposalAcceptedEvent,
@@ -7,6 +8,7 @@ import {
   replayProposalsFromRecords,
 } from './proposals.js';
 import { createRoomAccess } from './room-reference.js';
+import { encryptJsonRecord } from './timeline.js';
 
 describe('encrypted proposal model', () => {
   it('derives proposal status transitions by replaying encrypted room records', async () => {
@@ -32,6 +34,27 @@ describe('encrypted proposal model', () => {
     expect(replayed.proposals[0]?.diff).toContain('@@ whole-document-replacement @@');
     expect(replayed.proposals[0]?.discussionThreadIds).toEqual([]);
     expect(store.list(access.roomId)[0]?.senderId).not.toContain(replayed.proposals[0]?.id ?? '');
+
+    const replyEvent = {
+      id: 'ev-proposal-reply-1',
+      type: 'proposal_replied',
+      createdAt: new Date().toISOString(),
+      actorPersonaId: replayed.proposals[0]!.persona.id,
+      proposalId: replayed.proposals[0]!.id,
+      filePath: 'README.md',
+      message: 'Asked for another pass',
+      reply: {
+        id: 'proposal-reply-1',
+        authorPersonaId: replayed.proposals[0]!.persona.id,
+        persona: replayed.proposals[0]!.persona,
+        text: 'Please make the proposal more specific.',
+        createdAt: new Date().toISOString(),
+      },
+    };
+    store.append(access.roomId, await encryptJsonRecord(access, `${COMMENT_EVENT_SENDER_ID_PREFIX}:${replyEvent.id}`, replyEvent));
+    replayed = await replayProposalsFromRecords(access, store.list(access.roomId));
+    expect(replayed.proposals[0]?.replies?.[0]?.text).toBe('Please make the proposal more specific.');
+    expect(store.serialized(access.roomId)).not.toContain('Please make the proposal more specific.');
 
     store.append(access.roomId, await createProposalAcceptedEvent(
       access,
