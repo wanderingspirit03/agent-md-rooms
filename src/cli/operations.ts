@@ -35,13 +35,14 @@ import {
 } from '../rooms/metadata.js';
 import {
   createEncryptedProjectSnapshot,
-  decryptProjectSnapshotsFromRecords,
   normalizeProjectSnapshot,
   projectFileOrThrow,
+  PROJECT_UPDATE_SENDER_ID_PREFIX,
   readMarkdownProject,
   replaceProjectFile,
   singleFileProject,
   summarizeProject,
+  WEB_PROJECT_FILE_SENDER_ID_PREFIX,
   writeMarkdownProject,
   type ProjectSnapshot,
 } from '../rooms/project-state.js';
@@ -65,6 +66,9 @@ import { assignPersona } from '../rooms/personas.js';
 import {
   createEncryptedTimelineEvent,
   createTimelineEvent,
+  decryptJsonRecord,
+  decryptTimelineEvent,
+  TIMELINE_EVENT_SENDER_ID_PREFIX,
 } from '../rooms/timeline.js';
 import type {
   DecideProposalResult,
@@ -1013,8 +1017,54 @@ async function currentProjectFromRecords(
   access: RoomAccess,
   entry?: RoomMetadataEntry,
 ): Promise<ProjectSnapshot> {
-  const snapshots = await decryptProjectSnapshotsFromRecords(access, records);
-  let project = snapshots.at(-1);
+  const replay = await replayProposalsFromRecords(access, records);
+  const proposalsById = new Map(replay.proposals.map((proposal) => [proposal.id, proposal]));
+  const fileUpdatedAt = new Map<string, string>();
+  let project: ProjectSnapshot | undefined;
+
+  for (const record of records) {
+    if (record.senderId.startsWith(PROJECT_UPDATE_SENDER_ID_PREFIX)) {
+      const value = await decryptJsonRecord(access, record, record.senderId);
+      if (!isReplayProjectSnapshot(value)) {
+        throw new Error('Invalid encrypted project snapshot payload');
+      }
+      project = normalizeProjectSnapshot(value);
+      fileUpdatedAt.clear();
+      for (const file of project.files) fileUpdatedAt.set(file.path, project.updatedAt);
+      continue;
+    }
+
+    if (record.senderId.startsWith(WEB_PROJECT_FILE_SENDER_ID_PREFIX)) {
+      const value = await decryptJsonRecord(access, record, record.senderId);
+      if (!isReplayWebProjectFileSnapshot(value)) {
+        throw new Error('Invalid encrypted web project file snapshot payload');
+      }
+      if (isStaleProjectFileSnapshot(fileUpdatedAt.get(value.path), value.updatedAt)) continue;
+      project = replaceProjectFile(project ?? singleFileProject(value.path, value.markdown), value.path, value.markdown);
+      project = normalizeProjectSnapshot({ ...project, updatedAt: value.updatedAt });
+      fileUpdatedAt.set(projectFileOrThrow(project, value.path).path, value.updatedAt);
+      continue;
+    }
+
+    if (!record.senderId.startsWith(TIMELINE_EVENT_SENDER_ID_PREFIX)) continue;
+    const event = await decryptTimelineEvent(access, record, record.senderId);
+    if (event.type !== 'proposal_accepted' || !event.proposalId) continue;
+    if (event.acceptedProject) {
+      project = normalizeProjectSnapshot(event.acceptedProject);
+    } else {
+      const accepted = proposalsById.get(event.proposalId);
+      if (accepted?.proposedProject) {
+        project = normalizeProjectSnapshot(accepted.proposedProject);
+      } else if (accepted) {
+        project = singleFileProject(accepted.path ?? project?.primaryPath ?? 'document.md', accepted.proposed.markdown);
+      }
+    }
+    if (project) {
+      fileUpdatedAt.clear();
+      for (const file of project.files) fileUpdatedAt.set(file.path, project.updatedAt);
+    }
+  }
+
   if (!project) {
     const markdown = records.length > 0
       ? await decryptMarkdownFromRecords(records, access)
@@ -1022,17 +1072,41 @@ async function currentProjectFromRecords(
     project = singleFileProject(entry?.sourcePath ? basename(entry.sourcePath) : 'document.md', markdown);
   }
 
-  const replay = await replayProposalsFromRecords(access, records);
-  for (const event of replay.timeline) {
-    if (event.type !== 'proposal_accepted' || !event.proposalId) continue;
-    const accepted = replay.proposals.find((proposal) => proposal.id === event.proposalId);
-    if (accepted?.proposedProject) {
-      project = normalizeProjectSnapshot(accepted.proposedProject);
-    } else if (accepted) {
-      project = singleFileProject(accepted.path ?? project.primaryPath, accepted.proposed.markdown);
-    }
-  }
   return project;
+}
+
+function isReplayProjectSnapshot(value: unknown): value is ProjectSnapshot {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<ProjectSnapshot>;
+  return candidate.schema === 'fold.project.v1'
+    && typeof candidate.primaryPath === 'string'
+    && typeof candidate.updatedAt === 'string'
+    && Array.isArray(candidate.files)
+    && candidate.files.every((file) => (
+      file &&
+      typeof file === 'object' &&
+      typeof (file as { path?: unknown }).path === 'string' &&
+      typeof (file as { markdown?: unknown }).markdown === 'string'
+    ));
+}
+
+function isReplayWebProjectFileSnapshot(value: unknown): value is { path: string; markdown: string; updatedAt: string } {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as { type?: unknown; path?: unknown; markdown?: unknown; updatedAt?: unknown };
+  return candidate.type === 'project_file_snapshot'
+    && typeof candidate.path === 'string'
+    && typeof candidate.markdown === 'string'
+    && typeof candidate.updatedAt === 'string';
+}
+
+function isStaleProjectFileSnapshot(currentUpdatedAt: string | undefined, nextUpdatedAt: string) {
+  if (!currentUpdatedAt) return false;
+  const currentTime = Date.parse(currentUpdatedAt);
+  const nextTime = Date.parse(nextUpdatedAt);
+  if (!Number.isNaN(currentTime) && !Number.isNaN(nextTime)) {
+    return nextTime < currentTime;
+  }
+  return nextUpdatedAt < currentUpdatedAt;
 }
 
 async function getProposalOrThrow(options: ProposalIdOptions): Promise<{

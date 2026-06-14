@@ -469,7 +469,16 @@ export default function RoomPage() {
     if (!keyRef.current || !yTextRef.current || !localMyPersona) return;
 
     try {
-      const acceptedProject = proposal.proposedProject ? normalizeProjectSnapshot(proposal.proposedProject) : null;
+      const createdAt = new Date().toISOString();
+      const acceptedProject = proposal.proposedProject
+        ? normalizeProjectSnapshot(proposal.proposedProject)
+        : createAcceptedProjectSnapshotFromCurrentFiles(
+            virtualFilesRef.current,
+            projectPrimaryPathRef.current || DEFAULT_PROJECT_FILE_PATH,
+            proposal.filePath || selectedFilePath,
+            proposal.proposedMarkdown,
+            createdAt,
+          );
       const acceptedPrimaryMarkdown = acceptedProject
         ? acceptedProject.files.find((file) => file.path === acceptedProject.primaryPath)?.markdown ?? proposal.proposedMarkdown
         : proposal.proposedMarkdown;
@@ -484,18 +493,15 @@ export default function RoomPage() {
       const documentResponse = await postEncryptedRecord(DOCUMENT_SENDER_ID, encryptedDocument);
       if (!documentResponse.ok) throw new Error(`Server returned ${documentResponse.status}`);
 
-      if (acceptedProject) {
-        const senderId = `${PROJECT_SENDER_ID}:${Date.now()}`;
-        const encryptedProject = await encryptUpdate(encoder.encode(JSON.stringify(acceptedProject)), keyRef.current, {
-          roomId,
-          senderId,
-        });
-        const projectResponse = await postEncryptedRecord(senderId, encryptedProject);
-        if (!projectResponse.ok) throw new Error(`Server returned ${projectResponse.status}`);
-        applyProjectSnapshot(acceptedProject);
-      }
+      const senderId = `${PROJECT_SENDER_ID}:${Date.now()}`;
+      const encryptedProject = await encryptUpdate(encoder.encode(JSON.stringify(acceptedProject)), keyRef.current, {
+        roomId,
+        senderId,
+      });
+      const projectResponse = await postEncryptedRecord(senderId, encryptedProject);
+      if (!projectResponse.ok) throw new Error(`Server returned ${projectResponse.status}`);
+      applyProjectSnapshot(acceptedProject);
 
-      const createdAt = new Date().toISOString();
       const eventRecord: TimelineEvent = {
         schema: "fold.timeline-event.v1",
         id: `ev-acc-${proposal.id}`,
@@ -505,6 +511,7 @@ export default function RoomPage() {
         proposalId: proposal.id,
         documentSha256: proposal.proposedSha256 || null,
         message: `Accepted ${proposal.title}`,
+        acceptedProject,
       };
       const encryptedEvent = await encryptUpdate(encoder.encode(JSON.stringify(eventRecord)), keyRef.current, {
         roomId,
@@ -1707,6 +1714,29 @@ function normalizeProjectSnapshot(snapshot: ProjectSnapshot): ProjectSnapshot {
     files,
     updatedAt: snapshot.updatedAt || new Date().toISOString(),
   };
+}
+
+function createAcceptedProjectSnapshotFromCurrentFiles(
+  virtualFiles: Record<string, string>,
+  primaryPath: string,
+  targetPath: string,
+  targetMarkdown: string,
+  updatedAt: string,
+): ProjectSnapshot {
+  const normalizedPrimaryPath = normalizeProjectFilePath(primaryPath) || DEFAULT_PROJECT_FILE_PATH;
+  const normalizedTargetPath = normalizeProjectFilePath(targetPath) || DEFAULT_PROJECT_FILE_PATH;
+  const filesByPath = new Map<string, string>();
+  for (const [path, markdown] of Object.entries(virtualFiles)) {
+    const normalizedPath = normalizeProjectFilePath(path);
+    if (normalizedPath) filesByPath.set(normalizedPath, markdown);
+  }
+  filesByPath.set(normalizedTargetPath, targetMarkdown);
+  return normalizeProjectSnapshot({
+    schema: PROJECT_SCHEMA,
+    primaryPath: filesByPath.has(normalizedPrimaryPath) ? normalizedPrimaryPath : normalizedTargetPath,
+    files: Array.from(filesByPath.entries()).map(([path, markdown]) => ({ path, markdown })),
+    updatedAt,
+  });
 }
 
 function isProjectSnapshot(value: unknown): value is ProjectSnapshot {

@@ -648,6 +648,55 @@ describe('CLI operations', () => {
     }
   });
 
+  it('keeps newer web file snapshots after accepted proposal replay', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'fold-accepted-then-web-file-'));
+    const server = new EncryptedAppendLogServer();
+    const serverUrl = await server.start();
+    try {
+      await mkdir(join(cwd, 'project', 'docs'), { recursive: true });
+      await writeFile(join(cwd, 'project', 'README.md'), '# Readme\n\nOriginal readme.', 'utf8');
+      await writeFile(join(cwd, 'project', 'docs', 'PLAN.md'), '# Plan\n\nOld plan.', 'utf8');
+      const published = await publishMarkdown({
+        cwd,
+        filePath: 'project',
+        serverUrl,
+        alias: 'ordered-replay',
+        save: true,
+      });
+
+      await writeFile(join(cwd, 'project', 'docs', 'PLAN.md'), '# Plan\n\nAccepted plan.', 'utf8');
+      const proposed = await proposeMarkdown({
+        cwd,
+        filePath: 'project/docs/PLAN.md',
+        room: 'ordered-replay',
+        path: 'docs/PLAN.md',
+        title: 'Accept plan',
+      });
+      await acceptProposal({ cwd, room: 'ordered-replay', proposalId: proposed.proposal.id });
+
+      const access = parseRoomReference(published.room.token);
+      const { encryptJsonRecord } = await import('../rooms/timeline.js');
+      await server.store.append(access.roomId, await encryptJsonRecord(access, 'web-client:file:after-accept', {
+        type: 'project_file_snapshot',
+        path: 'docs/PLAN.md',
+        markdown: '# Plan\n\nNewer web edit.',
+        updatedAt: new Date(Date.now() + 1_000).toISOString(),
+      }));
+
+      await exportMarkdown({
+        cwd,
+        room: 'ordered-replay',
+        outputPath: 'ordered-export',
+      });
+
+      expect(await readFile(join(cwd, 'ordered-export', 'README.md'), 'utf8')).toContain('Original readme.');
+      expect(await readFile(join(cwd, 'ordered-export', 'docs', 'PLAN.md'), 'utf8')).toContain('Newer web edit.');
+    } finally {
+      await server.stop();
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
   it('replays web-created project file snapshots in CLI project exports', async () => {
     const cwd = await mkdtemp(join(tmpdir(), 'fold-web-file-'));
     const server = new EncryptedAppendLogServer();

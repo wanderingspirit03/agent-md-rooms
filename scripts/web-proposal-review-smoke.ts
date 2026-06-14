@@ -10,6 +10,7 @@ const DEFAULT_URLS = ["http://localhost:3001", "http://localhost:3000"];
 const DEFAULT_SYNC_URL = "http://127.0.0.1:8787";
 const ORIGINAL_TEXT = "Original proposal smoke sentence.";
 const PROPOSED_TEXT = "Accepted proposal smoke sentence.";
+const EDITED_ACCEPTED_TEXT = "Human-edited accepted proposal smoke sentence.";
 const REJECTED_TEXT = "Rejected proposal smoke sentence.";
 const PROPOSAL_TITLE = `Proposal review smoke ${Date.now()}`;
 const REJECT_PROPOSAL_TITLE = `Rejected proposal smoke ${Date.now()}`;
@@ -97,6 +98,14 @@ async function main() {
     await desktop.getByRole("button", { name: "Accept", exact: true }).click();
     await desktop.getByRole("button", { name: /cancel accepting/i }).click();
     await desktop.getByRole("button", { name: "Accept", exact: true }).waitFor({ state: "visible", timeout: 8_000 });
+    await desktop.getByRole("button", { name: "Edit", exact: true }).click();
+    const editedProposalMarkdown = `# Proposal Review Smoke\n\n${EDITED_ACCEPTED_TEXT}\n`;
+    await proposalDialog.getByLabel("Edited proposal Markdown").fill(editedProposalMarkdown);
+    await desktop.waitForFunction(
+      (editedText) => document.body.innerText.includes(editedText) && document.body.innerText.includes("Accept edited"),
+      EDITED_ACCEPTED_TEXT,
+      { timeout: 8_000 },
+    );
     const desktopDialogScreenshotPath = join(screenshotDir, "desktop-proposal-preview.png");
     await desktop.screenshot({ path: desktopDialogScreenshotPath, fullPage: false, caret: "initial" });
     await desktop.keyboard.press("Escape");
@@ -114,11 +123,17 @@ async function main() {
     await assertNoHorizontalOverflow(mobile, "mobile proposal preview");
 
     await desktop.getByRole("button", { name: /open pending suggestion/i }).click({ timeout: 8_000 });
-    await desktop.getByRole("button", { name: "Accept", exact: true }).click();
+    await desktop.getByRole("button", { name: "Edit", exact: true }).click();
+    await desktop.getByRole("dialog", { name: PROPOSAL_TITLE }).getByLabel("Edited proposal Markdown").fill(`# Proposal Review Smoke\n\n${EDITED_ACCEPTED_TEXT}\n`);
+    await desktop.getByRole("button", { name: "Accept edited", exact: true }).click();
     await desktop.getByRole("button", { name: /confirm accepting/i }).click();
     await desktop.waitForFunction(
-      ([proposedText, originalText]) => document.body.innerText.includes(proposedText) && !document.body.innerText.includes(originalText),
-      [PROPOSED_TEXT, ORIGINAL_TEXT],
+      ([editedText, proposedText, originalText]) => (
+        document.body.innerText.includes(editedText) &&
+        !document.body.innerText.includes(proposedText) &&
+        !document.body.innerText.includes(originalText)
+      ),
+      [EDITED_ACCEPTED_TEXT, PROPOSED_TEXT, ORIGINAL_TEXT],
       { timeout: 10_000 },
     );
 
@@ -128,8 +143,11 @@ async function main() {
       published.room.token,
       "--json",
     ]);
-    if (!exported.document.markdown.includes(PROPOSED_TEXT)) {
-      throw new Error("CLI export did not replay the web-accepted proposal markdown.");
+    if (!exported.document.markdown.includes(EDITED_ACCEPTED_TEXT)) {
+      throw new Error("CLI export did not replay the edited web-accepted proposal markdown.");
+    }
+    if (exported.document.markdown.includes(PROPOSED_TEXT)) {
+      throw new Error("CLI export still contains the unedited proposal smoke text after edited accept.");
     }
     if (exported.document.markdown.includes(ORIGINAL_TEXT)) {
       throw new Error("CLI export still contains the original proposal smoke text after accept.");
@@ -197,8 +215,11 @@ async function main() {
       published.room.token,
       "--json",
     ]);
-    if (!exportedAfterReject.document.markdown.includes(PROPOSED_TEXT)) {
-      throw new Error("CLI export lost the accepted proposal markdown after rejecting another proposal.");
+    if (!exportedAfterReject.document.markdown.includes(EDITED_ACCEPTED_TEXT)) {
+      throw new Error("CLI export lost the edited accepted proposal markdown after rejecting another proposal.");
+    }
+    if (exportedAfterReject.document.markdown.includes(PROPOSED_TEXT)) {
+      throw new Error("CLI export restored the unedited accepted proposal markdown after rejecting another proposal.");
     }
     if (exportedAfterReject.document.markdown.includes(REJECTED_TEXT)) {
       throw new Error("CLI export included rejected proposal markdown.");

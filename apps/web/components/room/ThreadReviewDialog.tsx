@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, Check, Quote, Send, X } from "lucide-react";
+import { Bot, Check, Pencil, Quote, Send, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import MarkdownRenderer from "../MarkdownRenderer";
 import { extractMarkdownProperties } from "../../lib/markdown-properties";
@@ -37,13 +37,27 @@ export function ThreadReviewDialog({
   const [confirmingAccept, setConfirmingAccept] = useState(false);
   const [askAgainOpen, setAskAgainOpen] = useState(false);
   const [askAgainText, setAskAgainText] = useState("");
-  const parsedProposal = proposal ? extractMarkdownProperties(proposal.proposedMarkdown) : null;
-  const diff = proposal ? proposal.diff || fallbackDiff(proposal.createdFromMarkdown, proposal.proposedMarkdown) : "";
+  const [editOpen, setEditOpen] = useState(false);
+  const [editedMarkdown, setEditedMarkdown] = useState("");
+  const [editedProposalId, setEditedProposalId] = useState<string | null>(null);
+  const activeEditedMarkdown = proposal && editedProposalId === proposal.id ? editedMarkdown : proposal?.proposedMarkdown ?? "";
+  const hasEditedMarkdown = Boolean(proposal && activeEditedMarkdown !== proposal.proposedMarkdown);
+  const reviewMarkdown = proposal ? activeEditedMarkdown : "";
+  const reviewProposal = proposal && hasEditedMarkdown ? proposalWithEditedMarkdown(proposal, editedMarkdown) : proposal;
+  const parsedProposal = proposal ? extractMarkdownProperties(reviewMarkdown) : null;
+  const diff = proposal
+    ? hasEditedMarkdown
+      ? fallbackDiff(proposal.createdFromMarkdown || proposal.proposedMarkdown, reviewMarkdown)
+      : proposal.diff || fallbackDiff(proposal.createdFromMarkdown, proposal.proposedMarkdown)
+    : "";
 
   useEffect(() => {
     setConfirmingAccept(false);
     setAskAgainOpen(false);
     setAskAgainText("");
+    setEditOpen(false);
+    setEditedMarkdown(proposal?.proposedMarkdown || "");
+    setEditedProposalId(proposal?.id || null);
   }, [proposal?.id]);
 
   return (
@@ -96,9 +110,40 @@ export function ThreadReviewDialog({
                       </div>
                     </div>
                   ) : null}
-                  <MarkdownRenderer content={parsedProposal?.content ?? proposal.proposedMarkdown} />
+                  <MarkdownRenderer content={parsedProposal?.content ?? reviewMarkdown} />
                 </div>
               </div>
+
+              {editOpen && (
+                <section className="mt-3 rounded-md border border-midnight/25 bg-studio-sunken/55 p-2.5" aria-label="Edit suggestion before accepting">
+                  <div className="mb-2 flex items-center justify-between gap-3 px-0.5">
+                    <p className="inline-flex items-center gap-1.5 text-[11px] font-medium text-ink-subtle">
+                      <Pencil className="h-3.5 w-3.5 text-midnight-strong" />
+                      Edit before accepting
+                    </p>
+                    <button
+                      type="button"
+                      className="h-8 rounded px-2 text-xs text-ink-subtle transition-colors hover:bg-studio-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-strong"
+                      onClick={() => {
+                        setEditedProposalId(proposal.id);
+                        setEditedMarkdown(proposal.proposedMarkdown);
+                      }}
+                    >
+                      Reset
+                    </button>
+                  </div>
+                  <Textarea
+                    aria-label="Edited proposal Markdown"
+                    value={editedMarkdown}
+                    onChange={(event) => {
+                      setEditedProposalId(proposal.id);
+                      setEditedMarkdown(event.target.value);
+                    }}
+                    rows={10}
+                    className="min-h-64 resize-y border-studio-line bg-studio-paper font-mono text-xs leading-5 text-ink placeholder:text-ink-subtle focus-visible:ring-1"
+                  />
+                </section>
+              )}
 
               <section className="mt-3 rounded-md border border-studio-line bg-studio-sunken/55 p-2.5" aria-label="Suggestion discussion">
                 <div className="mb-2 flex items-center justify-between gap-3 px-0.5">
@@ -119,14 +164,14 @@ export function ThreadReviewDialog({
               <DialogFooter className="border-t border-studio-line bg-studio-paper px-4 py-3 sm:px-5">
                 {confirmingAccept ? (
                   <div className="flex w-full items-center justify-end gap-2">
-                    <p className="mr-auto text-xs text-midnight-strong">Apply?</p>
+                    <p className="mr-auto text-xs text-midnight-strong">{hasEditedMarkdown ? "Apply edited Markdown?" : "Apply?"}</p>
                     <Button variant="outline" onClick={() => setConfirmingAccept(false)} aria-label={`Cancel accepting ${proposal.title}`}>
                       <X className="h-4 w-4" />
                       Cancel
                     </Button>
                     <Button
                       onClick={() => {
-                        onAccept(proposal);
+                        if (reviewProposal) onAccept(reviewProposal);
                         setConfirmingAccept(false);
                       }}
                       aria-label={`Confirm accepting ${proposal.title}`}
@@ -176,6 +221,16 @@ export function ThreadReviewDialog({
                   </form>
                 ) : (
                   <>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setEditOpen((open) => !open);
+                        setAskAgainOpen(false);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                      {editOpen ? "Hide edit" : "Edit"}
+                    </Button>
                     {onReply && (
                       <Button variant="outline" onClick={() => setAskAgainOpen(true)}>
                         <Bot className="h-4 w-4" />
@@ -188,7 +243,7 @@ export function ThreadReviewDialog({
                     </Button>
                     <Button onClick={() => setConfirmingAccept(true)}>
                       <Check className="h-4 w-4" />
-                      Accept
+                      {hasEditedMarkdown ? "Accept edited" : "Accept"}
                     </Button>
                   </>
                 )}
@@ -205,6 +260,26 @@ export function ThreadReviewDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function proposalWithEditedMarkdown(proposal: Proposal, markdown: string): Proposal {
+  const editedPath = proposal.filePath || proposal.proposedProject?.primaryPath;
+  const proposedProject = proposal.proposedProject
+    ? {
+        ...proposal.proposedProject,
+        updatedAt: new Date().toISOString(),
+        files: proposal.proposedProject.files.map((file) => (
+          file.path === editedPath ? { ...file, markdown } : file
+        )),
+      }
+    : undefined;
+  return {
+    ...proposal,
+    proposedMarkdown: markdown,
+    proposedSha256: undefined,
+    diff: undefined,
+    proposedProject,
+  };
 }
 
 function proposalDiscussionComment(proposal: Proposal): ChatComment {

@@ -43,6 +43,7 @@ export interface TimelineEvent {
   commentId?: string;
   filePath?: string;
   reply?: ChatCommentReply;
+  acceptedProject?: Proposal["proposedProject"];
 }
 
 export interface ChatCommentReply {

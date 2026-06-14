@@ -6,6 +6,7 @@ import {
   type EncryptedPayload,
 } from '../../spikes/e2ee-yjs-append-log/crypto.js';
 import type { EncryptedUpdateRecord, IncomingEncryptedUpdate } from '../server/append-log.js';
+import type { ProjectSnapshot } from './project-state.js';
 import type { RoomAccess } from './room-reference.js';
 
 export const TIMELINE_EVENT_SCHEMA = 'fold.timeline-event.v1';
@@ -27,6 +28,7 @@ export interface TimelineEvent {
   proposalId: string | null;
   documentSha256: string | null;
   message: string;
+  acceptedProject?: ProjectSnapshot;
 }
 
 export async function createEncryptedTimelineEvent(
@@ -122,7 +124,16 @@ function isTimelineEvent(value: unknown): value is TimelineEvent {
     typeof candidate.actorPersonaId === 'string' &&
     (typeof candidate.proposalId === 'string' || candidate.proposalId === null) &&
     (typeof candidate.documentSha256 === 'string' || candidate.documentSha256 === null) &&
-    typeof candidate.message === 'string'
+    typeof candidate.message === 'string' &&
+    (
+      candidate.acceptedProject === undefined ||
+      (
+        candidate.acceptedProject.schema === 'fold.project.v1' &&
+        typeof candidate.acceptedProject.primaryPath === 'string' &&
+        typeof candidate.acceptedProject.updatedAt === 'string' &&
+        Array.isArray(candidate.acceptedProject.files)
+      )
+    )
   );
 }
 
